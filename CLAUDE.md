@@ -12,6 +12,7 @@ A simulated drone flies on fast perception (Depth Anything V2 + SAM 2 + rule con
 - Before running anything, state which environment the command is for. Never launch HPC jobs, start/stop cloud VMs, or spend credits without asking.
 
 ## Working rules
+0. **Never modify `PLAN.md` unless the user explicitly asks.** It is read-only for the assistant. If the plan seems wrong or outdated, say so in chat or record it in `logs/AI_LOG.md`; do not edit the file. Deviations from the plan go in the log, not in the plan.
 1. **Plan first for anything non-trivial.** Small, reversible steps. Prefer the simplest thing that meets the milestone in `PLAN.md`.
 2. **No scope creep.** Items under "Cut first if late" in `PLAN.md` §3 stay cut unless the user says otherwise.
 3. **Determinism.** Every episode is keyed by `(split, seed)`. Seed lists live in `configs/seeds.yaml` and are frozen after Day 3. Never edit them afterwards. Never tune anything on test seeds.
