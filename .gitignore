@@ -218,3 +218,19 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- Project-specific (see CLAUDE.md) ---
+.DS_Store
+data/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.bin
+credentials*
+*.pem
+# Simulator binaries and raw renders
+sim/binaries/
+*.pak
+# Heavy experiment artifacts (keep small CSV summaries in results/)
+results/raw/
