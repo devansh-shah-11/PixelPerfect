@@ -6,6 +6,6 @@ Headline result: crash rate vs. VLM calls per episode for never / always / rando
 
 - Plan, schedule, metrics, blockers and fallbacks: [`PLAN.md`](PLAN.md)
 - Working rules for the AI assistant: [`CLAUDE.md`](CLAUDE.md)
-- Progress and AI logs: `logs/`
+- Agent Log (AI actions and mistakes, per member): [`AGENT_LOG.md`](AGENT_LOG.md); progress log: `logs/PROGRESS.md`
 
 Status: planning complete, implementation starting (Day 1 of 14).
