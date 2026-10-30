@@ -33,3 +33,10 @@
 - Unblocked: teammates can review PLAN.md v1.1, interfaces.py (S-04) and the smoke test (S-06).
 - Still blocked: workstream owners (Q1); partition names; simulator (A-01 to A-03, frame due Sat Oct 31).
 - Sanity check: pytest 7 passed.
+
+## 2026-10-30 13:30  |  docs  |  logs/next_steps_PP.md: five starting action items
+- Advances: S-06 / A-01 (instructions for the first Cloud Bursting session), S-03 (human read of CoDrone and AESOP), Q1.
+- Pushed to S/plan-v1.1-skeleton, so it joins PR #1.
+- Unblocked: PP can start the L4 smoke test today.
+- Still blocked: workstream owners (Q1); partition names; simulator (A-01 to A-03, frame due Sat Oct 31).
+- Sanity check: docs only; no code changed.

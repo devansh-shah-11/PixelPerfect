@@ -72,3 +72,14 @@
 - Evidence: `git fetch` showed origin/main unchanged at 8b56bec; GitHub API reports push permission; pytest 7 passed after the folder rename.
 - Outcome: success.
 - Follow-ups: a teammate reviews and merges the PR. Use a merge commit (not squash) so local main fast-forwards.
+
+## 2026-10-30 13:30  |  docs  |  Five starting action items for PP
+- Member: PP
+- Request: "give me 5 action items that i should start with - add that to some markdown file and push it".
+- Action: laptop. Wrote logs/next_steps_PP.md: (1) team call for owners and PR #1 review, (2) Mac setup and read interfaces.py, (3) first Cloud Bursting L4 session and smoke test, (4) AirSim binary headless by Sat Oct 31 with Plan B fallback, (5) human read of CoDrone and AESOP. Placed in logs/ because PLAN.md §7 has no docs/ folder.
+- Assumptions: Open OnDemand offers an interactive L4 session with a terminal [UNVERIFIED]. `$SCRATCH` is set on Cloud Bursting nodes [UNVERIFIED; the smoke test prints it]. A prebuilt Linux AirSim environment such as Blocks is on AirSim's GitHub releases [UNVERIFIED].
+- Decisions & alternatives: the Mac never talks to HPC at runtime; code goes through GitHub and results come back via the OnDemand file browser (user pointed out the Mac can't reach HPC directly). Rejected: Python client on the Mac driving a simulator on HPC.
+- Evidence: none needed (docs only).
+- Mistake: the assistant's shell hung on every command (even `echo`), so the assistant could not commit or push; the user ran the git commands.
+- Outcome: partial (file written; commit and push left to the user).
+- Follow-ups: PP pastes the smoke-test and `sinfo` output; assistant then writes the AirSim backend, settings.json, launch and capture scripts, plus the toy backend.
