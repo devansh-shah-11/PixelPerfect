@@ -3,12 +3,14 @@
 Read `PLAN.md` first. It is the source of truth for scope. If this file and `PLAN.md` disagree, `PLAN.md` wins: follow it, tell the user, and log the mismatch in `AGENT_LOG.md`. Task status lives in `TASKS.md`.
 
 ## Project in one paragraph
-A simulated drone flies on a fast stack (Depth Anything V2-Small, metric checkpoint, + rule controller; SAM 2 is an ablation only, `PLAN.md` D7). A small learned **gate** predicts when that perception is wrong (labels from simulator ground truth). Only when the gate fires do we ask **Qwen3-VL** (4B/8B) one yes/no question about the drawn flight path. Deliverable: crash rate vs. VLM calls/flight for never / always / random / hand-tuned threshold / learned gate / oracle (plus the true-depth reference), crash-cause analysis, Gradio replay and a report. Simulation only.
+A simulated drone flies on a fast stack (Depth Anything V2-Small, metric checkpoint, + rule controller; SAM 2 is an ablation only, `PLAN.md` D7). A small learned **gate** predicts when that perception is wrong (labels from simulator ground truth). Only when the gate fires do we ask **Qwen3-VL-2B** (8B as a size reference; `PLAN.md` D8) one yes/no question about the drawn flight path. The slow system is swappable (`PLAN.md` D18); the gate is the contribution. Deliverable: crash rate vs. VLM calls/flight for never / always / random / hand-tuned threshold / learned gate / oracle (plus the true-depth reference), crash-cause analysis, Gradio replay and a report. Simulation only.
 
 ## Environments (do not mix them up)
-- **Simulator machine (OPEN, `PLAN.md` D17)**: GCP GPU VM if credits are approved (Q2); otherwise NYU HPC via Apptainer if the time-boxed try works; otherwise the Plan B simulator (`PLAN.md` §11). Runs AirSim/Colosseum and closed-loop flights.
-- **NYU HPC (SLURM)**: batch perception, gate training, standalone VLM eval, and the simulator if Apptainer works. No sudo, no display. Work in scratch, not home. Cache models via `HF_HOME` on scratch. 300 hours per member (`PLAN.md` §8).
-- **Laptop (macOS)**: editing, Gradio demo, Plan B simulator, plotting. No GPU assumptions.
+- **NYU HPC Cloud Bursting (Slurm), the only cluster we use** (`PLAN.md` D17, §8). **Never use the Torch cluster** (course rule). Slurm account `csci_ga_2271-2026fa`; Open OnDemand at `https://ood.burst.hpc.nyu.edu/` (NYU VPN off-campus). 300 GPU-hours per student. No sudo, no display. Work in scratch, not home. Cache models via `HF_HOME` on scratch.
+  - **L4**: simulator (Singularity, offscreen) + fast stack + VLM **in one job**. **A100 (40 GB)**: batch VLM evaluation and the 8B model.
+  - **20-minute idle shutdown**: nodes with low GPU use for 20 minutes are terminated. Never leave a GPU session idle, never run the VLM as a separate mostly-idle server, and checkpoint every long job.
+- **GCP GPU VM**: fallback only, if Cloud Bursting can't render the simulator and credits exist (Q2). **Plan B simulator** (`PLAN.md` §11) if neither works.
+- **Laptop (macOS)**: editing, reading and debugging, CPU-only work (thin-structure filters, gradient boosting), Gradio demo, Plan B simulator, plotting. No GPU assumptions.
 - Before running anything, state which environment the command is for. Never launch HPC jobs, start/stop cloud VMs, or spend credits without asking.
 
 ## Working rules
@@ -22,7 +24,7 @@ A simulated drone flies on a fast stack (Depth Anything V2-Small, metric checkpo
 7. **Surrogate VLM results must be labeled** "surrogate VLM" everywhere (tables, plots, file names).
 8. **Reuse before writing.** Check the `PLAN.md` §7 layout and existing modules first. All policies go behind the single interface in `policies/`.
 9. **Match surrounding code style.** Python 3.10+, type hints on public functions, config via YAML in `configs/`, no hard-coded paths.
-10. **Long jobs must be resumable**: append per-episode results to JSONL/CSV and skip finished `(policy, seed)` pairs on restart.
+10. **Long jobs must be resumable**: append per-episode results to JSONL/CSV and skip finished `(policy, seed)` pairs on restart. This is required, not optional: Cloud Bursting kills idle nodes after 20 minutes.
 
 ## Git workflow
 - Repo: `github.com/devansh-shah-11/PixelPerfect`, default branch `main`.
