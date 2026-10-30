@@ -83,4 +83,5 @@ Be concise and factual. State what was run, where, and the result. Say plainly w
 - Sweep: `python eval/sweep.py --config configs/sweep.yaml`
 - Metrics/plots: `python eval/plots.py`
 - Demo: `python demo/app.py` (reads logs only; no simulator needed)
-- HPC job template: `hpc/job_template.sbatch`
+- Tests: `.venv/bin/python -m pytest` (laptop)
+- HPC job template: `sbatch hpc/job_template.sbatch` (default: smoke test; other commands via `--export=ALL,CMD="..."`)

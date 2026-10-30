@@ -13,3 +13,10 @@
 - Unblocked: assistant rules now match PLAN.md v1.0, so work can follow PLAN.md and TASKS.md directly.
 - Still blocked: every Sprint 1 task is TODO with no owner; all Sprint 1 dates through Oct 28 have passed (see AGENT_LOG.md). Simulator (A-01/A-02) is the critical path.
 - Sanity check: cross-reference script (every §, D-id, Q-id, task id in CLAUDE.md exists): pass. No leftover `AI_LOG` references: pass.
+
+## 2026-10-29 20:00  |  f27ee87  |  docs: PLAN.md v1.1 after meeting with Prof. Xie, HPC facts, related work
+- Advances: S-03 (related work started), Q5 and Q7 closed; D17 decided pending A-01.
+- Not pushed. Needs one teammate's review (PLAN.md §0).
+- Unblocked: Sprint 1 (re-dated, Thu Oct 29 to Wed Nov 11) can start: owners (Q1), Cloud Bursting test jobs, A-01 on an L4.
+- Still blocked: TASKS.md dates are stale; workstream owners unassigned.
+- Sanity check: cross-reference and table check over CLAUDE.md, PLAN.md, report/*.md: pass.
