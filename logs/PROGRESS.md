@@ -20,3 +20,16 @@
 - Unblocked: Sprint 1 (re-dated, Thu Oct 29 to Wed Nov 11) can start: owners (Q1), Cloud Bursting test jobs, A-01 on an L4.
 - Still blocked: TASKS.md dates are stale; workstream owners unassigned.
 - Sanity check: cross-reference and table check over CLAUDE.md, PLAN.md, report/*.md: pass.
+
+## 2026-10-29 20:09  |  078e7ac, f0ebbeb  |  skeleton + interfaces + smoke test; CoDrone read
+- Advances: S-04 (draft interfaces), S-06 (smoke test ready), S-03 (CoDrone done via AI summary), TASKS.md re-dated to PLAN.md v1.1.
+- Not pushed (4 commits ahead of origin/main).
+- Unblocked: B and C can code against interfaces.py with DDOS stand-ins; each member can run the smoke test today.
+- Still blocked: workstream owners (Q1); partition names; simulator (A-01 to A-03).
+- Sanity check: pytest 7 passed; HPC scripts pass bash -n.
+
+## 2026-10-30 12:50  |  PR  |  logs committed; branch S/plan-v1.1-skeleton pushed
+- Advances: the 4 local commits are now on GitHub for review (PLAN.md §0).
+- Unblocked: teammates can review PLAN.md v1.1, interfaces.py (S-04) and the smoke test (S-06).
+- Still blocked: workstream owners (Q1); partition names; simulator (A-01 to A-03, frame due Sat Oct 31).
+- Sanity check: pytest 7 passed.

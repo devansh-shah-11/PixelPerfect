@@ -40,3 +40,35 @@
 - Evidence: script output "OK: 33 replacements + Section 13"; check that every D/Q/§ reference in CLAUDE.md, PLAN.md and both new files exists and every Markdown table has consistent columns: ALL OK. `grep 4B PLAN.md`: none left.
 - Outcome: success.
 - Follow-ups: one teammate reviews before push (PLAN.md §0). TASKS.md due dates still use the old schedule. Read CoDrone and AESOP in full (Q10). Fill in the meeting date.
+
+## 2026-10-29 20:09  |  eval  |  Repo skeleton, shared interfaces, smoke test, TASKS.md re-dated
+- Member: PP
+- Request: "Let's take whatever step next is required and start our work!"
+- Action: laptop. Wrote interfaces.py (PLAN.md §6 types and Protocols), tests/test_interfaces.py, pyproject.toml, package folders from PLAN.md §7, configs/README.md, hpc/job_template.sbatch, hpc/smoke_test.sh. Re-dated TASKS.md by script (68 dates, 21 text changes). Created a local .venv with uv (Python 3.10, gitignored) because the laptop only has Python 3.9 without numpy. Commit 078e7ac.
+- Assumptions: Slurm `--gres=gpu:1` works on Cloud Bursting and partition names are unknown (left as FILL_ME_IN) [UNVERIFIED]. Whether compute nodes have internet access is unknown; the smoke test checks it [UNVERIFIED].
+- Decisions & alternatives: policies receive a history of RuntimeStep (no ground truth), not FrameRecord, to keep CLAUDE.md rule 5 enforceable by type; rejected passing full log rows. Gate.score takes a features dict (PLAN.md §6) and the encoder embedding goes under features["embedding"], instead of a separate argument. Added split and gate_score to FrameRecord (not in PLAN.md §6). Did not implement any workstream task beyond S-04/S-06 stubs.
+- Evidence: pytest 7 passed. bash -n on both HPC scripts: ok. Smoke test dry run on the laptop degrades gracefully (no GPU, no Singularity). TASKS.md: 0 old dates left; all tables have consistent columns.
+- Mistake: the TASKS.md script first failed because "### Sprint 1 (to Tue Nov 3)" appears three times; it stopped before writing (exactly-once check), then was fixed to replace all three.
+- Outcome: success.
+- Follow-ups: all three members must agree on interfaces.py (S-04). Each member runs the smoke test (S-06) and fills in the partition name.
+
+## 2026-10-29 20:09  |  docs  |  CoDrone full text: VLM trigger is rule-based (Q10)
+- Member: PP
+- Request: same session; reading CoDrone was the agreed next step.
+- Action: fetched arxiv.org/html/2512.19083; an AI tool summarized the first ~100k of ~120k characters. Updated report/related_work.md. Commit f0ebbeb.
+- Assumptions: findings come from an AI summary of the HTML, not a human read; the last ~17% of the page was not read [UNVERIFIED].
+- Decisions & alternatives: claim kept; CoDrone's rule trigger to be used as a reference baseline. PLAN.md Q10 not edited (rule 0: no explicit request); proposed to the user instead.
+- Evidence: summary cites §IV-B3 (A2C scheduler: state = steering, collision rate, 5-step average, bandwidth; action = onboard/edge, depth on/off, compression), §IV-C1 (rule-based VLM invocation; drone suspended during analysis), §V-VI (AirSim Coastline; QoN, flight distance, latency; no collision metric).
+- Outcome: success. This narrows the risk flagged in the previous entry: no drone paper found so far learns when to ask a VLM.
+- Follow-ups: a human reads CoDrone and AESOP fully before the paper cites them.
+
+## 2026-10-30 12:50  |  infra  |  Recovered lost session; pushed to a branch and opened a PR
+- Member: PP
+- Request: "go ahead create a PR" (after the project folder was renamed, which hid the previous Claude Code session).
+- Action: laptop. Found the old session transcript under the old folder path and restored its project memory. Created branch S/plan-v1.1-skeleton from local main (4 commits ahead of origin/main), committed the pending AGENT_LOG.md and logs/PROGRESS.md entries, pushed the branch, opened a PR into main.
+- Assumptions: none new.
+- Decisions & alternatives: branch + PR instead of pushing to main, so a teammate reviews the PLAN.md changes as PLAN.md §0 requires. One combined branch rather than one per task, since the 4 commits were already stacked.
+- Mistake: the previous session ended ("Not logged in") before acting on the user's "go ahead" to push; the PR was not opened until this session.
+- Evidence: `git fetch` showed origin/main unchanged at 8b56bec; GitHub API reports push permission; pytest 7 passed after the folder rename.
+- Outcome: success.
+- Follow-ups: a teammate reviews and merges the PR. Use a merge commit (not squash) so local main fast-forwards.
