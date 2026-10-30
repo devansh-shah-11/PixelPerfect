@@ -234,3 +234,6 @@ sim/binaries/
 *.pak
 # Heavy experiment artifacts (keep small CSV summaries in results/)
 results/raw/
+
+# Slurm job output (hpc/job_template.sbatch)
+slurm-*.out
