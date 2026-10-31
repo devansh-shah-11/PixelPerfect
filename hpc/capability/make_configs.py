@@ -14,7 +14,7 @@ import os
 
 import commentjson
 
-RESOLUTIONS = [(400, 225), (1280, 720)]
+RESOLUTIONS = [(400, 225, False), (1280, 720, False), (400, 225, True)]  # (w, h, depth noise on)
 ENABLED_TYPES = {0, 2, 3}  # scene RGB, depth perspective, segmentation
 
 
@@ -23,7 +23,7 @@ def load(path: str) -> dict:
         return commentjson.load(f)
 
 
-def make_robot(base: dict, width: int, height: int) -> dict:
+def make_robot(base: dict, width: int, height: int, noisy: bool = False) -> dict:
     robot = copy.deepcopy(base)
     sensors = robot["sensors"]
     down = next(s for s in sensors if s["id"] == "DownCamera")
@@ -37,6 +37,13 @@ def make_robot(base: dict, width: int, height: int) -> dict:
         cs["streaming-enabled"] = False
         cs["compress"] = False
         cs["pixels-as-float"] = cs["image-type"] in (1, 2)
+    if noisy:  # shipped noise model, enabled for planar (1) and perspective (2) depth
+        tmpl = next((n for n in down.get("noise-settings", []) if n.get("image-type") == 1), None)
+        if tmpl is None:
+            raise SystemExit("no depth noise template found in the shipped DownCamera config")
+        front["noise-settings"] = [dict(copy.deepcopy(tmpl), enabled=True, **{"image-type": t}) for t in (1, 2)]
+    else:
+        front.pop("noise-settings", None)
     # Disable the other cameras so timings reflect FrontCam only
     for s in sensors:
         if s["id"] in ("DownCamera", "Chase"):
@@ -69,10 +76,11 @@ if __name__ == "__main__":
 
     base_robot = load(os.path.join(args.src, "robot_quadrotor_nonphysics.jsonc"))
     base_scene = load(os.path.join(args.src, "scene_manual_step_drone.jsonc"))
-    for w, h in RESOLUTIONS:
-        robot_file, scene_file = f"robot_cap_{w}.jsonc", f"scene_cap_{w}.jsonc"
+    for w, h, noisy in RESOLUTIONS:
+        tag = f"{w}n" if noisy else f"{w}"
+        robot_file, scene_file = f"robot_cap_{tag}.jsonc", f"scene_cap_{tag}.jsonc"
         with open(os.path.join(args.out, robot_file), "w") as f:
-            json.dump(make_robot(base_robot, w, h), f, indent=2)
+            json.dump(make_robot(base_robot, w, h, noisy), f, indent=2)
         with open(os.path.join(args.out, scene_file), "w") as f:
             json.dump(make_scene(base_scene, robot_file), f, indent=2)
-        print(f"wrote {scene_file} and {robot_file} ({w}x{h})")
+        print(f"wrote {scene_file} and {robot_file} ({w}x{h}{', depth noise on' if noisy else ''})")
