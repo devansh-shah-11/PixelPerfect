@@ -172,6 +172,40 @@ Blocked / need from others: none | "need interface X from B by Thu"
 
 ---
 
+## Week plan: Mon Nov 2 to Sun Nov 8 (core CV first, simulator second)
+
+Why this section exists: capability jobs 16299/16300 (2026-10-31) gave a CityEnviron frame bank (411 episodes, 19,267 frames) but the closed loop (A-06 to A-09) is not built. So this week's CV work runs on the existing bank. Findings are in `hpc/instructions.md` §3.5. This is a deviation from the Sprint 1 order in `PLAN.md` §13 (to be logged in `logs/AI_LOG.md`); `PLAN.md` is unchanged.
+
+Ground rules for these rows:
+- Hard cases this week: poles, glass, white walls, boxes. Wires are unverified (see W-A1).
+- Bank episode seeds are 10000+ep, not `configs/seeds.yaml`. Split by **episode**, never by frame. Keep `clear` and `dusk`; treat `rain` as clear; exclude `fog`; exclude or mask `snow` for depth labels [UNVERIFIED on bank PNGs until W-S1 is done]. No weather results from this bank.
+- Tune on val only. The test split stays closed until the end of the project.
+- Bank flights are straight runs at one obstacle: fine for saved-frame studies, not a substitute for closed-loop crash rates. Say so in any result.
+
+| ID | Task | Owner | Due | Depends on | Done when | Status | Notes |
+|---|---|---|---|---|---|---|---|
+| W-S1 | Bank gallery + split: copy ~20 frames (RGB, seg, depth) per condition from `/scratch/$USER/frame_bank/CityEnviron`; decide kept conditions; write `configs/bank_split.yaml` (train/val/test by episode id, stratified by obstacle and condition, with checksum) | shared | Mon Nov 2 | | Split file + 1-page gallery note; script check shows no episode in two splits | TODO | Everything else depends on this |
+| W-S2 | Depth clipping rule: max range (e.g. 100 m) + sky mask from seg, one function in `perception/` | shared | Mon Nov 2 | | Unit test on 3 saturated frames (65504 m sky) | TODO | |
+| W-B1 | Depth Anything V2-Small (metric) on kept bank frames; HPC sbatch, resumable JSONL; estimated depth + corridor-min per frame | B | Tue Nov 3 | W-S1, W-S2 | JSONL for all kept frames | TODO | Ask before launching HPC jobs |
+| W-B2 | Scale check: error vs. GT distance; frozen global scale+shift fit on **train episodes only** if needed | B | Thu Nov 5 | W-B1 | Plot + frozen params file | TODO | |
+| W-B3 | L1 label function `gate/labels.py` (GT corridor min < `d_safe` while estimate ≥ `d_safe`; false stops logged separately); unit tests; eyeball 20 pos + 20 neg | B | Wed Nov 4 | W-B1 | Tests pass; eyeball note | TODO | Check labels track obstacles, not distance (PLAN.md §11 blocker 7) |
+| W-B4 | Depth-variance threshold baseline, then gradient boosting on corridor stats; AUROC/AUPRC on val episodes, per obstacle family | B | Fri Nov 6 | W-B3, W-B2 | Val table | TODO | AUROC > 0.99 means suspect leakage |
+| W-C1 | Path-overlay + full-res corridor crop renderer (`vlm/`), using pose and `gt_along_m`/`gt_lateral_m` from `frames.jsonl` | C | Tue Nov 3 | W-S1 | Looks right on 10 frames per obstacle type | TODO | |
+| W-C2 | Serve Qwen3-VL 4B and 8B on HPC; median and p95 latency | C | Mon Nov 2 | | Latency numbers in README | TODO | Ask before launching |
+| W-C3 | VLM standalone eval on ~200 labelled bank frames per obstacle type (pole, box, ball, building block, white wall, glass); table by type x distance; crop/path on/off | C | Wed Nov 4 | W-C1, W-C2 | Table. **Kill switch: recall < ~60% on visible types → crop/prompt/8B, then another VLM, then surrogate** | TODO | Wires reported separately, flagged unverified |
+| W-C4 | `eval/metrics.py` (Wilson/bootstrap CIs, safety retained, calls/flight) + `vlm/surrogate.py` using TPR/FPR from W-C3 | C | Fri Nov 6 | W-C3 | Runs on bank-derived data; surrogate results labeled "surrogate VLM" | TODO | |
+| W-C5 | `policies/` interface: never, always, random(p), cooldown; unit tests | C | Fri Nov 6 | | Tests pass | TODO | Same as C-06 |
+| W-A1 | Verify wires: spawn 3 cm and 1 cm wire, check seg ID and GT depth along the camera ray at 3/6/10 m (not RGB) | A | Fri Nov 6 | | Written yes/no per thickness and distance | TODO | The 1 cm wire at 10 m is not visible in the capability images |
+| W-A2 | Fix weather test: reload scene per effect, measure brightness/contrast, fix white video RGB panel, try higher rain / lower fog | A | Sun Nov 8 | | One clear vs rain/fog image pair visibly differs; fog is hazy, not black | TODO | Side issue; only matters if weather is a failure mode |
+| W-A3 | Fix depth noise (0.0 m difference vs clean session) | A | Sun Nov 8 | | Noisy session differs measurably from clean | TODO | Config not applied or measured wrongly [UNVERIFIED which] |
+| W-A4 | Rerun Neighborhood with `EXTRA="--skip video_clear --skip video_rain_fog"` | A | optional | | results.json complete | TODO | Only if a second environment is wanted; needs approval (A100, up to 1.75 h) |
+| W-A5 | Kinematic drone + scenario generator + freeze `configs/seeds.yaml` | A | Sun Nov 8 | | Same as A-06 | TODO | Closed loop depends on it |
+| W-A6 | Fresh-account setup check: one friend follows `hpc/instructions.md` literally and fixes what breaks | A | Sun Nov 8 | | Pass/fail recorded; versions pinned (`projectairsim==1.0.1`, Python 3.11, partition `c12m85-a100-1`) | TODO | Neighborhood segfault is a known issue |
+
+Week milestone (Sun Nov 8): val-only results table for depth/labels/gate and VLM recall by obstacle type; honest note that the closed loop is not done. Update `PROGRESS LOG` below at the walkthrough.
+
+---
+
 ## Backlog pool (anyone, when ahead)
 
 Pull from `PLAN.md` Appendix A. Copy the item here with an ID (`X-01`, ...) before starting.
