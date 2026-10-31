@@ -234,3 +234,5 @@ sim/binaries/
 *.pak
 # Heavy experiment artifacts (keep small CSV summaries in results/)
 results/raw/
+.claude/*
+.serena/*
