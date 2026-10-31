@@ -79,8 +79,8 @@ Everything below was written 2026-10-31. Status is marked per step: DONE = actua
 |---|---|---|---|
 | `Blocks-Linux-1.0.1.zip` (release v1.0.1) | HPC `/scratch/$USER/airsim/` | 584 MB | DONE (section 1) |
 | `projectairsim==1.0.1` (pip) and repo clone `ProjectAirSim` tag v1.0.1 | HPC conda env `pa`, `/scratch/$USER/airsim/ProjectAirSim` | small | DONE (section 1) |
-| `Neighborhood-Linux-1.0.1.zip` | HPC `/scratch/$USER/airsim/downloads/` then unpacked to `/scratch/$USER/airsim/envs/Neighborhood` | 1.8 GB | TODO |
-| `CityEnviron-Linux-1.0.1.zip.001` + `.002` | same, joined then unpacked to `.../envs/CityEnviron` | 1.9 GB + 1.3 GB | TODO |
+| `Neighborhood-Linux-1.0.1.zip` | HPC `/scratch/$USER/airsim/downloads/` then unpacked to `/scratch/$USER/airsim/envs/Neighborhood` | 1.8 GB | DONE (job 16299 ran on it; sim segfaulted late, see 3.5) |
+| `CityEnviron-Linux-1.0.1.zip.001` + `.002` | same, joined then unpacked to `.../envs/CityEnviron` | 1.9 GB + 1.3 GB | DONE (job 16300 completed) |
 | `LandscapeMountains-Linux-1.0.1.zip` | same, `.../envs/LandscapeMountains` | 0.6 GB | TODO, optional |
 | UrbanScene3D (UE4 dataset) | not downloaded; notes in `logs/REFERENCES.md` | n/a | TODO, undecided |
 
@@ -103,8 +103,9 @@ Docs we read (v1.0.1 tag): `docs/development/use_prebuilt.md`, `docs/scene/weath
 scp hpc/capability/* <netid>@<hpc-host>:/scratch/<netid>/capability/
 
 # HPC CPU terminal: download one environment at a time (resumable: wget -c; safe to re-run)
-bash /scratch/$USER/capability/download_envs.sh Neighborhood
-bash /scratch/$USER/capability/download_envs.sh CityEnviron
+bash /scratch/$USER/capability/download_envs.sh Neighborhood        # 1.8 GB
+bash /scratch/$USER/capability/download_envs.sh CityEnviron         # 3.2 GB, two parts, joined then unzipped
+bash /scratch/$USER/capability/download_envs.sh LandscapeMountains  # 0.6 GB, optional
 # if the launcher is not found later:
 find /scratch/$USER/airsim/envs/Neighborhood -maxdepth 3 -name '*.sh'
 
@@ -128,3 +129,30 @@ EXTRA="--scan-extent 150" sbatch --export=ALL,ENV=CityEnviron /scratch/$USER/cap
 
 ### 3.5 Results so far
 - Job 15689 (Blocks, A100, script v1): sim and API worked; found stale first frames after spawn/pose change, `get_images` times out while paused unless a step happens concurrently, `enable_api_control` unsupported for non-physics, 400 px loop 0.52x real time, 1280 px 0.10x, RGB not bit-repeatable, segmentation did not distinguish spawned objects. The v2 script was written to address these; it has not been run on a live sim yet.
+
+#### Jobs 16299 (Neighborhood) and 16300 (CityEnviron), script v2, A100, 2026-10-31 (reanalysed afterwards)
+Source: `pa-capability_*.out`, `capability_*/results.json`, the PNGs and mp4s. Items marked [UNVERIFIED] are inferred, not checked on the data.
+
+**CityEnviron: completed (exit 0).**
+- Frame bank: 411 episodes, 19,267 frames, no failures, 5009 s (the 5400 s budget ended it). Condition mix: clear 166, snow 77, rain 66, fog 53, dusk 49. Obstacle mix: none 71, nine types with 24 to 54 each. Only metadata (`episodes.jsonl`, `frames.jsonl`) is in `Framebank/` on the laptop; the PNGs are on HPC scratch.
+- Speed: 400 px about 222 ms/step (0.45x real time); 1280 px about 975 ms/step (0.1x), so 1280 px is for spot checks only.
+- `images_while_paused_concurrent_step` FAILED ("Canceled") at both resolutions. It passed on Neighborhood.
+- Depth saturates at 65504 m (sky); Neighborhood 16416 m. Clip and mask before use.
+- RGB is not repeatable: same pose twice differs in about 68k pixels (max diff 145 to 164). The bank is the fixed reference.
+
+**Neighborhood: partial.** All 400 px sections up to `time_of_day_and_sun` passed. Then `video_clear`, `video_rain_fog` and `clean_depth_reference` timed out, the Unreal engine segfaulted (signal 11), and every later section (noisy depth, 1280 px, frame bank) failed. Cause not confirmed; the video section is the likely trigger [UNVERIFIED]. Rerun with `EXTRA="--skip video_clear --skip video_rain_fog"` if a second environment is wanted.
+
+**Corrections to what the log first reported**
+- `weather_visibly_changes_rgb: true` was a false pass: it counts changed pixels, and fog/dust blacking out the frame also counts.
+- Rain 0.8 looks the same as clear (mean abs diff 1.35, noise level). Fog, dust and rain+fog render near-black. Snow gives a few flakes, and flakes land in depth (bank median corridor depth 1.5 m vs 32.8 m for clear).
+- Effects contaminate each other: zeroing a parameter does not remove spawned particles (snow flakes in the fog image, leaves in rain+fog). Reload the scene between effects.
+- Both videos have a pure white RGB panel; depth and seg panels are identical, so they say nothing about weather.
+- Night and every lux setting give mean brightness 0.1 to 0.3 of 255; only about 06:00 to 19:00 is usable.
+- Depth noise has no effect (0.0 m difference vs the clean session). Config not applied or measured wrongly [UNVERIFIED which].
+- `after_destroy_rgb_changed_vs_empty` is about 1,400 px for every obstacle in CityEnviron, i.e. the render noise floor. It cannot show visibility.
+- The 1 cm wire at 10 m is not visible in the 400 px or 1280 px images (not confirmed it was in frame). Whether wires render, or appear in GT depth/seg, is unknown; check via segmentation IDs and GT depth along the ray.
+- 1280 px obstacle test covered only 5 obstacles (about 10 s each).
+
+**Implication for the frame bank** [UNVERIFIED on bank PNGs]: keep `clear` and `dusk`; treat `rain` as clear; exclude `fog`; exclude or mask `snow` for depth labels. Obstacle geometry labels are usable. Do not report weather results from this bank.
+
+**Known issue for new users:** do not run the video sections on Neighborhood until the segfault is understood.
