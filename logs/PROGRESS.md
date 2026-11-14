@@ -83,3 +83,10 @@
 - Unblocked: first real numbers (miss rate per obstacle type, scale), then the threshold baseline and first gate (W-B4).
 - Still blocked: `d_safe` choice; PR #1 and PR #2 not reviewed.
 - Sanity check: pytest 44 passed.
+
+## 2026-11-14 15:10  |  gate  |  first results; clean GT labels from the segmentation image
+- Advances: W-B2 (scale check run: no correction frozen), W-B3 (eyeball check done on 20+20; rain label noise found and a fix written), W-B1 (results: 76% of dangerous train frames missed at d_safe 8 m).
+- Pushed to B/W-B1-perception (PR #2).
+- Unblocked: clean labels for all frames (CPU only), then the threshold baseline and first gate (W-B4).
+- Still blocked: `d_safe` choice; simulator questions for DS (floating obstacles, one start point, 400x225 resolution); PRs not reviewed.
+- Sanity check: pytest 45 passed.

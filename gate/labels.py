@@ -13,6 +13,8 @@ from enum import IntEnum
 
 import numpy as np
 
+from perception.depth_utils import MAX_RANGE_M, clip_depth, corridor_window
+
 
 class Outcome(IntEnum):
     """How the fast stack's corridor reading compares with ground truth."""
@@ -53,3 +55,28 @@ def l1_labels(
 ) -> np.ndarray:
     """L1 gate label per frame: 1 for a missed obstacle, else 0."""
     return (outcomes(corridor_min_gt, corridor_min_est, d_safe) == Outcome.MISSED).astype(np.int8)
+
+
+def clean_corridor_min(
+    depth_gt: np.ndarray, obstacle_mask: np.ndarray, max_range: float = MAX_RANGE_M, scene_percentile: float = 2.0
+) -> dict[str, float | int]:
+    """Ground-truth corridor distance that ignores weather particles.
+
+    Rain particles are in the simulator's depth image but not in its
+    segmentation image, so a plain minimum reports "obstacle at 2 m" in an empty
+    scene. Here the spawned obstacle (``obstacle_mask``) contributes its true
+    minimum, so a one-pixel wire still counts, while the rest of the scene
+    contributes a low percentile, which a few particle pixels cannot move.
+    """
+    rows, cols = corridor_window(depth_gt.shape)
+    corridor = clip_depth(depth_gt, max_range)[rows, cols]
+    mask = obstacle_mask[rows, cols]
+    obstacle = float(corridor[mask].min()) if mask.any() else float(max_range)
+    rest = corridor[~mask]
+    scene = float(np.percentile(rest, scene_percentile)) if rest.size else float(max_range)
+    return {
+        "corridor_min_gt_obstacle": obstacle,
+        "corridor_min_gt_scene": scene,
+        "corridor_min_gt_clean": min(obstacle, scene),
+        "obstacle_px": int(mask.sum()),
+    }

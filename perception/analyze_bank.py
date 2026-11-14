@@ -29,9 +29,16 @@ from perception.frame_bank import load_rgb, read_jsonl
 MIN_ALONG_M = 1.0
 
 
-def load_run(run_path: str | Path, split: dict[str, Any], min_along: float = MIN_ALONG_M) -> list[dict[str, Any]]:
-    """Run rows from train and val episodes, each tagged with ``split``."""
+def load_run(
+    run_path: str | Path, split: dict[str, Any], min_along: float = MIN_ALONG_M, gt_path: str | Path | None = None
+) -> list[dict[str, Any]]:
+    """Run rows from train and val episodes, each tagged with ``split``.
+
+    With ``gt_path`` (from ``gate.bank_gt``), ``corridor_min_gt`` is replaced by
+    the clean value; the raw one is kept as ``corridor_min_gt_raw``.
+    """
     of_episode = split_of_episode(split)
+    clean = {r["stem"]: r for r in read_jsonl(gt_path)} if gt_path else None
     rows = []
     for row in read_jsonl(run_path):
         name = of_episode.get(int(row["episode"]))
@@ -40,6 +47,8 @@ def load_run(run_path: str | Path, split: dict[str, Any], min_along: float = MIN
         along = row.get("gt_along_m")
         if along is not None and along < min_along:
             continue
+        if clean is not None:
+            row = {**row, "corridor_min_gt_raw": row["corridor_min_gt"], "corridor_min_gt": clean[row["stem"]]["corridor_min_gt_clean"]}
         rows.append({**row, "split": name})
     return rows
 
@@ -177,6 +186,7 @@ def main() -> None:
     parser.add_argument("--run", required=True, help="JSONL from perception.run_bank")
     parser.add_argument("--split", default="configs/bank_split.yaml")
     parser.add_argument("--d-safe", nargs="+", type=float, default=[5.0, 8.0, 10.0, 12.0])
+    parser.add_argument("--gt", help="clean ground truth from gate.bank_gt; replaces the raw corridor minimum")
     parser.add_argument("--min-along", type=float, default=MIN_ALONG_M)
     parser.add_argument("--fit-max", type=float, default=40.0)
     parser.add_argument("--out", help="write the full report here as JSON")
@@ -185,7 +195,7 @@ def main() -> None:
     parser.add_argument("--sheet-d-safe", type=float, default=8.0)
     args = parser.parse_args()
 
-    rows = load_run(args.run, load_split(args.split), args.min_along)
+    rows = load_run(args.run, load_split(args.split), args.min_along, args.gt)
     by_split = Counter(r["split"] for r in rows)
     print(f"{len(rows)} frames (train {by_split['train']}, val {by_split['val']}); test and excluded episodes not loaded")
 

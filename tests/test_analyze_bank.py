@@ -65,3 +65,28 @@ def test_eyeball_sheet_from_a_real_run(tmp_path):
     counts = eyeball_sheet(bank, rows, d_safe=8.0, out=out, n=2, cols=2)
     assert counts == {"positives": 2, "negatives": 2}  # episode 1 has the missed pole
     assert Image.open(out).size == (2 * 400, 2 * 225)
+
+
+def test_clean_gt_ignores_particles_but_keeps_a_one_pixel_wire(tmp_path):
+    from gate.bank_gt import write_bank_gt
+    from gate.labels import clean_corridor_min
+
+    depth = np.full((225, 400), 60.0, dtype=np.float32)
+    mask = np.zeros((225, 400), dtype=bool)
+    depth[100, 195:198] = 2.0  # three rain-particle pixels, not in the segmentation
+    assert clean_corridor_min(depth, mask)["corridor_min_gt_clean"] == 60.0
+    depth[90:135, 200] = 6.0  # a one-pixel-wide wire, marked as the obstacle
+    mask[90:135, 200] = True
+    out = clean_corridor_min(depth, mask)
+    assert out["corridor_min_gt_clean"] == 6.0 and out["obstacle_px"] == 45 and out["corridor_min_gt_scene"] == 60.0
+
+    bank = write_bank(tmp_path / "bank", n_episodes=2, steps=2)
+    for stem in ("0000_000", "0000_001", "0001_000", "0001_001"):  # no obstacle colour anywhere
+        Image.fromarray(np.zeros((225, 400, 3), dtype=np.uint8)).save(bank / "frames" / f"{stem}_seg.png")
+    gt = tmp_path / "gt.jsonl"
+    assert write_bank_gt(bank, gt) == 4
+    run = tmp_path / "run.jsonl"
+    run_bank(bank, run, BlindModel())
+    rows = load_run(run, {"splits": {"train": [0, 1], "val": [], "test": []}}, gt_path=gt)
+    pole = [r for r in rows if r["episode"] == 1][0]
+    assert pole["corridor_min_gt_raw"] == 5.0 and pole["corridor_min_gt"] == 5.0  # 400 px block: above the 2% cut
