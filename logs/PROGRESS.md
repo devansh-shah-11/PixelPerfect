@@ -76,3 +76,10 @@
 - Still blocked: job 32117 output; `d_safe` choice (must stay well under about 18 m, see AGENT_LOG.md).
 - Sanity check: `load_split` checksum ok; pytest 39 passed.
 - Backup reminder: a frozen config was added. The bank itself lives only on /scratch/dns5508; a second copy is worth making (PLAN.md §11). Not run.
+
+## 2026-11-14 12:55  |  perception  |  full bank run done (19,267 frames); analysis script added
+- Advances: W-B1 (bank run complete, job 32117), W-B2 and W-B3 (script for scale check, miss rates and eyeball sheet; not yet run on real data).
+- Pushed to B/W-B1-perception (PR #2).
+- Unblocked: first real numbers (miss rate per obstacle type, scale), then the threshold baseline and first gate (W-B4).
+- Still blocked: `d_safe` choice; PR #1 and PR #2 not reviewed.
+- Sanity check: pytest 44 passed.

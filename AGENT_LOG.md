@@ -159,3 +159,13 @@
 - Correction: the previous entry's "possible stale frames" is withdrawn for head-on episodes.
 - Outcome: success.
 - Follow-ups for the analysis: (1) `gt_along_m` is to the obstacle's centre, about 0.4 m beyond the surface the camera sees; (2) drop each episode's last frames where the camera is inside or past the obstacle; (3) the corridor window sees the ground at about 12 x altitude (18 m at the lowest altitude of 1.5 m), so `d_safe` must stay well below that or the ground becomes an "obstacle".
+
+## 2026-11-14 12:55  |  perception  |  Full bank run finished (job 32117); analysis script
+- Member: PP
+- Request: report the bank job's result; write the analysis promised for it (miss rates, scale check, eyeball sheet).
+- Action: HPC (psp8502): job 32117 (A100) ran `perception.run_bank` over the whole CityEnviron bank. Laptop: added perception/analyze_bank.py and tests/test_analyze_bank.py; one quick-command line in CLAUDE.md.
+- Assumptions: frames with `gt_along_m` under 1.0 m are dropped as "camera inside or past the obstacle" [UNVERIFIED cutoff, `--min-along`]; ray distance and planar depth differ by about 1% or less inside the corridor window, so no conversion is applied [UNVERIFIED: camera field of view unknown]; the scale is fitted only on frames with GT corridor minimum <= 40 m (`--fit-max`).
+- Decisions & alternatives: scale check on corridor minimums from the run file, not on full depth maps (cheaper, runs on a CPU node, and the corridor is what the controller uses); a full-map check can follow if the corridor fit looks odd. The script never loads test or excluded episodes.
+- Evidence: slurm-pp-32117.out ends "19267 frames processed, 0 already done"; `wc -l` on da2_small.jsonl gives 19267. pytest 44 passed. The analysis has not been run on the real data yet, so there are no results to report.
+- Outcome: success (run); analysis pending on HPC.
+- Follow-ups: run the analysis on HPC; PP to look at the eyeball sheet; choose `d_safe` with the team; decide whether to freeze a scale correction.
