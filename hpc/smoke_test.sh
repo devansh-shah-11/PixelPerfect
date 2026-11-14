@@ -49,8 +49,12 @@ fi
 section "storage"
 echo "HOME=$HOME"
 echo "SCRATCH=${SCRATCH:-not set}"
-df -h "$HOME" ${SCRATCH:+"$SCRATCH"} 2>/dev/null
+SCRATCH_DIR="${SCRATCH:-/scratch/$USER}"
+[ -d "$SCRATCH_DIR" ] && echo "scratch dir: $SCRATCH_DIR (exists)" || echo "scratch dir: $SCRATCH_DIR (missing)"
+df -h "$HOME" "$SCRATCH_DIR" 2>/dev/null
 have myquota && myquota 2>/dev/null | head -20
+echo "overlay templates: $(ls /share/apps/overlay-fs-ext3 2>/dev/null | head -5 | tr '\n' ' ')"
+echo "singularity images: $(ls /share/apps/images 2>/dev/null | head -10 | tr '\n' ' ')"
 
 section "software"
 if have python3; then echo "python3: $(python3 --version 2>&1)"; else echo "python3: not found"; fi
