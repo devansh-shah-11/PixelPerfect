@@ -148,3 +148,14 @@
 - Surprise, not yet explained: corridor_min_gt is exactly 41.71875 in frames 0000_000 to 0000_004 while the recorded pose advances 0.4 m per step. Possible stale frames after a pose change (hpc/instructions.md §3.5 reports them for job 15689) [UNVERIFIED]; a full head-on episode is being checked.
 - Outcome: success for the reader and split; the stale-frame question is open.
 - Follow-ups: commit configs/bank_split.yaml from the HPC copy; full bank job (launched by the user); resolve the stale-frame question before trusting labels.
+
+## 2026-11-14 00:45  |  perception  |  Frame-bank split frozen; stale-frame worry resolved
+- Member: PP
+- Request: commit the split written on HPC; check whether bank frames lag the recorded pose.
+- Action: laptop: saved configs/bank_split.yaml from the HPC copy (pasted by PP) and verified it with `load_split`. HPC (psp8502): printed episode 23 (white wall, head-on, clear) from frames.jsonl; PP submitted the full bank job 32117 on the A100.
+- Assumptions: the constant 41.72 m in episode 0 is the ground seen through the lower edge of the corridor window [UNVERIFIED, but supported: range scales with altitude, 41.7 m at 3.46 m and a predicted 24.0 m at 1.99 m, and episode 23 at 1.99 m reads 25.2 m once the wall is gone].
+- Decisions & alternatives: none.
+- Evidence: `load_split`: checksum ok, 202 + 40 + 39 + 130 excluded = 411. Episode 23: `corridor_min_depth_m` falls by 0.40 m per step from 18.83 to 0.43 m and equals `gt_along_m` minus 0.40 m throughout, so frames track the pose (no staleness). Step 47: `gt_along_m` 0.42 but depth 25.2 m, i.e. the camera is past the wall's face.
+- Correction: the previous entry's "possible stale frames" is withdrawn for head-on episodes.
+- Outcome: success.
+- Follow-ups for the analysis: (1) `gt_along_m` is to the obstacle's centre, about 0.4 m beyond the surface the camera sees; (2) drop each episode's last frames where the camera is inside or past the obstacle; (3) the corridor window sees the ground at about 12 x altitude (18 m at the lowest altitude of 1.5 m), so `d_safe` must stay well below that or the ground becomes an "obstacle".

@@ -68,3 +68,11 @@
 - Unblocked: the full bank job.
 - Still blocked: configs/bank_split.yaml exists only on HPC; possible stale frames in the bank (GT corridor minimum constant over 5 steps) to be checked.
 - Sanity check: pytest 39 passed.
+
+## 2026-11-14 00:45  |  perception  |  configs/bank_split.yaml frozen (202/40/39, 130 excluded)
+- Advances: W-S1 (split file committed; gallery note still open), W-B1 (full bank job 32117 submitted by PP).
+- Pushed to B/W-B1-perception (PR #2).
+- Unblocked: any analysis can now name its split.
+- Still blocked: job 32117 output; `d_safe` choice (must stay well under about 18 m, see AGENT_LOG.md).
+- Sanity check: `load_split` checksum ok; pytest 39 passed.
+- Backup reminder: a frozen config was added. The bank itself lives only on /scratch/dns5508; a second copy is worth making (PLAN.md §11). Not run.
