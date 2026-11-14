@@ -84,4 +84,6 @@ Be concise and factual. State what was run, where, and the result. Say plainly w
 - Metrics/plots: `python eval/plots.py`
 - Demo: `python demo/app.py` (reads logs only; no simulator needed)
 - Tests: `.venv/bin/python -m pytest` (laptop)
+- Frame-bank split (once; the file is frozen): `python -m perception.bank_split --bank <bank dir> --out configs/bank_split.yaml`
+- Fast stack over the frame bank (resumable): `python -m perception.run_bank --bank <bank dir> --out <file>.jsonl`
 - HPC job template: `sbatch hpc/job_template.sbatch` (default: smoke test; other commands via `--export=ALL,CMD="..."`)

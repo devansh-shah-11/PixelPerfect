@@ -54,3 +54,10 @@
 - Unblocked: the bank runner and the split script can be written against the frames.jsonl format.
 - Still blocked: any real result needs the frame bank on /scratch/dns5508 (permission denied) or our own bank; `d_safe` not chosen.
 - Sanity check: pytest 29 passed; real model ran on the Mac (22 ms per frame).
+
+## 2026-11-13 22:45  |  perception  |  frame-bank reader, episode split script, resumable bank runner
+- Advances: W-S1 (split script done; the split file itself needs the bank's episodes.jsonl), W-B1 (runner done; HPC run pending).
+- Pushed to B/W-B1-perception (PR #2).
+- Unblocked: one HPC job produces per-frame GT and estimated corridor distances for all 19,267 frames.
+- Still blocked: read access to /scratch/dns5508/frame_bank; `d_safe` not chosen; PR #1 not merged.
+- Sanity check: pytest 39 passed; both CLIs ran end to end on a fake bank with the real model.
