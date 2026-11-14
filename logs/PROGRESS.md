@@ -61,3 +61,10 @@
 - Unblocked: one HPC job produces per-frame GT and estimated corridor distances for all 19,267 frames.
 - Still blocked: read access to /scratch/dns5508/frame_bank; `d_safe` not chosen; PR #1 not merged.
 - Sanity check: pytest 39 passed; both CLIs ran end to end on a fake bank with the real model.
+
+## 2026-11-14 00:20  |  perception  |  reader verified on the real bank; runner saves the depth map before the row
+- Advances: W-S1 (split written on HPC: 202/40/39, 130 excluded), W-B1 (5-frame CPU run matches the bank's corridor minimum).
+- Pushed to B/W-B1-perception (PR #2).
+- Unblocked: the full bank job.
+- Still blocked: configs/bank_split.yaml exists only on HPC; possible stale frames in the bank (GT corridor minimum constant over 5 steps) to be checked.
+- Sanity check: pytest 39 passed.

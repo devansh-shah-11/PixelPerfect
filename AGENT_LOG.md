@@ -136,3 +136,15 @@
 - Evidence: pytest 39 passed (10 new). End to end on the Mac with the real model on a fake bank of 30 episodes and 120 frames: split file written and a second run refused; runner did 50 frames with `--limit`, then 70 on resume, 120 rows with no duplicates, median 21.8 ms per frame; two lines appended to logs/runs.jsonl, then removed because they were not experiments.
 - Outcome: partial. Works on a fake bank; not yet run on real frames.
 - Follow-ups: on HPC once /scratch/dns5508 is readable: write configs/bank_split.yaml, commit it, run the bank job (ask before launching), then the eyeball check and the scale check. Episode ids in the split refer to the CityEnviron bank only.
+
+## 2026-11-14 00:20  |  perception  |  First run on the real frame bank (5 frames, CPU); runner ordering fix
+- Member: PP
+- Request: check the reader against the real bank before a GPU job; then "lets fix, pull and start our work".
+- Action: HPC (psp8502, CPU node b-10-16, env `pa`): `pip install -e ".[perception]"`; `python -m perception.bank_split` wrote configs/bank_split.yaml on HPC; `python -m perception.run_bank --limit 5`. Laptop: in perception/run_bank.py the depth map is now saved before the frame's row is written.
+- Assumptions: none new.
+- Decisions & alternatives: fixed before the full run, not after, at the user's request.
+- Evidence: bank has episodes.jsonl, frames.jsonl and 57,801 files in frames/ (19,267 x 3); field names match the reader. Split: train 202, val 40, test 39, excluded 130 (= fog 53 + snow 77), checksum 6e3af228c9f6. Frame 0000_000: corridor_min_gt 41.71875, identical to the bank's `corridor_min_depth_m`; corridor_min_est 35.13 (about 16% short). CPU inference about 91 ms per frame after a 25 s first call. pytest 39 passed after the fix.
+- Mistake (assistant): the runner wrote a frame's row before saving its depth map, so a job killed between the two would have marked a frame done with no depth map. Found on re-reading the code when the user asked about checkpoints; no data was affected.
+- Surprise, not yet explained: corridor_min_gt is exactly 41.71875 in frames 0000_000 to 0000_004 while the recorded pose advances 0.4 m per step. Possible stale frames after a pose change (hpc/instructions.md §3.5 reports them for job 15689) [UNVERIFIED]; a full head-on episode is being checked.
+- Outcome: success for the reader and split; the stale-frame question is open.
+- Follow-ups: commit configs/bank_split.yaml from the HPC copy; full bank job (launched by the user); resolve the stale-frame question before trusting labels.

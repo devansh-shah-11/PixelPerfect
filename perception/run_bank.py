@@ -64,10 +64,11 @@ def run_bank(
                 "features": {k: v for k, v in estimate.features.items() if k != "embedding"},
                 "infer_ms": round(infer_ms, 2),
             }
-            f.write(json.dumps(record) + "\n")
-            f.flush()
+            # Depth map first: a frame counts as done only once its row is written.
             if save_depth_dir is not None:
                 np.save(Path(save_depth_dir) / f"{stem}_depth_est.npy", estimate.depth.astype(np.float16))
+            f.write(json.dumps(record) + "\n")
+            f.flush()
             if (i + 1) % 500 == 0:
                 print(f"{i + 1}/{len(todo)} frames", flush=True)
     return {"done": len(todo), "skipped": len(done)}
