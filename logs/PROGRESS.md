@@ -47,3 +47,10 @@
 - Unblocked: PR #1 can be merged; PP can start perception and gate work (W-S2, W-B1 code, W-B3) on the laptop.
 - Still blocked: reading the CityEnviron frame bank on /scratch/dns5508 (permission denied); owners not written in TASKS.md; week-plan dates (Nov 2 to 8) have passed; closed loop not built.
 - Sanity check: pytest 7 passed; bash -n on hpc/*.sh and *.sbatch: ok.
+
+## 2026-11-13 22:10  |  perception  |  depth clipping, corridor stats, L1 labels, Depth Anything V2 wrapper
+- Advances: W-S2 (done, unit-tested), W-B3 (label function and tests done; eyeball check pending), W-B1 (wrapper done; bank run pending). Also B-01 to B-04 in the Sprint 1 list.
+- Pushed to B/W-B1-perception; PR opened on top of PR #1.
+- Unblocked: the bank runner and the split script can be written against the frames.jsonl format.
+- Still blocked: any real result needs the frame bank on /scratch/dns5508 (permission denied) or our own bank; `d_safe` not chosen.
+- Sanity check: pytest 29 passed; real model ran on the Mac (22 ms per frame).

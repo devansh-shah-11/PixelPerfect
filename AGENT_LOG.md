@@ -116,3 +116,13 @@
 - Evidence: `pytest`: 7 passed after the merge. `bash -n` on the HPC scripts: ok.
 - Outcome: success.
 - Follow-ups: DS reviews and merges PR #1, then updates `sim/capability-test` on top of it (its `TASKS.md` and `.gitignore` changes will need merging). Week-plan dates (Nov 2 to 8) have passed and need re-dating.
+
+## 2026-11-13 22:10  |  perception  |  Depth clipping, corridor statistics, L1 labels, Depth Anything V2 wrapper
+- Member: PP
+- Request: "Lets start!" on the perception and gate workstream (week-plan tasks W-S2, W-B1 code, W-B3), then "commit and create PR".
+- Action: laptop. New branch B/W-B1-perception on top of S/plan-v1.1-skeleton (needs interfaces.py). Wrote perception/depth_utils.py, gate/labels.py, perception/depth_anything.py and three test files; added a `perception` extra (torch, transformers, pillow) to pyproject.toml.
+- Assumptions: Hugging Face checkpoint `depth-anything/Depth-Anything-V2-Metric-Outdoor-Small-hf` is the Small metric outdoor model (it loaded and ran; the model card was not read) [UNVERIFIED]. The frame bank's depth is distance along the pixel ray (`DEPTH_PERSPECTIVE` in hpc/capability/capability_test.py on sim/capability-test), while Depth Anything predicts planar depth [UNVERIFIED for the model; camera field of view unknown].
+- Decisions & alternatives: (1) corridor = fixed central window (rows 0.4 to 0.6, columns 0.45 to 0.55), the same as `corridor_min()` in the capability test, so values match `corridor_min_depth_m` in frames.jsonl; rejected for now: the projected flight tube of PLAN.md §2, which needs intrinsics and T_h. (2) depth clipped at 100 m; sky, saturated (65504 m) and invalid pixels count as far, not near. (3) sky masked by range, not by segmentation ID as the week plan suggests, because the sky's ID is unknown until the frames are readable. (4) `d_safe` is an argument with no default: PLAN.md gives no value, and it sets the positive rate, so the team must choose it. (5) "obstacle" means strictly closer than `d_safe`. (6) a corrected estimate at or below zero is clamped to near, not treated as invalid.
+- Evidence: pytest 29 passed (7 old, 22 new). Real model on the Mac (MPS, torch 2.14.1, transformers 5.20.2): depth (225, 400) float32, 5.51 to 17.94 m on a synthetic image, median 22 ms per frame over 10 calls after a 9.5 s first call.
+- Outcome: partial. Code and unit tests done; the model has not been run on a simulator frame, so accuracy is unknown.
+- Follow-ups: run on real bank frames once /scratch/dns5508 is readable; eyeball 20 positives and 20 negatives (W-B3); scale check with the perspective-to-planar conversion (W-B2); team picks `d_safe`.
