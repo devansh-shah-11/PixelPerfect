@@ -237,3 +237,5 @@ results/raw/
 
 # Slurm job output (hpc/job_template.sbatch)
 slurm-*.out
+.claude/*
+.serena/*

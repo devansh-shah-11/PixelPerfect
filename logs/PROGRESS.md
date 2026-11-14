@@ -40,3 +40,10 @@
 - Unblocked: PP can start the L4 smoke test today.
 - Still blocked: workstream owners (Q1); partition names; simulator (A-01 to A-03, frame due Sat Oct 31).
 - Sanity check: docs only; no code changed.
+
+## 2026-11-13 21:50  |  merge  |  main merged into S/plan-v1.1-skeleton; simulator smoke test reproduced by PP
+- Advances: A-01 (simulator renders on HPC for a second member, job 31620, A100), S-06 (HPC facts and partitions written down), PR #1 mergeable again.
+- Pushed to S/plan-v1.1-skeleton (PR #1). Needs one teammate's review (PLAN.md §0).
+- Unblocked: PR #1 can be merged; PP can start perception and gate work (W-S2, W-B1 code, W-B3) on the laptop.
+- Still blocked: reading the CityEnviron frame bank on /scratch/dns5508 (permission denied); owners not written in TASKS.md; week-plan dates (Nov 2 to 8) have passed; closed loop not built.
+- Sanity check: pytest 7 passed; bash -n on hpc/*.sh and *.sbatch: ok.

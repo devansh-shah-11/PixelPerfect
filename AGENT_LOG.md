@@ -83,3 +83,36 @@
 - Mistake: the assistant's shell hung on every command (even `echo`), so the assistant could not commit or push; the user ran the git commands.
 - Outcome: partial (file written; commit and push left to the user).
 - Follow-ups: PP pastes the smoke-test and `sinfo` output; assistant then writes the AirSim backend, settings.json, launch and capture scripts, plus the toy backend.
+
+## 2026-10-31 02:30  |  sim  |  Project AirSim headless smoke test on HPC (A100)
+- Member: DS
+- Request: set up and test AirSim on HPC because no GCP VM is available.
+- Action: HPC (NYU cloud bursting, user dns5508). Wrote `hpc/instructions.md`, `hpc/smoke_test.sbatch`, `hpc/smoke_client.py` (laptop). Ran jobs 15418 (g2-standard-12, L4), 15490 (A100, nvidia-smi only), 15498 (A100, sim + hello_drone.py), and a later A100 job running `smoke_client.py`.
+- Assumptions: [UNVERIFIED] how A100 and boot time are billed against the 300 GPU-hours; [UNVERIFIED] whether the sim can output segmentation (not in the sensor list).
+- Decisions & alternatives: used Project AirSim v1.0.1 (PLAN.md lists it as Fallback, Q4, licence shown by pip as MIT) instead of Microsoft AirSim/Colosseum. DEVIATION from PLAN.md D3; needs team sign-off. Ran the binary natively (no container); container fallback not needed. Used the A100 partition because g2-standard-12 never booted.
+- Evidence: job 15418 `CANCELLED+` after 00:10:41, node b-31-162 `drained#`, reason "15418 finishing" (user slurm); about 10 other g2-standard-12 nodes already `drained#`. Job 15498: sim up on RHEL 9.8, hello_drone aborted with exit 134 (`qt.qpa.xcb: could not connect to display`, OpenCV windows). Later job: `smoke_client.py` exit 0, RGB (225,400,3) mean 104.4 std 17.1, depth (225,400) finite 1.00, 3.50 to 7.61 m; rgb.png inspected by eye (non-black, shaded). Nvidia Vulkan ICD present: /usr/share/vulkan/icd.d/nvidia_icd.x86_64.json.
+- Outcome: partial success. Sim renders and returns RGB + depth headless on A100. L4 partition unverified (boot failure). Segmentation, step time and pause/step not tested.
+- Mistakes: (1) first told the user to `scancel` the stuck job and to run `srun` from the OOD terminal, which was already inside a CPU job; the real fix was `sbatch`. (2) first diagnosed the srun failure as a wrong GRES name; sinfo showed `gpu:l4:1`, so `gpu:1` was valid. (3) said wall-clock limit would not count during CF; scontrol's EndTime suggests it does [UNVERIFIED].
+- Follow-ups: sign-off on Project AirSim vs PLAN.md default; test segmentation availability and pause/step API (D10); measure sec per step; contact NYU HPC about g2-standard-12 boots if L4 is wanted; check GPU-hour usage.
+
+## 2026-11-13 21:40  |  sim  |  Project AirSim smoke test reproduced on a second account
+- Member: PP
+- Request: Devansh asked teammates to set up Project AirSim on their own HPC accounts from `hpc/instructions.md`.
+- Action: HPC (Cloud Bursting, user psp8502). Followed `hpc/instructions.md` §1 and §2, with one change: the scripts came from `git checkout sim/capability-test` in the existing clone, not `scp`. Conda env `/scratch/psp8502/envs/pa` (Python 3.11.18), `projectairsim==1.0.1`, `Blocks-Linux-1.0.1.zip`. Job 31620 on `c12m85-a100-1`.
+- Assumptions: none new.
+- Decisions & alternatives: A100, because L4 nodes never booted for either member (PP job 15186 on Oct 30 sat in `CF`; DS job 15418).
+- Evidence: job 31620: `smoke_client exit code: 0`; RGB (225, 400, 3) mean 104.3 std 17.2; depth (225, 400) finite 1.00, 3.47 to 7.56 m; `rgb.png` and `depth.npy` saved. DS's run gave mean 104.4, std 17.1, depth 3.50 to 7.61 m, so the setup reproduces. About 2.5 min in `CF`, about 1.5 min running. `ls /scratch/dns5508/frame_bank/CityEnviron` from psp8502: Permission denied.
+- Mistakes (assistant, Oct 30): told PP to run `srun --gres=gpu:1` from the OOD Jupyter terminal, which is already inside a CPU job, so it failed with "Invalid generic resource (gres) specification"; `sbatch` was the fix. Also planned for the L4 from the course page without a boot test.
+- Outcome: success.
+- Follow-ups: DS to open `/scratch/dns5508/frame_bank` and `airsim/envs` for reading (`chmod o+rX`), so all three use the same frames. PP has not yet looked at `rgb.png` by eye.
+
+## 2026-11-13 21:50  |  docs  |  Merged main into the PR #1 branch
+- Member: PP
+- Request: "ok go ahead" (fix PR #1's conflicts with main instead of opening a new PR).
+- Action: laptop. Committed the pending HPC edits (job template now defaults to the A100 with `--requeue`; smoke test falls back to `/scratch/$USER`; CLAUDE.md lists the partitions). Merged origin/main (d339395) into S/plan-v1.1-skeleton. Conflicts: `.gitignore` (kept both sides) and `logs/AI_LOG.md` (deleted here, modified on main).
+- Assumptions: "DS" as Devansh's initials for the Member field [UNVERIFIED].
+- Decisions & alternatives: moved DS's Oct 31 entry into this file unchanged except for the added Member line, and removed `logs/AI_LOG.md`, since PLAN.md §7 and TASKS.md name `AGENT_LOG.md` as the single log. Rejected: keeping two log files. Dropped the assistant's separate `hpc/README.md` and put its partition table and the `srun` workaround into DS's `hpc/instructions.md`; its two `logs/AI_LOG.md` references now point here.
+- Deviations from PLAN.md, recorded here because PLAN.md is read-only for the assistant: (1) simulator is Project AirSim v1.0.1, not AirSim/Colosseum (D3; needs team sign-off, raised by DS); (2) the A100 is the working GPU, not the L4 (D17); (3) `sim/capability-test` has a week plan that orders frame-bank vision work before the closed loop, and names Qwen3-VL 4B/8B where D8 says 2B/8B.
+- Evidence: `pytest`: 7 passed after the merge. `bash -n` on the HPC scripts: ok.
+- Outcome: success.
+- Follow-ups: DS reviews and merges PR #1, then updates `sim/capability-test` on top of it (its `TASKS.md` and `.gitignore` changes will need merging). Week-plan dates (Nov 2 to 8) have passed and need re-dating.
