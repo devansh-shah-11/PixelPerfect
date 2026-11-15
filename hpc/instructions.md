@@ -13,6 +13,10 @@ Node OS is RHEL 9.8. Use `singularity` (no apptainer). Work in `/scratch/$USER`,
 - A job stuck in `CF` for more than ~10 minutes and then `CANCELLED` is a cluster-side boot failure. Don't keep resubmitting; try another partition or contact NYU HPC.
 - For an interactive GPU shell from the OOD terminal, clear the CPU job's Slurm settings first: `for v in $(env | grep -o '^SLURM_[A-Z_]*'); do unset $v; done`, then `srun --account=csci_ga_2271-2026fa --partition=c12m85-a100-1 --gres=gpu --time=01:00:00 --pty /bin/bash`. Not tested by us yet.
 - OOD login shows "HTTP ERROR 431": the browser's cookies for `hpc.nyu.edu` are too large. Use a private window, or delete those cookies.
+- The OOD **Jupyter app rejects partition `n2c48m24`** ("partition is invalid for this job") even though the course lists it. Use `interactive` for the Jupyter session (SB, Nov 15). GPU work still goes through `sbatch` from its terminal.
+- "please validate account ... or partition 'c12m85-a100-1 '" with a space before the closing quote means a trailing space in the form field. Retype it.
+- In the OOD shell `conda activate` fails with "shell has not been properly configured". Run `eval "$(conda shell.bash hook)"` first (no `conda init` needed); the sbatch files do the same.
+- Qwen3-VL needs **torchvision** as well as torch and transformers (`AutoProcessor` builds a video processor); it is in the `vlm` extra now. Job 33329 failed without it.
 
 ## Partitions we may use (course page "How to Access HPC Cloud Bursting", Fall 2026)
 | Partition | Hardware | Notes |

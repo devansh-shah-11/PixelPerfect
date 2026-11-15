@@ -58,6 +58,7 @@ Full architecture, labels (L1, L2, L3), the policy list and the metric definitio
 - Project AirSim v1.0.1 runs headless on the Cloud Bursting **A100** partition (`c12m85-a100-1`), natively, no container. L4 nodes failed to boot for two members.
 - A **CityEnviron frame bank exists**: 411 episodes, 19,267 frames, with RGB, segmentation, float16 depth, pose, condition, obstacle type and ground-truth distance per frame, on HPC scratch. This is the data the perception and VLM work runs on right now.
 - Repo skeleton, shared types in `interfaces.py` and the HPC smoke test are in place.
+- **The VLM judge runs, and it is fast on the A100:** Qwen3-VL-2B answers one yes/no question in 0.073 s median (p95 0.076 s), the 8B in 0.089 s (p95 0.091 s), one forward pass over the overlay and the crop (job 33341, `README.md`). This is well under the seconds of delay the project's motivation talks about. It does not weaken the question, because the delay `d` is a swept, controlled variable by design (D10) and stands for onboard or shared compute, but the report must say so plainly rather than imply the A100 number is the cost of asking.
 - **M1 has passed:** the bank split is frozen (202 train / 40 val / 39 test, 130 excluded, checksum `6e3af228c9f6`), Depth Anything V2-Small has been run over all 19,267 frames, and L1 labels plus a scale check exist. Still on a branch, not on `main`.
 
 **Known broken or unknown** (all from `hpc/instructions.md` §3.5, which is the honest version; the first job log over-reported passes)

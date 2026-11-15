@@ -41,9 +41,13 @@ Setup and submission are in the header of [`hpc/vlm_latency.sbatch`](hpc/vlm_lat
 
 ### VLM latency (M2.1)
 
-Not measured yet. The table below is filled from `results/vlm_latency_<jobid>.json` once `hpc/vlm_latency.sbatch` has run on the A100; the script prints it ready to paste.
+Measured by `hpc/vlm_latency.sbatch`, Cloud Bursting job 33341, 2026-11-15, one A100 40 GB, commit `f29104c`. One question = one forward pass over two images (225 x 400 frame with the corridor overlay, plus the 356 x 320 crop), single-token yes/no read from the logits, no `generate()`. Frames were random noise (`--frames` not given); the number to beat on real frames is the same size because the token count does not depend on content. Full per-call data: `results/vlm_latency_33341.json` on the HPC.
 
 | Model | dtype | n | median (s) | p95 (s) | p99 (s) | load (s) | peak GPU (GB) | outcome |
 |---|---|---|---|---|---|---|---|---|
-| Qwen/Qwen3-VL-2B-Instruct | bfloat16 | | pending | pending | | | | not run |
-| Qwen/Qwen3-VL-8B-Instruct | bfloat16 | | pending | pending | | | | not run |
+| Qwen/Qwen3-VL-2B-Instruct | bfloat16 | 50 | 0.073 | 0.076 | 0.086 | 25.5 | 4.37 | success |
+| Qwen/Qwen3-VL-8B-Instruct | bfloat16 | 50 | 0.089 | 0.091 | 0.092 | 97.1 | 17.67 | success |
+
+Same job on 100 real CityEnviron bank frames (job 33400, seeded random sample across all conditions, no labels): latency unchanged (2B 0.076 s median, 8B 0.091 s). Yes-fraction 0.22 for the 2B (confidence median -0.6) and 0.05 for the 8B (median -4.5), against 0.00 for both on noise. So the judge reacts to content and the 8B is far more conservative; which one is right is what the M2.4 table measures.
+
+Reading: on a data-centre GPU with a one-token answer, the real latency is under 0.1 s for both sizes, and the 8B costs only 16 ms more than the 2B, so the vision encoder and fixed overhead dominate, not the language model. The seconds-long delays the project is designed around (`PLAN_DETAILED.md` §1) correspond to onboard or shared hardware, not to this setup, which is why the delay `d` is a controlled, swept variable (D10) and not this measurement. Both models fit the 40 GB A100 at once (about 22 GB together).
