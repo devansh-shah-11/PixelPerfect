@@ -117,6 +117,81 @@
 - Outcome: success.
 - Follow-ups: DS reviews and merges PR #1, then updates `sim/capability-test` on top of it (its `TASKS.md` and `.gitignore` changes will need merging). Week-plan dates (Nov 2 to 8) have passed and need re-dating.
 
+## 2026-11-13 22:10  |  perception  |  Depth clipping, corridor statistics, L1 labels, Depth Anything V2 wrapper
+- Member: PP
+- Request: "Lets start!" on the perception and gate workstream (week-plan tasks W-S2, W-B1 code, W-B3), then "commit and create PR".
+- Action: laptop. New branch B/W-B1-perception on top of S/plan-v1.1-skeleton (needs interfaces.py). Wrote perception/depth_utils.py, gate/labels.py, perception/depth_anything.py and three test files; added a `perception` extra (torch, transformers, pillow) to pyproject.toml.
+- Assumptions: Hugging Face checkpoint `depth-anything/Depth-Anything-V2-Metric-Outdoor-Small-hf` is the Small metric outdoor model (it loaded and ran; the model card was not read) [UNVERIFIED]. The frame bank's depth is distance along the pixel ray (`DEPTH_PERSPECTIVE` in hpc/capability/capability_test.py on sim/capability-test), while Depth Anything predicts planar depth [UNVERIFIED for the model; camera field of view unknown].
+- Decisions & alternatives: (1) corridor = fixed central window (rows 0.4 to 0.6, columns 0.45 to 0.55), the same as `corridor_min()` in the capability test, so values match `corridor_min_depth_m` in frames.jsonl; rejected for now: the projected flight tube of PLAN.md §2, which needs intrinsics and T_h. (2) depth clipped at 100 m; sky, saturated (65504 m) and invalid pixels count as far, not near. (3) sky masked by range, not by segmentation ID as the week plan suggests, because the sky's ID is unknown until the frames are readable. (4) `d_safe` is an argument with no default: PLAN.md gives no value, and it sets the positive rate, so the team must choose it. (5) "obstacle" means strictly closer than `d_safe`. (6) a corrected estimate at or below zero is clamped to near, not treated as invalid.
+- Evidence: pytest 29 passed (7 old, 22 new). Real model on the Mac (MPS, torch 2.14.1, transformers 5.20.2): depth (225, 400) float32, 5.51 to 17.94 m on a synthetic image, median 22 ms per frame over 10 calls after a 9.5 s first call.
+- Outcome: partial. Code and unit tests done; the model has not been run on a simulator frame, so accuracy is unknown.
+- Follow-ups: run on real bank frames once /scratch/dns5508 is readable; eyeball 20 positives and 20 negatives (W-B3); scale check with the perspective-to-planar conversion (W-B2); team picks `d_safe`.
+
+## 2026-11-13 22:45  |  perception  |  Frame-bank reader, episode split, resumable bank runner
+- Member: PP
+- Request: "go ahead!" on writing the bank runner (rest of W-B1) and the split script (W-S1) before the frames are readable, then "go ahead" on commit and push.
+- Action: laptop. Wrote perception/frame_bank.py, perception/bank_split.py, perception/run_bank.py and tests/test_frame_bank.py; moved pillow into the core dependencies (the reader needs it); added two quick commands to CLAUDE.md.
+- Assumptions: the bank's file layout and JSONL fields, read from hpc/capability/capability_test.py on sim/capability-test and not from the real files [UNVERIFIED until run on the bank]. `_rgb.png` files hold correct colours, i.e. the simulator's image was BGR when cv2 wrote it [UNVERIFIED; a red/blue swap would show in the eyeball check].
+- Decisions & alternatives: (1) split by episode, stratified by (obstacle, condition), 70/15/15 through an interleaved 20-slot pattern with a random offset per stratum, so small strata still reach val and test; rejected: per-stratum rounding, which sends strata of 3 or fewer entirely to train. (2) kept conditions default to clear, dusk and rain; fog and snow excluded, following hpc/instructions.md §3.5; this is the "decide kept conditions" part of W-S1 and the team can override it with `--keep`. (3) the split script refuses to overwrite its output (PLAN.md D13). (4) the runner stores both corridor minimums and no label, so labels can be recomputed for any `d_safe`. (5) estimated depth maps are saved only with `--save-depth` (about 3.5 GB for 19k frames as float16). (6) the runner processes all conditions; filtering by split and condition happens downstream.
+- Evidence: pytest 39 passed (10 new). End to end on the Mac with the real model on a fake bank of 30 episodes and 120 frames: split file written and a second run refused; runner did 50 frames with `--limit`, then 70 on resume, 120 rows with no duplicates, median 21.8 ms per frame; two lines appended to logs/runs.jsonl, then removed because they were not experiments.
+- Outcome: partial. Works on a fake bank; not yet run on real frames.
+- Follow-ups: on HPC once /scratch/dns5508 is readable: write configs/bank_split.yaml, commit it, run the bank job (ask before launching), then the eyeball check and the scale check. Episode ids in the split refer to the CityEnviron bank only.
+
+## 2026-11-14 00:20  |  perception  |  First run on the real frame bank (5 frames, CPU); runner ordering fix
+- Member: PP
+- Request: check the reader against the real bank before a GPU job; then "lets fix, pull and start our work".
+- Action: HPC (psp8502, CPU node b-10-16, env `pa`): `pip install -e ".[perception]"`; `python -m perception.bank_split` wrote configs/bank_split.yaml on HPC; `python -m perception.run_bank --limit 5`. Laptop: in perception/run_bank.py the depth map is now saved before the frame's row is written.
+- Assumptions: none new.
+- Decisions & alternatives: fixed before the full run, not after, at the user's request.
+- Evidence: bank has episodes.jsonl, frames.jsonl and 57,801 files in frames/ (19,267 x 3); field names match the reader. Split: train 202, val 40, test 39, excluded 130 (= fog 53 + snow 77), checksum 6e3af228c9f6. Frame 0000_000: corridor_min_gt 41.71875, identical to the bank's `corridor_min_depth_m`; corridor_min_est 35.13 (about 16% short). CPU inference about 91 ms per frame after a 25 s first call. pytest 39 passed after the fix.
+- Mistake (assistant): the runner wrote a frame's row before saving its depth map, so a job killed between the two would have marked a frame done with no depth map. Found on re-reading the code when the user asked about checkpoints; no data was affected.
+- Surprise, not yet explained: corridor_min_gt is exactly 41.71875 in frames 0000_000 to 0000_004 while the recorded pose advances 0.4 m per step. Possible stale frames after a pose change (hpc/instructions.md §3.5 reports them for job 15689) [UNVERIFIED]; a full head-on episode is being checked.
+- Outcome: success for the reader and split; the stale-frame question is open.
+- Follow-ups: commit configs/bank_split.yaml from the HPC copy; full bank job (launched by the user); resolve the stale-frame question before trusting labels.
+
+## 2026-11-14 00:45  |  perception  |  Frame-bank split frozen; stale-frame worry resolved
+- Member: PP
+- Request: commit the split written on HPC; check whether bank frames lag the recorded pose.
+- Action: laptop: saved configs/bank_split.yaml from the HPC copy (pasted by PP) and verified it with `load_split`. HPC (psp8502): printed episode 23 (white wall, head-on, clear) from frames.jsonl; PP submitted the full bank job 32117 on the A100.
+- Assumptions: the constant 41.72 m in episode 0 is the ground seen through the lower edge of the corridor window [UNVERIFIED, but supported: range scales with altitude, 41.7 m at 3.46 m and a predicted 24.0 m at 1.99 m, and episode 23 at 1.99 m reads 25.2 m once the wall is gone].
+- Decisions & alternatives: none.
+- Evidence: `load_split`: checksum ok, 202 + 40 + 39 + 130 excluded = 411. Episode 23: `corridor_min_depth_m` falls by 0.40 m per step from 18.83 to 0.43 m and equals `gt_along_m` minus 0.40 m throughout, so frames track the pose (no staleness). Step 47: `gt_along_m` 0.42 but depth 25.2 m, i.e. the camera is past the wall's face.
+- Correction: the previous entry's "possible stale frames" is withdrawn for head-on episodes.
+- Outcome: success.
+- Follow-ups for the analysis: (1) `gt_along_m` is to the obstacle's centre, about 0.4 m beyond the surface the camera sees; (2) drop each episode's last frames where the camera is inside or past the obstacle; (3) the corridor window sees the ground at about 12 x altitude (18 m at the lowest altitude of 1.5 m), so `d_safe` must stay well below that or the ground becomes an "obstacle".
+
+## 2026-11-14 12:55  |  perception  |  Full bank run finished (job 32117); analysis script
+- Member: PP
+- Request: report the bank job's result; write the analysis promised for it (miss rates, scale check, eyeball sheet).
+- Action: HPC (psp8502): job 32117 (A100) ran `perception.run_bank` over the whole CityEnviron bank. Laptop: added perception/analyze_bank.py and tests/test_analyze_bank.py; one quick-command line in CLAUDE.md.
+- Assumptions: frames with `gt_along_m` under 1.0 m are dropped as "camera inside or past the obstacle" [UNVERIFIED cutoff, `--min-along`]; ray distance and planar depth differ by about 1% or less inside the corridor window, so no conversion is applied [UNVERIFIED: camera field of view unknown]; the scale is fitted only on frames with GT corridor minimum <= 40 m (`--fit-max`).
+- Decisions & alternatives: scale check on corridor minimums from the run file, not on full depth maps (cheaper, runs on a CPU node, and the corridor is what the controller uses); a full-map check can follow if the corridor fit looks odd. The script never loads test or excluded episodes.
+- Evidence: slurm-pp-32117.out ends "19267 frames processed, 0 already done"; `wc -l` on da2_small.jsonl gives 19267. pytest 44 passed. The analysis has not been run on the real data yet, so there are no results to report.
+- Outcome: success (run); analysis pending on HPC.
+- Follow-ups: run the analysis on HPC; PP to look at the eyeball sheet; choose `d_safe` with the team; decide whether to freeze a scale correction.
+
+## 2026-11-14 14:15  |  perception  |  First results on the frame bank; eyeball check of 20 positives and 20 negatives
+- Member: PP
+- Request: run the analysis on HPC, look at the contact sheet, say whether the numbers can be trusted.
+- Action: HPC (psp8502, CPU node): `python -m perception.analyze_bank` on da2_small.jsonl with `--sheet` (d_safe 8 m). Laptop: assistant and PP looked at sheet_d8.png (kept outside the repo); assistant re-ran the model on five tiles cropped from the sheet (tiles carry the drawn box and caption, so values differ slightly from the HPC run).
+- Evidence (train, d_safe 8 m, 9,023 frames, 2,060 with a GT obstacle in the corridor): missed 1,573 (76.4%); false stops 119 (1.7%). Per obstacle: wires 1 cm and 3 cm, 10 cm pole, 20 cm ball, glass pane 100% missed; 1 m boxes about 90%; white wall 2.5%; building block 3.9% with 28% false stops. Val: 288 of 337 missed (85.5%). Miss rate is 76 to 78% for d_safe 5 to 12 m. Scale check (GT <= 40 m): median scale 0.790; val AbsRel 2.42 raw, 1.88 scaled; scaling changes val misses 288 -> 287 and false stops 10 -> 24.
+- Eyeball findings: (1) colours look natural and the obstacle's apparent size matches the GT distance, so channel order and frame pairing are right. (2) Boxes are segmented sharply by the model and placed nearer than the facade behind, but far too far in metres: 22 m for a box at 3.1 m, 8.4 m at 1.5 m, 16 m at 2.2 m, while the wall reads 5.1 m at 3.5 m. So box "misses" are a metric error on objects with no ground contact, not a failure to see them [interpretation, UNVERIFIED]. (3) 1 cm wires cannot be seen in the 400x225 image by eye, even at 2 m. (4) A "none, rain" frame has GT corridor minimum 2.1 m with nothing visible: rain particles are in the GT depth, so some positives are label noise (53 train frames in obstacle-free episodes). (5) The "pole" is a horizontal bar in the image.
+- Assumptions: none new.
+- Decisions & alternatives: no scale correction frozen (it does not reduce misses). d_safe 8 m still suggested, not decided.
+- Outcome: partial. Numbers are real for the pipeline as built, but L1 labels in rain are noisy and must be fixed before any gate is trained.
+- Follow-ups: clean labels (use seg.png or require several near pixels); add context features (corridor against its surroundings) for the gate and baseline; team decision on wires that are invisible at this resolution; per-type val numbers are thin (box_1m_black has no dangerous val frames).
+
+## 2026-11-14 15:10  |  gate  |  Clean ground-truth corridor distance from the segmentation image; track check
+- Member: PP
+- Request: "go ahead" (commit and push the label fix), "but before we do that, just make sure we are on the right track"; do not compromise on quality.
+- Action: HPC (psp8502, CPU): printed one head-on grey-box episode (0049) and the segmentation colours in the corridor for four frames. Laptop: `load_obstacle_mask` and `OBSTACLE_SEG_RGB` in perception/frame_bank.py; `clean_corridor_min` in gate/labels.py; new gate/bank_gt.py; `--gt` in perception/analyze_bank.py; one test; read the recorder (`sec_frame_bank` on origin/sim/capability-test).
+- Evidence: episode 0049: corridor_min_est stays 33 to 37 m while the box closes from 17.4 m to 5.5 m, then 28.8 / 22.8 / 13.6 / 3.3 m at true 4.2 / 3.1 / 1.9 / 0.7 m. Segmentation: colour [185, 243, 231] covers the box (1800 px), the 1 cm wire (40 px) and the ball (121 px) and is absent from the obstacle-free rain frame 0012_037, where the 2.14 m reading lies on sky-coloured pixels. pytest 45 passed.
+- Assumptions: obstacle colour measured on three frames only [UNVERIFIED for the other obstacle types; the `none` row of the next analysis and `obstacle_px` will show it]; non-obstacle scene distance is the 2nd percentile of corridor depth, so an unspawned object under about 36 px in the corridor is ignored [judgement call for the team].
+- Decisions & alternatives: segmentation mask over "require N near pixels", because a 1 cm wire is one pixel wide and must still count.
+- Track check (assistant's assessment, for the team; nothing decided): (1) Obstacles float in mid-air; the box error looks like a no-ground-contact effect, so a reviewer can say the fast stack fails only on unrealistic objects. Grounded obstacles are needed beside the floating ones. (2) With 76% missed, "fast stack is wrong" is nearly "an obstacle is present", so the gate would be an obstacle detector. PLAN.md §4 asks for the threshold baseline to be tuned as carefully as the gate; a rule on corridor-against-surroundings depth must be tried first, and the gate judged on what that leaves. (3) The recorder starts every episode within 3 m of one point (unless scan suggestions exist), and all 40 sheet tiles show the same square: train, val and test share one background. More start points and a second environment are needed before any generalization claim. (4) 1 cm wires are invisible at 400x225; PLAN.md D9 already asks for a full-resolution corridor crop for the VLM, which this bank cannot supply. (5) Val is 40 episodes; per-type numbers are thin.
+- Outcome: success (code); the clean labels have not been computed on the real bank yet.
+- Follow-ups: run gate.bank_gt and the analysis with `--gt` on HPC; raise points 1, 3 and 4 with DS (simulator); context features and the stronger threshold baseline (PP).
+
 ## 2026-11-15 14:55  |  docs  |  Split the plan: one-page PLAN.md + milestone TASKS.md; old files renamed
 - Member: SB
 - Request: SB asked to replace the two very specific plan files with a high-level overview plus a task split "in chunks so that we can keep track", keeping the old files under renamed filenames. SB chose: milestones with gates, and no dates (dependency order only). SB also asked to build this on DS's branch plus the commits from PP's branch relevant to the plan.

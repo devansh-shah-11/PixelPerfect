@@ -48,6 +48,49 @@
 - Still blocked: reading the CityEnviron frame bank on /scratch/dns5508 (permission denied); owners not written in TASKS.md; week-plan dates (Nov 2 to 8) have passed; closed loop not built.
 - Sanity check: pytest 7 passed; bash -n on hpc/*.sh and *.sbatch: ok.
 
+## 2026-11-13 22:10  |  perception  |  depth clipping, corridor stats, L1 labels, Depth Anything V2 wrapper
+- Advances: W-S2 (done, unit-tested), W-B3 (label function and tests done; eyeball check pending), W-B1 (wrapper done; bank run pending). Also B-01 to B-04 in the Sprint 1 list.
+- Pushed to B/W-B1-perception; PR opened on top of PR #1.
+- Unblocked: the bank runner and the split script can be written against the frames.jsonl format.
+- Still blocked: any real result needs the frame bank on /scratch/dns5508 (permission denied) or our own bank; `d_safe` not chosen.
+- Sanity check: pytest 29 passed; real model ran on the Mac (22 ms per frame).
+
+## 2026-11-13 22:45  |  perception  |  frame-bank reader, episode split script, resumable bank runner
+- Advances: W-S1 (split script done; the split file itself needs the bank's episodes.jsonl), W-B1 (runner done; HPC run pending).
+- Pushed to B/W-B1-perception (PR #2).
+- Unblocked: one HPC job produces per-frame GT and estimated corridor distances for all 19,267 frames.
+- Still blocked: read access to /scratch/dns5508/frame_bank; `d_safe` not chosen; PR #1 not merged.
+- Sanity check: pytest 39 passed; both CLIs ran end to end on a fake bank with the real model.
+
+## 2026-11-14 00:20  |  perception  |  reader verified on the real bank; runner saves the depth map before the row
+- Advances: W-S1 (split written on HPC: 202/40/39, 130 excluded), W-B1 (5-frame CPU run matches the bank's corridor minimum).
+- Pushed to B/W-B1-perception (PR #2).
+- Unblocked: the full bank job.
+- Still blocked: configs/bank_split.yaml exists only on HPC; possible stale frames in the bank (GT corridor minimum constant over 5 steps) to be checked.
+- Sanity check: pytest 39 passed.
+
+## 2026-11-14 00:45  |  perception  |  configs/bank_split.yaml frozen (202/40/39, 130 excluded)
+- Advances: W-S1 (split file committed; gallery note still open), W-B1 (full bank job 32117 submitted by PP).
+- Pushed to B/W-B1-perception (PR #2).
+- Unblocked: any analysis can now name its split.
+- Still blocked: job 32117 output; `d_safe` choice (must stay well under about 18 m, see AGENT_LOG.md).
+- Sanity check: `load_split` checksum ok; pytest 39 passed.
+- Backup reminder: a frozen config was added. The bank itself lives only on /scratch/dns5508; a second copy is worth making (PLAN.md §11). Not run.
+
+## 2026-11-14 12:55  |  perception  |  full bank run done (19,267 frames); analysis script added
+- Advances: W-B1 (bank run complete, job 32117), W-B2 and W-B3 (script for scale check, miss rates and eyeball sheet; not yet run on real data).
+- Pushed to B/W-B1-perception (PR #2).
+- Unblocked: first real numbers (miss rate per obstacle type, scale), then the threshold baseline and first gate (W-B4).
+- Still blocked: `d_safe` choice; PR #1 and PR #2 not reviewed.
+- Sanity check: pytest 44 passed.
+
+## 2026-11-14 15:10  |  gate  |  first results; clean GT labels from the segmentation image
+- Advances: W-B2 (scale check run: no correction frozen), W-B3 (eyeball check done on 20+20; rain label noise found and a fix written), W-B1 (results: 76% of dangerous train frames missed at d_safe 8 m).
+- Pushed to B/W-B1-perception (PR #2).
+- Unblocked: clean labels for all frames (CPU only), then the threshold baseline and first gate (W-B4).
+- Still blocked: `d_safe` choice; simulator questions for DS (floating obstacles, one start point, 400x225 resolution); PRs not reviewed.
+- Sanity check: pytest 45 passed.
+
 ## 2026-11-15 14:55  |  (pending commit)  |  docs: plan split into a one-page PLAN.md and a milestone TASKS.md
 - Advances: a trackable board (new `TASKS.md`, M0 to M7 with gates, no dates); both open branches merged into one line of work; Q1 filled in pending confirmation.
 - Branch `S/plan-v2-milestones`, built on `main` + `sim/capability-test` + `S/plan-v1.1-skeleton`. Not pushed.
