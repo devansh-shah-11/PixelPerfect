@@ -1,4 +1,4 @@
-"""Shared interfaces between workstreams (PLAN.md §6, task S-04).
+"""Shared interfaces between workstreams (PLAN_DETAILED.md §6, task S-04).
 
 Components talk to each other only through the types below. Changing a
 signature here breaks everyone's code, so change it only after all three
@@ -21,7 +21,7 @@ import numpy as np
 
 
 class Action(str, Enum):
-    """Discrete actions of the kinematic drone (PLAN.md §4.2)."""
+    """Discrete actions of the kinematic drone (PLAN_DETAILED.md §4.2)."""
 
     CONTINUE = "continue"
     STOP = "stop"
@@ -78,10 +78,10 @@ class RuntimeStep:
 
 @dataclass
 class FrameRecord:
-    """One row of the flight log (JSONL, one line per frame). PLAN.md §6.
+    """One row of the flight log (JSONL, one line per frame). PLAN_DETAILED.md §6.
 
     Contains ground truth, so it is for labels and metrics only. Fields beyond
-    PLAN.md §6: ``split`` (episodes are keyed by ``(split, seed)``, CLAUDE.md
+    PLAN_DETAILED.md §6: ``split`` (episodes are keyed by ``(split, seed)``, CLAUDE.md
     rule 3) and ``gate_score`` (needed by the crash-cause tool).
     """
 

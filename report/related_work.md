@@ -2,7 +2,7 @@
 
 **Status:** started Oct 29, 2026. **Everything below comes from abstracts, arXiv listings, or search summaries. No paper has been read in full yet.** Before citing anything in the report, read it and change its status to `read (initials)`.
 
-Short version for PLAN.md: Section 9.
+Short version for PLAN_DETAILED.md: Section 9.
 
 ---
 
@@ -18,7 +18,7 @@ Our distinguishing points:
 1. **Delay has a physical cost in flight.** Delay and speed are inputs to the asking decision, and we sweep them.
 2. **Replay labels.** The gate learns "would asking have changed the outcome?" from simulator forks: a supervised, outcome-based alternative to RL switching (EMS, CoDrone), scene-complexity proxies (AdaDrive, 2607.19194), and uncertainty thresholds (FASIONAD, UDAV).
 3. **Small models for deployment**, and where they fail (thin wires, glass, fog).
-4. **Swappable slow system** (PLAN.md D18): does the best asking policy depend on what the slow system is?
+4. **Swappable slow system** (PLAN_DETAILED.md D18): does the best asking policy depend on what the slow system is?
 
 ---
 
@@ -42,7 +42,7 @@ Our distinguishing points:
 |---|---|---|---|---|
 | **CoDrone: Autonomous Drone Navigation Assisted by Edge and Cloud Foundation Models.** Chen, Ouyang, Luo, Hong, Chen. IEEE IoT Journal (accepted). [arXiv 2512.19083](https://arxiv.org/abs/2512.19083), Dec 2025 | Onboard grayscale steering network (Jetson Nano) that outputs a steering angle and collision probability; edge Depth Anything V2; cloud VLM. **AirSim** "Coastline" environment only, no real flights. Obstacles: walls, bushes, green belts; no wires, glass or fog. Metrics: Quality of Navigation, flight distance, latency; **no collision rate** | **Two separate mechanisms.** (1) Learned, A2C: state = steering angle, predicted collision rate, its 5-step average, bandwidth; action = run onboard or on edge, depth model on/off, compression ratio; objective = Quality of Navigation (no explicit per-term reward or collision penalty given). (2) **VLM call: fixed rules** (sudden rise in predicted collision probability with a large steering change, or depth model chosen twice in a row with high risk ahead). The drone **hovers** while the VLM runs (§IV-C1, §VI-E) | Learned part is offloading, not when to ask the VLM. VLM trigger is a hand-written rule. Not trained on outcomes; no counterfactuals. Delay isn't a modeled cost (the drone just hovers). **Good reference baseline**: its rule is close to our threshold policy, and it also uses AirSim | full text via AI summary (Oct 29); last ~17% of the HTML not read; human read needed |
 | **AESOP: Real-Time Anomaly Detection and Reactive Planning with Large Language Models.** Sinha, Elhafsi, Agia, Foutter, Schmerling, Pavone. RSS 2024. [arXiv 2407.08735](https://arxiv.org/abs/2407.08735) | Fast embedding-based anomaly detector, then slow LLM picks a fallback; MPC keeps fallbacks feasible during the LLM's delay; simulated drones and hardware | **Learned detector** flags unusual scenes | Triggers on unusual scenes, not fast-perception mistakes; not trained on outcomes | abstract only |
-| **UDAV: Uncertainty-Driven Adaptive VLM Waypoint Planner.** [arXiv 2609.16368](https://arxiv.org/abs/2609.16368), Sep 2026 | VLM waypoint planning | **Threshold:** re-asks when the spread of sampled VLM routes exceeds a threshold | Fixed threshold; open loop. (PLAN.md lists it as ground-vehicle routes, but our arXiv "UAV" search returned it; check) | abstract only |
+| **UDAV: Uncertainty-Driven Adaptive VLM Waypoint Planner.** [arXiv 2609.16368](https://arxiv.org/abs/2609.16368), Sep 2026 | VLM waypoint planning | **Threshold:** re-asks when the spread of sampled VLM routes exceeds a threshold | Fixed threshold; open loop. (PLAN_DETAILED.md lists it as ground-vehicle routes, but our arXiv "UAV" search returned it; check) | abstract only |
 | **DisasterRoute: Evidence-Guided Dual-System Routing for Visual Disaster Question Answering.** Zhang, Deng, Zhang, Zhu, Hu. [arXiv 2610.29231](https://arxiv.org/abs/2610.29231), Oct 2026 | Question answering on low-altitude UAV images on edge hardware | Confidence plus disaster evidence decides whether to send a question to a slower reasoning model (abstract doesn't say whether learned) | Question answering, not flight control | abstract only |
 | **AVERY: Intent-Driven Adaptive VLM Split Computing.** [arXiv 2511.18151](https://arxiv.org/abs/2511.18151), Nov 2025 | Disaster-response VLM split across edge and cloud | Onboard controller watches network conditions and operator intent | Not flight control; not error prediction | abstract only |
 | **Introspective Perception: Learning to Predict Failures in Vision Systems.** Daftry, Zeng, Bagnell, Hebert. IROS 2016 | Predicts perception failures for drones flying through forests | Learned failure predictor | No slow model to ask | not checked online |
@@ -94,7 +94,7 @@ Our distinguishing points:
 
 Framing for the paper: our System 2 = VLM on demand; System 1 = fast stack; System 0 = the flight controller we abstract with kinematic stepping.
 
-## 7. Background (already in PLAN.md Section 9)
+## 7. Background (already in PLAN_DETAILED.md Section 9)
 
 - KnowNo (Ren et al., CoRL 2023, [arXiv 2307.01928](https://arxiv.org/abs/2307.01928)); Perceive With Confidence ([arXiv 2403.08185](https://arxiv.org/abs/2403.08185)): conformal guarantees for asking.
 - Learning to defer: Madras et al. 2018; Mozannar & Sontag 2020.

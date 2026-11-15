@@ -1,5 +1,5 @@
 #!/bin/bash
-# Reusable Slurm job for NYU HPC Cloud Bursting (PLAN.md §8 and Appendix B).
+# Reusable Slurm job for NYU HPC Cloud Bursting (PLAN_DETAILED.md §8 and Appendix B).
 #
 # Default: runs the smoke test (task S-06), which finishes in seconds.
 #   sbatch hpc/job_template.sbatch

@@ -1,6 +1,6 @@
 # Meeting with Prof. Saining Xie
 
-**Date:** late October 2026 (exact date to fill in; PLAN.md Q9)
+**Date:** late October 2026 (exact date to fill in; PLAN_DETAILED.md Q9)
 **Attendees:** Pixel Perfect team, Prof. Xie
 **Source:** the team's meeting transcript summary, copied below unchanged. Terms such as "Post-Astra" and "system zero" come from that summary; see "Our reading" for what we think they refer to.
 
@@ -67,7 +67,7 @@
 
 ## Our reading (to confirm)
 
-- **"Astra"**: most likely ByteDance Seed's *Astra: Toward General-Purpose Mobile Robots via Hierarchical Multimodal Learning* (arXiv 2506.06205), a System 1/System 2 design for mobile robots. Confirm with whoever took notes (PLAN.md Q9).
+- **"Astra"**: most likely ByteDance Seed's *Astra: Toward General-Purpose Mobile Robots via Hierarchical Multimodal Learning* (arXiv 2506.06205), a System 1/System 2 design for mobile robots. Confirm with whoever took notes (PLAN_DETAILED.md Q9).
 - **"System zero"**: Figure's Helix 02 (Jan 2026). Figure says System 1 runs at 200 Hz and System 0 at 1 kHz, so the "~200 Hz" in the summary is probably System 1.
 - **"Prior papers use fixed thresholds"**: only partly true. Learned triggers already exist in driving, manipulation, and one drone system (CoDrone). See `report/related_work.md`; this changes our claim.
 
@@ -75,9 +75,9 @@
 
 | Feedback | Change | Where |
 |---|---|---|
-| VLM around 2B | Qwen3-VL-2B by default, 8B as size reference | PLAN.md D8 |
-| VLA or diffusion as alternative slow system | Slow system swappable: VLM judge, VLM choosing actions, stretch flow-matching/diffusion policy; new experiment E7 | PLAN.md D18, Section 10 |
-| Broaden literature review | arXiv and web searches across drones, driving, manipulation; claim reframed | PLAN.md Section 9, `report/related_work.md` |
-| Finalize fast perception model | Short comparison on DDOS (thin-wire recall, FPS on L4), decided Mon Nov 2 | PLAN.md Section 13 |
-| Hardware demo if results are strong | Stretch, decided at the MVP review on Wed Nov 11 | PLAN.md D20 |
-| Negative results valued; don't anchor on baselines | Presentation leads with findings; baselines stay in the report | PLAN.md Section 15 |
+| VLM around 2B | Qwen3-VL-2B by default, 8B as size reference | PLAN_DETAILED.md D8 |
+| VLA or diffusion as alternative slow system | Slow system swappable: VLM judge, VLM choosing actions, stretch flow-matching/diffusion policy; new experiment E7 | PLAN_DETAILED.md D18, Section 10 |
+| Broaden literature review | arXiv and web searches across drones, driving, manipulation; claim reframed | PLAN_DETAILED.md Section 9, `report/related_work.md` |
+| Finalize fast perception model | Short comparison on DDOS (thin-wire recall, FPS on L4), decided Mon Nov 2 | PLAN_DETAILED.md Section 13 |
+| Hardware demo if results are strong | Stretch, decided at the MVP review on Wed Nov 11 | PLAN_DETAILED.md D20 |
+| Negative results valued; don't anchor on baselines | Presentation leads with findings; baselines stay in the report | PLAN_DETAILED.md Section 15 |

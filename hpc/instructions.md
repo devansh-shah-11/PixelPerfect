@@ -73,13 +73,13 @@ If it fails with GLIBC or missing `.so` errors, try a container (inside an sbatc
 singularity pull ubuntu22.sif docker://ubuntu:22.04
 singularity exec --nv ubuntu22.sif ./Blocks.sh -RenderOffScreen
 ```
-If it still fails, stop and ask. That is the PLAN.md fallback decision.
+If it still fails, stop and ask. That is the PLAN_DETAILED.md fallback decision.
 
 ---
 
 ## Notes
 - Batch jobs need `#SBATCH --account=csci_ga_2271-2026fa --requeue` and must resume (append per-episode results, skip finished `(policy, seed)` pairs).
-- PLAN.md default is Microsoft AirSim/Colosseum. Project AirSim is its listed fallback (Q4). Log this deviation in `AGENT_LOG.md`.
+- PLAN_DETAILED.md default is Microsoft AirSim/Colosseum. Project AirSim is its listed fallback (Q4). Log this deviation in `AGENT_LOG.md`.
 - The binary runs natively on RHEL 9 (verified on the A100). The zip checksum is still unverified.
 
 ---

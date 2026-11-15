@@ -1,4 +1,4 @@
-# External resources to consider (not part of PLAN.md; nothing here is adopted yet)
+# External resources to consider (not part of PLAN_DETAILED.md; nothing here is adopted yet)
 
 ## UrbanScene3D (added 2026-10-31, suggested by the user as a possible extra test scene source)
 - Repo: https://github.com/yilinliu77/UrbanScene3D (site moved to https://vcc.tech/UrbanScene3D)

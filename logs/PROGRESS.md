@@ -47,3 +47,16 @@
 - Unblocked: PR #1 can be merged; PP can start perception and gate work (W-S2, W-B1 code, W-B3) on the laptop.
 - Still blocked: reading the CityEnviron frame bank on /scratch/dns5508 (permission denied); owners not written in TASKS.md; week-plan dates (Nov 2 to 8) have passed; closed loop not built.
 - Sanity check: pytest 7 passed; bash -n on hpc/*.sh and *.sbatch: ok.
+
+## 2026-11-15 14:55  |  (pending commit)  |  docs: plan split into a one-page PLAN.md and a milestone TASKS.md
+- Advances: a trackable board (new `TASKS.md`, M0 to M7 with gates, no dates); both open branches merged into one line of work; Q1 filled in pending confirmation.
+- Branch `S/plan-v2-milestones`, built on `main` + `sim/capability-test` + `S/plan-v1.1-skeleton`. Not pushed.
+- Unblocked: SB can start workstream C at chunk M2.1 (serve Qwen3-VL, measure latency), which is the current longest pole for the first curve.
+- Still blocked: C has no finished HPC job yet (M0.3); the frame-bank work is still on PP's branch (M1.5); wires unverified (M4.1); pause/step untested (M4.2); Project AirSim sign-off (M0.5).
+- Sanity check: cross-reference checker over the two new files: all ids and paths resolve except `frames.jsonl` (on HPC scratch, gitignored). `interfaces.py` parses. pytest not run (no venv on this laptop).
+
+## 2026-11-15 15:35  |  7c59ece  |  vlm: Qwen3-VL judge, corridor overlay and crop, surrogate judge, latency benchmark
+- Advances: M2.1 (benchmark and sbatch written, job not run), M2.2 (overlay and crop, checked on a synthetic wire scene), M2.3 (`ask()` behind the interface, fake-model tests), M2.5 (surrogate judge, done pending measured rates). Branch `C/M2.1`, not pushed.
+- Unblocked: DS can build the paused-time delay loop (M4.6) against `vlm.surrogate.SurrogateJudge`; the latency job can be submitted as soon as SB has the HPC env (M0.3).
+- Still blocked: M2.1 numbers (needs the A100 job); M2.4 standalone evaluation (needs the bank reader and split from PP's branch, M1.5); eyeballing the overlay on real bank frames (PNGs are on HPC scratch).
+- Sanity check: pytest 19 passed, 1 skipped (laptop, `.venv`, Python 3.11). transformers 5.23.0 source checked for the class export, the processor call path and the `dtype=` kwarg.
