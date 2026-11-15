@@ -3,7 +3,7 @@
 **Working title:** *Ask Only When It Matters: Latency-Aware Deferral to Vision-Language Models for Safe Drone Flight*
 **Course:** CSCI-GA 2271 Computer Vision, NYU, Fall 2026
 **Track:** Agent (declared in the submitted proposal; locked) · **Format:** Research project
-**Team:** Pixel Perfect, 3 members · **Version:** v1.0, October 20, 2026
+**Team:** Pixel Perfect, 3 members · **Version:** v1.1, October 29, 2026 (v1.0: October 20)
 
 > This is the single source of truth for the team. If code, slides, or another doc disagrees with this file, this file wins until someone changes it through the process in Section 0.
 > It merges three earlier drafts (a two-week sprint plan, a 7-week research plan, and a 14-day engineering plan). All three were drafted with AI assistants, so this file belongs in the Agent Log. Paper descriptions come from abstracts and search summaries: read each paper before citing it.
@@ -67,23 +67,28 @@ A modest X, or a gate that only matches a tuned threshold, is still a valid resu
 |---|---|---|---|
 | D1 | Agent Track, Research format | LOCKED | Declared in proposal; cannot change |
 | D2 | Simulation-only evaluation | DEFAULT | Confirm with TA (open question Q3) |
-| D3 | Simulator: prebuilt **AirSim/Colosseum binary via Python API only. No ROS 2, no PX4, no OpenFly unless required** | DEFAULT, final by Fri Oct 23 | ROS 2 and sudo were the likeliest week-one sink; nothing in the study needs them |
+| D3 | Simulator: prebuilt **AirSim/Colosseum binary via Python API only. No ROS 2, no PX4, no OpenFly unless required** | DEFAULT, final by Mon Nov 2 | ROS 2 and sudo were the likeliest week-one sink; nothing in the study needs them |
 | D4 | Drone motion: **kinematic stepping** (set pose each step), not full flight dynamics | DEFAULT | Deterministic replays (needed for replay labels), faster, no controller-tuning sink. We study perception, not control |
 | D5 | Collisions: **own check against known obstacle geometry** (capsule/raycast), engine flag only as a cross-check | LOCKED | Thin wires may not trigger engine colliders |
 | D6 | Obstacles: **spawned programmatically** with controlled type, thickness, color, distance, lighting, fog | LOCKED | Full control of difficulty; no asset hunting |
 | D7 | Fast stack: **Depth Anything V2 (Small, metric checkpoint)** + rule controller. **SAM 2 is not in the MVP**; it's an ablation only | DEFAULT | Cheaper and simpler; the question is "is something in the path," not object identity |
-| D8 | VLM judge: **Qwen3-VL 4B and 8B**, open weights, served on NYU HPC (or VM) | DEFAULT | Reproducible, no per-call cost. Commercial VLM comparison is optional and must be budgeted |
+| D8 | VLM judge: **Qwen3-VL-2B-Instruct by default; 8B as the "does size help?" reference**. Open weights, run in the same Cloud Bursting job as the simulator | DEFAULT | Small for real-world deployability (meeting with Prof. Xie). One-token yes/no output avoids the free-text hallucinations that broke small VLM copilots in Stress-Query (arXiv 2610.23877). Commercial VLM comparison is optional and must be budgeted |
 | D9 | VLM question: **flight path drawn on the image + full-resolution crop of the corridor**, single yes/no token | DEFAULT | VLMs judge distance poorly; downscaling erases 1 to 2 px wires |
 | D10 | Latency: **simulator pauses during the VLM call; then simulated time advances by delay `d` while the drone executes the waiting behavior. `d` is never zero** | LOCKED | Results independent of our GPU, exactly repeatable, lets us sweep delay. Real latency reported separately |
 | D11 | Waiting behavior: **MVP = brake and hold**; Week 4+ = **speed-limited waiting** (ablation) | DEFAULT | Simple and safe first; research plan's slow-down behavior tested once the loop is stable |
 | D12 | Data: **simulator is the training and test set**. DDOS only as an offline sanity test (depth and VLM on thin wires) and as a stand-in before the simulator works. Mid-Air dropped | DEFAULT | Open-loop datasets have a large domain gap |
-| D13 | Splits by **scenario seed**, never by frame; train/val/test seed lists frozen by Sat Oct 24 | LOCKED | Prevents leakage |
+| D13 | Splits by **scenario seed**, never by frame; train/val/test seed lists frozen at the simulator go/no-go (Mon Nov 2; was Sat Oct 24, see D19) | LOCKED | Prevents leakage |
 | D14 | Thresholds and operating points tuned on **val** only; **test** seeds run once at the end | LOCKED | Prevents test leakage |
 | D15 | Every policy runs on the **same scenarios and seeds** (paired comparison) | LOCKED | Fewer flights for the same statistical power |
 | D16 | Two research headlines: **(1) replay labels, (2) delay as a controlled variable**. VLM failure analysis is a smaller third result | DEFAULT | Both are only possible in simulation; keeps scope realistic for 3 people in 7 weeks |
-| D17 | Compute: **HPC for offline GPU work** (perception, gate, VLM eval, and the simulator if Apptainer rendering works); **GCP VM for the simulator** otherwise | OPEN, decide by Fri Oct 23 | HPC has no sudo or display; Apptainer is a time-boxed try |
+| D17 | Compute: **NYU HPC Cloud Bursting only** (the Torch cluster is forbidden by the course). Simulator, fast stack and VLM run **in one job on an L4** via Singularity; A100 (40 GB) for batch VLM evaluation and the 8B model. GCP VM only as a fallback | DEFAULT (confirmed once A-01 renders a frame) | Course announcement (Oct 2): 300 GPU-hours per student, L4 and A100. Nodes with low GPU use are shut down after 20 minutes, so a separate, mostly idle VLM server would be killed. L4 is a graphics GPU; A100 may not render Unreal [UNVERIFIED] |
+| D18 | **Slow system is swappable; the gate is the contribution.** (a) VLM yes/no judge (MVP); (b) the same 2B VLM chooses one of the 5 actions directly (Sprint 2); (c) stretch: small flow-matching or diffusion policy trained on true-depth flights | DEFAULT | Prof. Xie: flight actions are low-dimensional, so natural-language output may not be needed; suggested VLA or diffusion. Testing the gate with more than one slow system makes the result stronger |
+| D19 | **Schedule re-dated.** Sprint 1 had not started by Oct 29; it now runs Thu Oct 29 to Wed Nov 11. Final test runs still launch Mon Nov 30, so Sprint 2 is one week shorter | LOCKED | See Section 13 for what gets cut first |
+| D20 | **Hardware demo is a stretch goal**, decided at the MVP review (Wed Nov 11): small indoor drone with a Python SDK and video stream, models running on a laptop next to it | DEFAULT | Prof. Xie called a live demo compelling if simulator results are strong. Nothing is bought before the decision |
 
-**Changes from the submitted proposal** (state these in the report): no ROS 2/OpenFly by default (D3); SAM 2 moved to ablation (D7); simulator data replaces DDOS/Mid-Air as the main data (D12); kinematic drone (D4).
+**Changes from the submitted proposal** (state these in the report): no ROS 2/OpenFly by default (D3); SAM 2 moved to ablation (D7); simulator data replaces DDOS/Mid-Air as the main data (D12); kinematic drone (D4); 2B VLM by default (D8); swappable slow system (D18).
+
+**Meeting with Prof. Xie (late Oct 2026):** notes in `report/meetings/prof-xie-meeting.md`. Led to D8, D18, D20, the broader related-work section (Section 9), and the presentation framing (Section 15).
 
 ---
 
@@ -153,7 +158,7 @@ next frame
 - **Cooldown:** minimum frames between queries to prevent query storms (all policies).
 
 **VLM judge (owner: C)**
-- Qwen3-VL 4B and 8B via vLLM or HF, 4/8-bit if memory-bound, separate process from the simulator.
+- Qwen3-VL-2B-Instruct (default) and 8B (reference) via vLLM or HF, 4/8-bit if memory-bound. Separate process from the simulator, but **in the same Cloud Bursting job** (D17: idle nodes are shut down after 20 minutes).
 - Input: frame with the next `T_h` seconds of flight path drawn as a highlighted region, plus a full-resolution crop of that region.
 - Prompt (fixed; variants only in the prompt ablation):
   > *"Does any object, including thin wires, cables, poles or glass, cross the highlighted region? Answer yes or no."*
@@ -191,7 +196,7 @@ Rules: labels are defined by **control consequence**, not raw depth error. Unit-
 
 ---
 
-## 5. Metrics and statistics (locked by Thu Oct 22)
+## 5. Metrics and statistics (locked by Fri Oct 30)
 
 **Flight metrics**
 - **Crash rate** per flight and **crashes per km**, 95% Wilson or bootstrap CI.
@@ -217,7 +222,7 @@ Rules: labels are defined by **control consequence**, not raw depth error. Unit-
 
 ---
 
-## 6. Interfaces (agreed by Thu Oct 22; stand-ins until real parts arrive)
+## 6. Interfaces (agreed by Fri Oct 30; stand-ins until real parts arrive)
 
 ```python
 # Flight log: one JSONL row per frame + image files
@@ -267,16 +272,20 @@ Rules: figures are produced by scripts, never by hand. Sweeps append per-episode
 
 ## 8. Compute plan
 
-**Allocation:** NYU HPC, 300 hours per member (900 total; confirm whether these are GPU-hours, Q5). GCP credits: status unknown (Q2).
+**Allocation:** NYU HPC **Cloud Bursting**, **300 GPU-hours per student** (900 total), Slurm account `csci_ga_2271-2026fa`, web portal Open OnDemand (`https://ood.burst.hpc.nyu.edu/`, NYU VPN off-campus). GPUs: NVIDIA **L4** and **A100 (40 GB)**. Setup guide: Brightspace, Content, "How to access HPC Cloud Bursting". Source: course announcement, Oct 2, 2026. GCP credits (Q2) are now only a fallback.
+
+**Course rules that shape the design:**
+- **Do not use the Torch cluster.** Everything runs on Cloud Bursting.
+- **20-minute idle shutdown:** nodes with low GPU use for 20 minutes are terminated. So: the VLM runs in the same job as the simulator; reading, debugging and CPU-only work (thin-structure filters, gradient boosting) happen on laptops; every long job checkpoints and resumes.
 
 | Work | Where |
 |---|---|
-| Simulator rendering, closed-loop flights | GCP GPU VM (≥24 GB, Ubuntu 22.04), **or** HPC via Apptainer if the Day 2 time-boxed try works |
-| Batch perception on saved frames, gate training, VLM standalone eval | HPC (SLURM, array jobs) |
-| VLM in the loop | Same machine as the simulator (separate process) or HPC server over SSH tunnel; pick one and document it |
+| Simulator rendering, closed-loop flights | Cloud Bursting **L4** via Singularity (offscreen); GCP VM only if that fails and credits exist |
+| Batch perception on saved frames, gate training, VLM standalone eval | Cloud Bursting (Slurm array jobs); A100 for the 8B model |
+| VLM in the loop | Same L4 job as the simulator (separate process). Not a separate server: it would sit idle between gate calls and be shut down |
 | Gradio demo | Any laptop (reads logs) |
 
-**Budget (rough; replace with measured numbers on Mon Nov 2)**
+**Budget (rough; replace with measured numbers on Sun Nov 8). Open: does an A100 hour cost more than an L4 hour? (Q8)**
 
 | Item | Hours |
 |---|---|
@@ -289,19 +298,28 @@ Rules: figures are produced by scripts, never by hand. Sweeps append per-episode
 | One full rerun after a bug (assume it happens) | ~200 |
 | **Total** | **~710 of 900** |
 
-**Throughput warning:** thousands of flights at ~60 s each is tens of hours of simulator time before VLM cost. Measure seconds per flight by Mon Oct 26. Levers, in order: faster sim clock and lower resolution, shorter corridors, paused-time VLM (D10), multiple sim instances, caching VLM answers per frame, surrogate judge for sweeps, smaller grid with honest wider CIs.
+**Throughput warning:** thousands of flights at ~60 s each is tens of hours of simulator time before VLM cost. Measure seconds per flight by Wed Nov 4. Levers, in order: faster sim clock and lower resolution, shorter corridors, paused-time VLM (D10), multiple sim instances, caching VLM answers per frame, surrogate judge for sweeps, smaller grid with honest wider CIs.
 
-**Rules to save hours:** batch jobs, not idle interactive sessions; cache model weights and VLM answers on scratch; shut the VM down when idle; split final runs across all three accounts by configuration.
+**Rules to save hours:** batch jobs, not idle interactive sessions (they also get shut down after 20 minutes); L4 unless the job needs an A100; cache model weights and VLM answers; split final runs across all three accounts by configuration.
 
 ---
 
 ## 9. Related work and our position
 
-**Gap we claim (verify before writing):** no work we found trains a gate to predict *perception* mistakes and decide when to ask a VLM, in closed-loop flight where the drone's actions change what it sees next, with the VLM's delay treated as a physical cost. The area is moving fast; re-check before the paper.
+**Updated Oct 29 after a broader search.** Full list, search log and reading assignments: `report/related_work.md`. Everything below is from abstracts only unless marked read.
+
+**"Learned gate instead of a fixed threshold" is not new on its own.** Learned triggers for a slow model exist in driving (AdaDrive, arXiv 2511.06253; Cognitive Dual-Process Planning, arXiv 2607.19194), in robot manipulation (EMS, arXiv 2608.06434) and, for drones, in CoDrone (arXiv 2512.19083: a reinforcement-learning scheduler decides when to offload depth estimation to an edge server).
+
+**Claim we make instead (verify before writing):** drone systems call slow models in parallel, at fixed rates, on uncertainty thresholds (UDAV), or through a learned offloading scheduler aimed at network delay (CoDrone). We learn when a drone's fast perception is wrong badly enough that a VLM's delay is worth paying: the gate is trained on whether asking would have changed the outcome (replay labels), and delay is a physical cost that depends on speed. **CoDrone and AESOP are the papers reviewers will compare us to; read both in full first.**
 
 | Work | What it does | How we differ |
 |---|---|---|
-| **Stress-Query and Temporal Reliability of VLMs as UAV Copilots** ([arXiv 2610.23877](https://arxiv.org/html/2610.23877), Oct 2026) | VLM copilots for UAV navigation | **Not yet read. Possibly the closest. Read first (Week 1)** |
+| **CoDrone** (Chen et al., IEEE IoT Journal, [arXiv 2512.19083](https://arxiv.org/abs/2512.19083), Dec 2025) | Drone navigation; a reinforcement-learning scheduler decides when to offload depth estimation (Depth Anything V2) to an edge server; cloud VLM for open-set reasoning | **Closest drone work. Read first.** Its slow model is a depth model, not a VLM; its stated motivation is network delay; the abstract doesn't say whether its reward includes collisions (Q10) |
+| **Stress-Query** (Sodre et al., LARS 2026, [arXiv 2610.23877](https://arxiv.org/abs/2610.23877)) | Always-on VLM copilots (1.8B to 11B) for UAVs in Gazebo; heavy models overcorrect because of delay; small ones hallucinate | Measures the problem; no learned gating. Our motivation, not a scoop (Q7 answered) |
+| **AdaDrive** (Zhang et al., ICCV 2025, [arXiv 2511.06253](https://arxiv.org/abs/2511.06253)) | Driving; an "adaptive activation loss" learns when to call the LLM, and its influence is scaled by scene complexity | Learned trigger, but driving, and trained on a scene-complexity proxy rather than outcome |
+| **EMS** (Sun et al., [arXiv 2608.06434](https://arxiv.org/abs/2608.06434), Aug 2026) | VLA manipulation; a small switching policy trained with reinforcement learning picks the small or large model each step | Learned trigger via RL; our replay labels are a supervised alternative |
+| **Cognitive Dual-Process Planning** (Yang et al., [arXiv 2607.19194](https://arxiv.org/abs/2607.19194), Jul 2026) | Driving; a lightweight classifier on vision-encoder features routes scenes to fast or slow reasoning, with an extra penalty for sending hard scenes to the fast path | Closest in mechanism to our gate-L1; reproduce as a baseline |
+| **Astra** (ByteDance Seed, [arXiv 2506.06205](https://arxiv.org/abs/2506.06205)) and **Helix 02** ([Figure, Jan 2026](https://www.figure.ai/news/helix-02)) | Hierarchical System 1/2 robots; Helix 02 adds a 1 kHz "System 0" (System 1 runs at 200 Hz) | Framing: our System 2 = VLM on demand, System 1 = fast stack, System 0 = flight controller we abstract |
 | **AESOP** (Sinha et al., RSS 2024, [arXiv 2407.08735](https://arxiv.org/abs/2407.08735)) | Fast anomaly detector triggers slow LLM reasoning on drones; accounts for LLM delay | Triggers on *unusual scenes*; we predict *fast-perception mistakes* and learn from consequences |
 | **Slow Brain, Fast Planner** ([arXiv 2606.20458](https://arxiv.org/abs/2606.20458), June 2026) | VLM picks among planner proposals at a fixed 1 Hz; ground robots | Lists uncertainty-gated asking as future work; that's our project |
 | **UDAV** ([arXiv 2609.16368](https://arxiv.org/abs/2609.16368), Sept 2026) | Heuristic dispersion threshold triggers VLM rethink of ground-vehicle routes | Heuristic, open-loop, no call budget or crash rate |
@@ -325,7 +343,7 @@ Rules: figures are produced by scripts, never by hand. Sweeps append per-episode
 
 **E2. Saved-frame studies (Week 3; fallback paper on its own):**
 - Gate quality (AUROC, AUPRC, ECE, risk–coverage) vs. uncertainty and threshold baselines, per obstacle family, including the held-out family.
-- VLM accuracy per obstacle type and distance; ablations: crop on/off, path drawing on/off, 4B vs. 8B, 2 prompt variants.
+- VLM accuracy per obstacle type and distance; ablations: crop on/off, path drawing on/off, 2B vs. 8B, 2 prompt variants.
 
 **E3. Main closed-loop grid (Week 4):** all policies at 3 matched query rates, `d = 1 s`, `v = 5 m/s`, val-tuned, test seeds once. Output: the headline curve + crash-cause breakdown.
 
@@ -335,7 +353,9 @@ Rules: figures are produced by scripts, never by hand. Sweeps append per-episode
 
 **E6. Generalization:** gate trained without one obstacle family and one environment, tested on them. Learned gates often lose to plain uncertainty on unfamiliar scenes; either outcome is reportable.
 
-**Ablations (pick 2 to 3 by Week 4):** gate features (depth-only / + thin-structure filters / + embedding); cooldown on/off; brake-and-hold vs. speed-limited waiting (D11); SAM 2 features; VLM 4B vs. 8B.
+**E7. Slow-system comparison (D18):** the same gates with (a) the VLM yes/no judge and (b) the VLM choosing an action directly; (c) a flow-matching or diffusion policy only if the MVP review approves it. Question: does the best asking policy depend on what the slow system is?
+
+**Ablations (pick 2 to 3 by Week 4):** gate features (depth-only / + thin-structure filters / + embedding); cooldown on/off; brake-and-hold vs. speed-limited waiting (D11); SAM 2 features; VLM 2B vs. 8B.
 
 **Stretch:** conformal threshold that bounds missed hazards, and where that promise breaks (e.g. fog); commercial VLM comparison (budget first); DAgger-style round using gated rollouts.
 
@@ -347,16 +367,16 @@ Rules: figures are produced by scripts, never by hand. Sweeps append per-episode
 
 | Rank | Blocker | Trigger | Backup chain |
 |---|---|---|---|
-| 1 | Simulator install / headless rendering | No frame captured by end of **Thu Oct 22** | Colosseum or another prebuilt map → Xvfb/VirtualGL/EGL render path → Apptainer on HPC (≤ half day) → **Plan B simulator** |
-| 2 | Flight throughput | sec/flight × planned flights exceeds budget (measure **Mon Oct 26**) | Faster clock, lower res, shorter corridors → paused-time VLM → parallel instances → cached VLM answers / surrogate → smaller grid |
+| 1 | Simulator install / headless rendering | No frame captured by end of **Sat Oct 31** | Singularity on a Cloud Bursting L4 (AirSim or Colosseum binary, offscreen) → Xvfb/VirtualGL/EGL render path → GCP VM if credits exist → **Plan B simulator** |
+| 2 | Flight throughput | sec/flight × planned flights exceeds budget (measure **Wed Nov 4**) | Faster clock, lower res, shorter corridors → paused-time VLM → parallel instances → cached VLM answers / surrogate → smaller grid |
 | 3 | Closed-loop integration | never-ask fails on wall-only scenes | Fixed altitude + discrete actions → kinematic stepping (D4) → pause-step-resume loop |
-| 4 | Thin wires don't render or collide | Not visible at 10 m or no collision by **Fri Oct 23** | Thicker / high-contrast variants → segmentation IDs for ground truth → own collision check (D5) → other hard cases (poles vs. sky, glass, fog) |
+| 4 | Thin wires don't render or collide | Not visible at 10 m or no collision by **Mon Nov 2** | Thicker / high-contrast variants → segmentation IDs for ground truth → own collision check (D5) → other hard cases (poles vs. sky, glass, fog) |
 | 5 | No signal for the gate | never-ask crash rate outside 10 to 80% | Retune difficulty mix → degrade fast stack deliberately (document it) → add failure modes |
-| 6 | VLM can't see thin wires | Wire recall < ~60% at relevant distance (**Wed Oct 28**) | Crop/zoom, prompt variants, 8B → another open VLM → depth overlay in prompt → surrogate judge |
+| 6 | VLM can't see thin wires | Wire recall < ~60% at relevant distance (**Fri Nov 6**) | Crop/zoom, prompt variants, 8B → another open VLM → depth overlay in prompt → surrogate judge |
 | 7 | Depth scale pollutes labels | Positives correlate with distance, not obstacles | Metric checkpoint → frozen global scale fit → labels from segmentation ground truth |
-| 8 | VLM serving: latency/memory | > 2 s per call or OOM | vLLM, 4B, quantization, one-token output → separate GPU/process → precomputed answers |
+| 8 | VLM serving: latency/memory | > 2 s per call or OOM | vLLM, 2B, quantization, one-token output → A100 for 8B → precomputed answers (not a separate idle server: 20-minute shutdown) |
 | 9 | Gate doesn't beat the tuned threshold | AUROC ≈ depth-variance baseline | Fix labels, then features (temporal, thin-structure, embedding) → L2 labels → calibration → **report honestly with crash causes** |
-| 10 | HPC queues, credits, access | Test job pending > a day | Submit tiny jobs Day 1, short checkpointed jobs, Colab/Kaggle for VLM eval as last resort |
+| 10 | HPC queues, credits, access, idle shutdown | Test job pending > a day, or jobs killed by the 20-minute idle rule | Submit tiny jobs first, short checkpointed jobs, keep the GPU busy or end the job, Colab/Kaggle for VLM eval as last resort |
 | 11 | Late label bugs / leakage | Odd label rates | Unit tests, seed-list checksums, re-runnable label scripts (< 1 hour to regenerate) |
 | 12 | Report and demo underestimated | Writing starts Week 7 | Skeleton by Week 3; figures as scripts; static GIF replay if Gradio slips |
 
@@ -364,18 +384,18 @@ Rules: figures are produced by scripts, never by hand. Sweeps append per-episode
 
 | By | Check | If not met |
 |---|---|---|
-| Thu Oct 22 | A frame is captured from the simulator | Start Plan B simulator full-time (one person), keep fixing in background |
-| **Fri Oct 23 (go/no-go)** | Simulator chosen; wires visible and collidable, or alternate hard cases chosen | Commit to fallback; no more simulator debating |
-| Mon Oct 26 | Never-ask closed loop runs; sec/flight measured; budget written | Plan B simulator + kinematic stepping |
-| Wed Oct 28 | VLM recall on wires acceptable | Backup chain 6; surrogate by Mon Nov 2 |
-| Sat Oct 31 | Gate-L1 beats depth-variance baseline on val | Chain 9; continue and report honestly |
-| Tue Nov 3 | MVP: all MVP policies run end-to-end; first curve | Cut grid, freeze scope |
+| Sat Oct 31 | A frame is captured from the simulator on a Cloud Bursting L4 | Start Plan B simulator full-time (one person), keep fixing in background |
+| **Mon Nov 2 (go/no-go)** | Simulator chosen; wires visible and collidable, or alternate hard cases chosen | Commit to fallback; no more simulator debating |
+| Wed Nov 4 | Never-ask closed loop runs; sec/flight measured; budget written | Plan B simulator + kinematic stepping |
+| Fri Nov 6 | VLM (2B) recall on wires acceptable | Backup chain 6 (8B, crop/zoom, prompts); surrogate already exists |
+| Mon Nov 9 | Gate-L1 beats depth-variance baseline on val | Chain 9; continue and report honestly |
+| Wed Nov 11 | MVP: all MVP policies run end-to-end; first curve | Cut grid, freeze scope |
 | Mon Nov 30 | Final test runs launched | No new features; analysis and writing only |
 
-**Plan B simulator:** a lightweight scene with raycast depth (Open3D/trimesh) and simple shading, PyBullet, or Habitat-sim with a free-flying camera. Loses photorealism, gains control, speed, and laptop/HPC portability. Skeleton built Sat Oct 24 to Sun Oct 25 as insurance (≈ half a day). If used, the report says so plainly. **A complete simpler study beats a stalled realistic one.**
+**Plan B simulator:** a lightweight scene with raycast depth (Open3D/trimesh) and simple shading, PyBullet, or Habitat-sim with a free-flying camera. Loses photorealism, gains control, speed, and laptop/HPC portability. Skeleton built Sun Nov 1 to Mon Nov 2 as insurance (≈ half a day). If used, the report says so plainly. **A complete simpler study beats a stalled realistic one.**
 
 ### Insurance to create now
-VM image after the simulator works; daily push with tags at each milestone; two copies of all episode data (VM + HPC scratch, final test set also to Drive); lockfiles and versions in README; cached weights; frozen seeds and configs; golden set of ~20 episodes; Plan B skeleton; surrogate judge.
+Singularity image (or VM image) after the simulator works; daily push with tags at each milestone; two copies of all episode data (VM + HPC scratch, final test set also to Drive); lockfiles and versions in README; cached weights; frozen seeds and configs; golden set of ~20 episodes; Plan B skeleton; surrogate judge.
 
 ---
 
@@ -400,63 +420,61 @@ VM image after the simulator works; daily push with tags at each milestone; two 
 
 ## 13. Timeline
 
-### Sprint 1 (Wed Oct 21 to Tue Nov 3): MVP
+> **Re-dated Oct 29 (D19).** Sprint 1 had not started by Oct 29, so it now runs Thu Oct 29 to Wed Nov 11. Final test runs still launch Mon Nov 30 and the report week doesn't move, so Sprint 2 is one week shorter. If late, cut in this order: speed sweep in E5, commercial VLM, conformal stretch, D18(c) diffusion/flow-matching slow policy, hardware demo (D20).
 
-Goal by **Tue Nov 3**: the drone flies closed-loop through the full pipeline; never / always / random / threshold / gate-L1 / oracle and true-depth all run; first crash-vs-calls curve on val seeds.
+### Sprint 1 (Thu Oct 29 to Wed Nov 11): MVP
 
-**Wed Oct 21 (Day 1): unblock**
-- [ ] All: repo skeleton (Section 7), AGENT_LOG.md, read the Stress-Query paper and AESOP
-- [ ] All: confirm HPC partitions/GPU types (`sinfo`), scratch envs, cache weights; GCP credit status
-- [ ] A: VM or HPC node with working GPU + Vulkan/OpenGL; download prebuilt AirSim/Colosseum binary
-- [ ] B: Depth Anything V2-Small (metric) on DDOS; accuracy and FPS
-- [ ] C: serve Qwen3-VL 4B and 8B; measure latency; ask TA about sim-only evaluation
+Goal by **Wed Nov 11**: the drone flies closed-loop through the full pipeline; never / always / random / threshold / gate-L1 / oracle and true-depth all run; first crash-vs-calls curve on val seeds.
 
-**Thu Oct 22 (Day 2): simulator + interfaces**
-- [ ] A: Python script flies a waypoint, saves RGB + GT depth + segmentation; Apptainer try on HPC (≤ half day)
-- [ ] All: agree interfaces (Section 6) and metric definitions (Section 5)
+**Thu Oct 29 to Fri Oct 30: unblock**
+- [ ] All: assign workstream owners (Q1); repo skeleton (Section 7); interface stubs and metric definitions (Sections 5, 6; S-04)
+- [ ] All: one tiny test job each on Cloud Bursting (account `csci_ga_2271-2026fa`); scratch env; cache weights (Depth Anything V2-Small, Qwen3-VL-2B and 8B)
+- [ ] All: start reading CoDrone and AESOP in full (S-03); notes in `report/related_work.md`
+- [ ] A: L4 session on Open OnDemand; download a prebuilt AirSim/Colosseum binary; Singularity image
+- [ ] B: Depth Anything V2-Small (metric) on DDOS: accuracy and FPS on an L4; check A100 vs. L4 cost (Q8)
+- [ ] C: serve Qwen3-VL-2B and 8B; measure latency; email the TA (Q3, Q6)
+
+**Sat Oct 31: first simulator frame (kill switch)**
+- [ ] A: binary renders offscreen in Singularity on an L4; Python script saves RGB + GT depth + segmentation
 - [ ] B: controller on DDOS / GT depth frames; draft L1 label function with unit tests
 - [ ] C: first VLM accuracy on DDOS wires, with and without crop
 
-**Fri Oct 23 (Day 3): GO/NO-GO**
-- [ ] A: obstacle spawner (wires, poles, glass-like, fog); wires visible and collidable via own check
-- [ ] All: simulator decision (D3, D17) recorded in the Decision log
+**Sun Nov 1 to Mon Nov 2: GO/NO-GO (Mon)**
+- [ ] A: obstacle spawner (wires, poles, glass-like, fog); wires visible and collidable via own check; kinematic drone; scenario generator; **freeze seeds.yaml**; Plan B skeleton (insurance)
+- [ ] B: fast-stack choice finalized (Prof. Xie's next step): short comparison on DDOS of thin-wire recall and FPS on an L4, Depth Anything V2-Small vs. one or two alternatives
+- [ ] C: path-overlay + crop renderer; `policy.should_ask` interface with never/always/random; surrogate judge
+- [ ] All: simulator decision (D3, D17) recorded in the Decision log; Sun: first weekly walkthrough
 
-**Sat Oct 24 to Sun Oct 25 (Days 4 to 5)**
-- [ ] A: kinematic drone, scenario generator, **freeze seeds.yaml**; Plan B skeleton (insurance)
-- [ ] B: fast stack + controller in the loop on GT depth first (should almost never crash)
-- [ ] C: path-overlay + crop renderer; evaluation harness (metrics, CIs, results table); `policy.should_ask` interface with never/always/random
-- [ ] Sun: first weekly walkthrough
-
-**Mon Oct 26 to Tue Oct 27 (Days 6 to 7): first closed loop**
+**Tue Nov 3 to Wed Nov 4: first closed loop**
 - [ ] Never-ask and true-depth flights over ≥100 val episodes
 - [ ] Measure sec/flight; write the episode budget into README
 - [ ] Headroom check: never-ask crash rate in 15 to 30%; retune difficulty if not
-- [ ] Save the golden set (~20 episodes); VM image snapshot
+- [ ] Save the golden set (~20 episodes); Singularity image saved
+- [ ] C: evaluation harness (metrics, CIs, results table)
 
-**Wed Oct 28 to Fri Oct 30 (Days 8 to 10): data + VLM**
-- [ ] A: collect 300 to 500 never-ask episodes on train seeds with action noise (near-crash states)
-- [ ] B: features + L1 labels on HPC; label sanity (eyeball 20+20); gradient boosting baseline
-- [ ] C: VLM standalone on ~200 labeled sim frames per obstacle type (**kill switch Wed**); delay loop (pause, advance by `d`, brake-and-hold)
+**Thu Nov 5 to Fri Nov 6: data + VLM**
+- [ ] A: collect 300 to 500 never-ask episodes on train seeds with action noise (near-crash states); paused-time delay loop with the surrogate
+- [ ] B: features + L1 labels; label sanity (eyeball 20+20); gradient boosting baseline (on a laptop: CPU-only)
+- [ ] C: VLM standalone on ~200 labeled sim frames per obstacle type (**kill switch Fri**)
 
-**Sat Oct 31 to Mon Nov 2 (Days 11 to 13): gated loop**
-- [ ] B: gate-L1 MLP; AUROC/AUPRC/ECE vs. depth-variance baseline (**kill switch Sat**)
-- [ ] C: threshold(τ) and oracle policies; cooldown; surrogate judge implemented
+**Sat Nov 7 to Tue Nov 10: gated loop**
+- [ ] B: gate-L1 MLP; AUROC/AUPRC/ECE vs. depth-variance baseline (**kill switch Mon Nov 9**)
+- [ ] C: threshold(τ) and oracle policies; cooldown; real VLM reachable from the loop
 - [ ] A: all MVP policies smoke-tested on 10 val flights each; first sweep at 2 to 3 operating points
-- [ ] Sun: walkthrough; Mon: replace compute estimates in Section 8 with measured numbers
+- [ ] Sun Nov 8: walkthrough; replace compute estimates in Section 8 with measured numbers
 
-**Tue Nov 3 (Day 14): milestone review**
-- [ ] One-page memo: first curve, crash causes on ~30 crashes, decisions for Sprint 2
+**Wed Nov 11: milestone review**
+- [ ] One-page memo: first curve, crash causes on ~30 crashes, decisions for Sprint 2 (including D18(c) and D20)
 - [ ] Agent Log entries up to date; tag `mvp-v1`
 
-### Sprint 2 onward (Weeks 3 to 7)
+### Sprint 2 (Nov 11 to Dec 6)
 
 | Week | A: Simulator and flights | B: Fast stack and gate | C: VLM and evaluation | Together |
 |---|---|---|---|---|
-| **3** Nov 3 to 9 | Flights at scale; flight forking for replays | Gate on sim frames: full E2 study; uncertainty baseline; held-out family | VLM ablations (crop, path, 4B/8B, prompts); scene-change and anomaly baselines | **Checkpoint: saved-frame results (fallback paper).** Report skeleton started |
-| **4** Nov 10 to 16 | Main grid E3 at `d = 1 s` | Plug uncertainty and learned gates into flights; L2 labels | Crash-cause tooling; per-policy statistics | Pick final ablations |
-| **5** Nov 17 to 23 | Delay and speed sweep E5; held-out environment | Replay labels L3 and gate-L3 (E4); conformal stretch | First full figures; commercial VLM only if budgeted | Walkthrough |
-| **6** Nov 24 to 30 (Thanksgiving Nov 26) | Final test runs split across all three accounts; crash-vs-catch videos | Final gate results; E6 generalization | CI tables, crash breakdown, failure gallery; Gradio replay | Each person drafts their paper sections and Agent Log |
-| **7** Dec 1 to 7 | Repo cleanup; reproduction instructions | Method section final | Experiments section final | Assemble 4 to 9 page LaTeX report + slides; each person explains the other two's code |
+| **Nov 11 to 15** | Flights at scale; flight forking for replays | Gate on sim frames: full E2 study; uncertainty baseline; held-out family | VLM ablations (crop, path, 2B vs. 8B, prompts); D18(b) action-choosing VLM; scene-change and anomaly baselines | **Checkpoint: saved-frame results (fallback paper).** Report skeleton started |
+| **Nov 16 to 22** | Main grid E3 at `d = 1 s` | Uncertainty and learned gates in flights; L2 and L3 labels | Crash-cause tooling; per-policy statistics | Pick final ablations |
+| **Nov 23 to 29** (Thanksgiving Nov 26) | Delay sweep E5; held-out environment | Gate-L3 (E4); E6 generalization; conformal stretch | E7 slow-system comparison; first full figures | Walkthrough; paper sections drafted |
+| **Nov 30 to Dec 6** | **Final test runs launched Mon Nov 30**, split across all three accounts; crash-vs-catch videos; repo cleanup | Final gate results; Method section final | CI tables, crash breakdown, failure gallery; Gradio replay; Experiments section final | Assemble 4 to 9 page LaTeX report + slides; each person explains the other two's code |
 
 ---
 
@@ -482,7 +500,9 @@ Goal by **Tue Nov 3**: the drone flies closed-loop through the full pipeline; ne
 
 **Course deliverables:** 4 to 9 page LaTeX report (track restated, individual contributions, Agent Log appendix), reproducible repo, final presentation with code walkthrough.
 
-**Presentation arc:** (1) side-by-side video: fast stack flies into a wire; the gate catches it and the VLM confirms; (2) the headline curve; (3) crash-cause breakdown; (4) replay labels and the delay sweep; (5) where the VLM itself fails (ties to the instructor's work on VLM visual blind spots).
+**Presentation framing (from the meeting with Prof. Xie):** show the idea and the findings; don't anchor on beating baselines. Negative results are explicitly valued. Baselines stay in the report for rigor.
+
+**Presentation arc:** (1) side-by-side video: fast stack flies into a wire; the gate catches it and the VLM confirms; (2) the headline curve; (3) crash-cause breakdown; (4) replay labels and the delay sweep; (5) does the gate still help when the slow system changes (D18); (6) where the small VLM itself fails (ties to the instructor's work on VLM visual blind spots); (7) hardware demo clip, only if D20 is approved.
 
 **Publication path:** the December report is about workshop-paper scope. January to February: more environments, possibly one real-flight clip; target a 2027 workshop (CVPR or ICRA) or IROS 2027 / RA-L. Confirm all deadlines in November; none are verified here.
 
@@ -492,13 +512,16 @@ Goal by **Tue Nov 3**: the drone flies closed-loop through the full pipeline; ne
 
 | # | Question | Owner | Due |
 |---|---|---|---|
-| Q1 | Who takes workstreams A, B, C? | All | Wed Oct 21 |
-| Q2 | Were GCP credits approved? | C | Wed Oct 21 |
-| Q3 | Does the TA accept simulation-only evaluation? | C | Fri Oct 23 |
-| Q4 | Simulator: AirSim binary, Colosseum, Project AirSim (verify the repo and license before relying on it), or Plan B? | A | Fri Oct 23 |
-| Q5 | Are the 300 HPC hours GPU-hours? GPU types, partitions, Apptainer availability, scratch quota? | B | Wed Oct 21 |
-| Q6 | Exact final presentation and report dates? | C | Fri Oct 23 |
-| Q7 | Does the Stress-Query paper already do learned gating for UAVs? If yes, revisit D16 | All | Fri Oct 23 |
+| Q1 | Who takes workstreams A, B, C? | All | Fri Oct 30 |
+| Q2 | Were GCP credits approved? (Now only a fallback, D17) | C | Fri Oct 30 |
+| Q3 | Does the TA accept simulation-only evaluation? (Prof. Xie said simulator-first is fine; confirm for grading) | C | Fri Oct 30 |
+| Q4 | Simulator binary: AirSim, Colosseum, or Project AirSim (verify repo and license), or Plan B? | A | Mon Nov 2 |
+| Q5 | ~~Are the 300 HPC hours GPU-hours?~~ **Answered:** yes, 300 GPU-hours per student on Cloud Bursting, L4 and A100 (40 GB); Torch forbidden; 20-minute idle shutdown. Still check scratch quota | B | Closed |
+| Q6 | Exact final presentation and report dates? | C | Fri Oct 30 |
+| Q7 | ~~Does Stress-Query already do learned gating for UAVs?~~ **Answered (abstract):** no, it evaluates always-on copilots. The closest drone work is CoDrone (Q10) | All | Closed |
+| Q8 | Does an A100 hour cost more than an L4 hour on Cloud Bursting? | B | Fri Oct 30 |
+| Q9 | Meeting notes: exact meeting date, and confirm "Astra" meant ByteDance's Astra (arXiv 2506.06205) | All | Fri Oct 30 |
+| Q10 | CoDrone (arXiv 2512.19083): what are its scheduler's inputs and reward? Does it account for collisions or thin obstacles? If yes, revisit D16 | All | Mon Nov 2 |
 
 ---
 
@@ -564,7 +587,7 @@ Everything from earlier drafts and discussions that isn't in the main plan lives
 | Mid-Air ([download](https://midair.ulg.ac.be/download.html), CC BY-NC-SA 4.0) | Parked | Large (hundreds of GB), domain gap; download only a few trajectories if ever needed |
 | TartanAir ([site](https://theairlab.org/tartanair-dataset/), CC BY 4.0) | Parked | Good depth, but segmentation classes are random IDs |
 | UCorr wire data/model ([arXiv 2509.14989](https://arxiv.org/abs/2509.14989)) | Backlog | Possible extra thin-wire baseline or test set |
-| Real-flight clip (Jan to Feb) | Backlog (post-course) | For the publication version |
+| Hardware demo / real-flight clip | Stretch (D20) | Decided at the MVP review; otherwise Jan to Feb for the publication version |
 
 ### A6. Evaluation, demo, and writing
 
@@ -598,11 +621,12 @@ Everything from earlier drafts and discussions that isn't in the main plan lives
 
 **Rendering:** run headless with `-RenderOffScreen` or Xvfb (VirtualGL/EGL if needed). Snapshot the VM image once it works.
 
-**HPC setup (Day 1):**
-1. `sinfo`, `sacctmgr show assoc user=$USER` for partitions, GPU types, limits.
-2. Conda/venv on scratch, not home; `HF_HOME` on scratch; pre-download Depth Anything V2, Qwen3-VL 4B/8B (and SAM 2 for the ablation).
-3. One reusable `hpc/job_template.sbatch` with `--gres=gpu:1` and `--array`.
-4. Apptainer definition in `hpc/` for the time-boxed simulator try.
+**HPC setup (Cloud Bursting; first day of work):**
+1. Follow Brightspace, Content, "How to access HPC Cloud Bursting" (Open OnDemand, interactive GPU sessions, Conda/Singularity). Slurm account `csci_ga_2271-2026fa`. Never the Torch cluster.
+2. `sinfo` for partitions and GPU types (L4, A100 40 GB); check storage and scratch quota.
+3. Conda env and `HF_HOME` on scratch, not home; pre-download Depth Anything V2-Small, Qwen3-VL-2B and 8B (and SAM 2 for the ablation).
+4. One reusable `hpc/job_template.sbatch` with `--account=csci_ga_2271-2026fa`, `--gres=gpu:1` and `--array`; jobs checkpoint because of the 20-minute idle shutdown.
+5. Singularity definition in `hpc/` for the simulator.
 
 **Data flow:**
 ```

@@ -1,0 +1,25 @@
+[project]
+name = "pixelperfect"
+version = "0.1.0"
+description = "Gated fast/slow perception for a simulated drone (NYU CV, Fall 2026)"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["interfaces"]
+
+[tool.setuptools.packages.find]
+include = ["sim*", "perception*", "control*", "gate*", "vlm*", "policies*", "eval*", "demo*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

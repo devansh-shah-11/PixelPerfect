@@ -11,6 +11,20 @@ Node OS is RHEL 9.8. Use `singularity` (no apptainer). Work in `/scratch/$USER`,
 - GPU is `gpu:l4:1` on `g2-standard-12`, but those nodes failed to boot for us. The A100 partition (`c12m85-a100-1`, `--gres=gpu`) worked and renders fine.
 - Running `Blocks.sh` on the CPU node cannot work (no Vulkan GPU). Use a GPU job.
 - A job stuck in `CF` for more than ~10 minutes and then `CANCELLED` is a cluster-side boot failure. Don't keep resubmitting; try another partition or contact NYU HPC.
+- For an interactive GPU shell from the OOD terminal, clear the CPU job's Slurm settings first: `for v in $(env | grep -o '^SLURM_[A-Z_]*'); do unset $v; done`, then `srun --account=csci_ga_2271-2026fa --partition=c12m85-a100-1 --gres=gpu --time=01:00:00 --pty /bin/bash`. Not tested by us yet.
+- OOD login shows "HTTP ERROR 431": the browser's cookies for `hpc.nyu.edu` are too large. Use a private window, or delete those cookies.
+
+## Partitions we may use (course page "How to Access HPC Cloud Bursting", Fall 2026)
+| Partition | Hardware | Notes |
+|---|---|---|
+| `c12m85-a100-1` | 1 × A100 40 GB | **works**; default in `hpc/job_template.sbatch`; use `--gres=gpu` |
+| `c24m170-a100-2` | 2 × A100 40 GB | only if one A100 isn't enough |
+| `g2-standard-12` | 1 × L4 | nodes failed to boot (jobs 15186, 15418) |
+| `g2-standard-24` | 2 × L4 | untested |
+| `n2c48m24` | CPU only | the OOD Jupyter session runs here |
+| `interactive` | test sessions | untested |
+
+Checkpoints and logs go under `/scratch/<NetID>`. Singularity overlay templates are in `/share/apps/overlay-fs-ext3` and OS images in `/share/apps/images`.
 
 ---
 
@@ -52,7 +66,7 @@ tail -f /scratch/$USER/logs/pa-smoke_<jobid>.out
 - `hello_drone.py` crashes headless (it opens OpenCV windows), so the test uses `smoke_client.py`.
 - Result so far: **passed on the A100 partition** (native on RHEL 9, no container; RGB 225x400 and depth 3.5 to 7.6 m). Segmentation, step time and pause/step are not tested yet.
 - Job ended `F`/`CA`/`NF`? `sacct -j <jobid> --format=JobID,State,ExitCode,Reason`
-- Paste the `.out` and `blocks_*.log` to the team and record pass/fail in `logs/AI_LOG.md`.
+- Paste the `.out` and `blocks_*.log` to the team and record pass/fail in `AGENT_LOG.md`.
 
 If it fails with GLIBC or missing `.so` errors, try a container (inside an sbatch job):
 ```bash
@@ -65,7 +79,7 @@ If it still fails, stop and ask. That is the PLAN.md fallback decision.
 
 ## Notes
 - Batch jobs need `#SBATCH --account=csci_ga_2271-2026fa --requeue` and must resume (append per-episode results, skip finished `(policy, seed)` pairs).
-- PLAN.md default is Microsoft AirSim/Colosseum. Project AirSim is its listed fallback (Q4). Log this deviation in `logs/AI_LOG.md`.
+- PLAN.md default is Microsoft AirSim/Colosseum. Project AirSim is its listed fallback (Q4). Log this deviation in `AGENT_LOG.md`.
 - The binary runs natively on RHEL 9 (verified on the A100). The zip checksum is still unverified.
 
 ---
