@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import socket
 import subprocess
 import sys
@@ -50,7 +51,9 @@ def run(cfg: dict[str, Any]) -> list[EpisodeResult]:
     out.mkdir(parents=True, exist_ok=True)
     results_path = out / "results.jsonl"
     done = {(r.policy, r.seed) for r in read_results(results_path)} if results_path.exists() else set()
-    sim = make_sim(cfg.get("backend", "raycast"), **cfg.get("backend_kw", {}))
+    # Strings in backend_kw may name environment variables, e.g. configs: ${PP_SIM_CONFIGS} set by hpc/airsim_job.sbatch.
+    backend_kw = {k: (os.path.expandvars(v) if isinstance(v, str) else v) for k, v in cfg.get("backend_kw", {}).items()}
+    sim = make_sim(cfg.get("backend", "raycast"), **backend_kw)
     stack = make_stack(cfg.get("stack", "true-depth"), **cfg.get("stack_kw", {}))
     judge, judge_name = make_judge(cfg.get("judge", "none"), **cfg.get("judge_kw", {}))
     scen_cfg = ScenarioConfig(**cfg.get("scenario", {}))

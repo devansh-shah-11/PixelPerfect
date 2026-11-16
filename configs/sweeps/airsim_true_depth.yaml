@@ -1,14 +1,15 @@
 # M4 gate on Project AirSim (HPC): true-depth flights must crash almost never, and replay exactly.
 # Needs: configs/seeds.yaml frozen (python -m sim.scenario --write-seeds configs/seeds.yaml, a team decision, D13),
-# hpc/m4_checks.sbatch passed, and an open start pose in the map (backend_kw.start = x, y, yaw_rad in world NED).
+# hpc/m4_checks.sbatch passed (job 33776), and airsim_smoke.yaml passing first. Run with hpc/airsim_job.sbatch.
 backend: airsim
-backend_kw: {configs: /scratch/USER/airsim/pa_configs/sim_config, scene_file: scene_cap_400.jsonc, start: [0.0, 0.0, 0.0]}
+backend_kw: {configs: "${PP_SIM_CONFIGS}", scene_file: scene_cap_400.jsonc, start: [150.0, -150.0, 0.0]}  # DS scene scan, clear 24.9 m
 stack: true-depth
 judge: none
 delay_s: 1.0
 split: val
 seeds: {file: configs/seeds.yaml, n: 100}
-scenario: {goal_m: 40.0}
+scenario: {goal_m: 20.0, first_obstacle_m: [9.0, 12.0], n_obstacles: [1, 1], alt_range_m: [1.8, 2.2]}
+loop: {t_max: 30.0}
 policies:
   - {name: never, policy: never}
 out: results/sweeps/airsim_true_depth

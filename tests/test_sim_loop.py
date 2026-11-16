@@ -222,3 +222,40 @@ def test_scenario_cli_freezes_seeds(tmp_path, capsys):
 
     scenario_main(["--write-seeds", str(tmp_path / "seeds.yaml"), "--n", "5", "3", "3", "--show", "100500"])
     assert "checksum" in capsys.readouterr().out and len(load_seed_lists(tmp_path / "seeds.yaml")["test"]) == 3
+
+
+def test_scenery_guard_counts_unspawned_walls_as_crashes():
+    from sim.raycast import Observation
+
+    class WallSim(RaycastSim):
+        """Raycast backend with an invisible-to-the-scenario wall: depth says 0.1 m everywhere."""
+
+        def observe(self, state):
+            obs = super().observe(state)
+            return Observation(rgb=obs.rgb, depth=np.full_like(obs.depth, 0.1), seg=obs.seg)
+
+    sc = scenario()  # no spawned obstacles at all
+    _, res = run_episode(sc, WallSim(CAM), TrueDepthStack(), RuleController(), Never(), None, LoopConfig())
+    assert res.crashed and res.extra["collision_source"] == "scenery"
+    _, ok = fly(scenario(Obstacle("box_1m_grey", 15.0, 0.0, 2.0)), TrueDepthStack(), Never())
+    assert not ok.crashed and ok.extra["collision_source"] is None
+
+
+def test_airsim_configs_parse_and_expand(monkeypatch, tmp_path):
+    import eval.sweep as sw
+    from sim.scenario import ScenarioConfig, generate
+
+    for name in ("airsim_smoke", "airsim_true_depth"):
+        cfg = yaml.safe_load(open(f"configs/sweeps/{name}.yaml"))
+        sc_cfg = ScenarioConfig(**cfg["scenario"])
+        scs = [generate(s, "smoke", sc_cfg) for s in range(1, 41)]
+        assert all(len(s.obstacles) == 1 and s.obstacles[0].along_m <= 12.0 for s in scs)  # every flight has its obstacle
+        assert all(s.goal_m == 20.0 for s in scs)
+    seen = {}
+    monkeypatch.setenv("PP_SIM_CONFIGS", "/scratch/x/sim_config")
+    monkeypatch.setattr(sw, "make_sim", lambda name, **kw: seen.update(kw) or (_ for _ in ()).throw(SystemExit("stop")))
+    cfg = yaml.safe_load(open("configs/sweeps/airsim_smoke.yaml"))
+    cfg["out"] = str(tmp_path / "o")
+    with pytest.raises(SystemExit):
+        sw.run(cfg)
+    assert seen["configs"] == "/scratch/x/sim_config" and seen["start"] == [150.0, -150.0, 0.0]

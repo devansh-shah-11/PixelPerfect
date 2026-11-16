@@ -73,8 +73,18 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
     if save:
         save.mkdir(parents=True, exist_ok=True)
 
+    from perception.depth_utils import corridor_window
+
+    collision_source = None
     for k in range(int(math.ceil(cfg.t_max / cfg.dt)) + 1):
         obs = sim.observe(state)
+        # Scenery guard: our swept check only knows the spawned obstacles. On Project AirSim the map has its own
+        # buildings, so a ground-truth surface closer than the drone's radius straight ahead also counts as a crash
+        # (one step late at most; the camera sits about 0.3 m ahead of the drone origin, job 33776).
+        rows, cols = corridor_window(obs.depth.shape)
+        if float(np.min(obs.depth[rows, cols])) < params.radius:
+            crashed, collision_source = True, "scenery"
+            break
         est = stack.perceive_obs(obs, state, sim)
         feats = temporal.update(est.features)
         est = DepthEstimate(depth=est.depth, features=feats)
@@ -108,7 +118,10 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
 
         new = step(state, action, cfg.dt, params)
         p0, p1 = state.position, new.position
-        collision = hits_ground(p0, p1, params.radius) or any(segment_hits(p0, p1, b, params.radius) for b in boxes)
+        hit_ground = hits_ground(p0, p1, params.radius)
+        collision = hit_ground or any(segment_hits(p0, p1, b, params.radius) for b in boxes)
+        if collision:
+            collision_source = "ground" if hit_ground else "obstacle"
         distance += float(np.linalg.norm(p1 - p0))
         paths = _save(save, k, obs, est) if save else ("", "", "", "")
         records.append(FrameRecord(
@@ -135,7 +148,7 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
         n_calls=sum(r.asked for r in records), delay_charged_s=round(delay_total, 3), latencies_s=latencies,
         obstacle_family=",".join(o.family for o in scenario.obstacles) or None,
         extra={"stack": getattr(stack, "name", type(stack).__name__), "backend": getattr(sim, "name", type(sim).__name__),
-               "delay_s": cfg.delay_s, "condition": scenario.condition})
+               "delay_s": cfg.delay_s, "condition": scenario.condition, "collision_source": collision_source})
     return records, result
 
 
