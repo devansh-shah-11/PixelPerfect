@@ -251,3 +251,30 @@ def test_cli_refuses_test_split_and_summarizes_saved_rows(tmp_path, capsys):
     eval_bank.main(["--summarize-only", "--out", str(out)])
     printed = capsys.readouterr().out
     assert "M2 gate" in printed and out.with_suffix(".report.md").exists()
+
+
+def test_gate_rejects_a_yes_machine():
+    rows = []
+    for ep in range(12):  # says yes to everything: recall 1.0, FPR 1.0
+        rows += [_row(ep, 5, 1.0), _row(100 + ep, 80, 1.0)]
+    s = summarize(rows, 15, 30)["m / both"]
+    assert s["gate"].startswith("FAIL") and "says yes too often" in s["gate"]
+
+
+def test_recall_on_fast_stack_misses(tmp_path, capsys):
+    from vlm.eval_bank import fast_miss_report, fast_miss_scores
+
+    rows = [_row(1, 5, 1.0), _row(2, 5, -1.0), _row(3, 5, 1.0), _row(10, 80, -1.0), _row(11, 80, -1.0)]
+    for r in rows:
+        r["stem"] = f"s{r['episode']}"
+    est = {"s1": 30.0, "s2": 30.0, "s3": 4.0, "s10": 90.0, "s11": 90.0}  # s3: the fast stack already sees it, not a miss
+    summ = summarize(rows, 15, 30)
+    fm = fast_miss_scores(rows, est, summ, d_safe=8.0, d_pos=15, d_neg=30)["m / both"]
+    assert fm["n"] == 2 and fm["recall"] == 0.5 and fm["auroc"] == pytest.approx(0.75)
+    assert "fast stack's misses" in fast_miss_report({"m / both": fm}, 8.0)
+    out = tmp_path / "rows.jsonl"
+    out.write_text("".join(json.dumps(r) + "\n" for r in rows))
+    run = tmp_path / "run.jsonl"
+    run.write_text("".join(json.dumps({"stem": k, "corridor_min_est": v}) + "\n" for k, v in est.items()))
+    eval_bank.main(["--summarize-only", "--out", str(out), "--run", str(run)])
+    assert "fast stack's misses" in out.with_suffix(".report.md").read_text()

@@ -326,12 +326,65 @@ def gate_verdict(entry: dict[str, Any]) -> str:
     if v["n_pos"] == 0:
         return "NO DATA (no positive frames of visible types)"
     thin = f"; THIN: {v['pos_flights']} positive flights" if v["pos_flights"] < MIN_GATE_FLIGHTS else ""
+    fpr0 = entry["overall"]["fpr"]
+    if v["recall"] >= GATE_RECALL and fpr0 <= 1.5 * TUNE_MAX_FPR:
+        return f"PASS at cut 0 (recall {v['recall']:.2f}, FPR {fpr0:.2f}){thin}"
     if v["recall"] >= GATE_RECALL:
-        return f"PASS at cut 0 (recall {v['recall']:.2f}){thin}"
+        return f"FAIL: recall {v['recall']:.2f} but FPR {fpr0:.2f} at cut 0 (says yes too often){thin}"
     t = entry.get("visible_train_at_tau")
     if t and t["n_pos"] and t["recall"] >= GATE_RECALL and t["fpr"] <= 1.5 * TUNE_MAX_FPR:
         return f"PASS at val-tuned cut {entry['tau_val']:+.2f} (train recall {t['recall']:.2f}, FPR {t['fpr']:.2f}){thin}"
     return f"FAIL (recall {v['recall']:.2f} at cut 0){thin}"
+
+
+def fast_miss_scores(rows: list[dict[str, Any]], est_by_stem: dict[str, float], summary: dict[str, Any],
+                     d_safe: float, d_pos: float, d_neg: float) -> dict[str, Any]:
+    """VLM recall on frames where the fast stack misses an obstacle (L1 at ``d_safe``: truth inside, estimate outside).
+
+    These are the frames a good gate sends to the VLM, so this, not recall on every visible obstacle, is what
+    decides whether asking can save a crash. Negatives and the val-tuned cut are the same as in ``summarize``.
+    """
+    lab = labelled(rows, d_pos, d_neg)
+    out: dict[str, Any] = {}
+    groups: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    for r in lab:
+        groups[(r["model"], r["condition"])].append(r)
+    for (model, cond), g in sorted(groups.items()):
+        key = f"{model} / {cond}"
+        miss = [r for r in g if r["stem"] in est_by_stem and float(r["gt_clean_m"]) < d_safe <= est_by_stem[r["stem"]]]
+        negs = [r for r in g if r["label"] == "neg"]
+        tau = summary[key]["tau_val"]
+        lo, hi = flight_ci(miss)
+        by_type: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for r in miss:
+            by_type[str(r["obstacle"])].append(r)
+        out[key] = {
+            "n": len(miss), "flights": len({r["episode"] for r in miss}),
+            "recall": (sum(r["confidence"] > 0 for r in miss) / len(miss)) if miss else float("nan"), "recall_ci": [lo, hi],
+            "fpr": summary[key]["overall"]["fpr"],
+            "recall_at_tau": (sum(r["confidence"] > tau for r in miss) / len(miss)) if miss and tau == tau else float("nan"),
+            "fpr_at_tau": (sum(r["confidence"] > tau for r in negs) / len(negs)) if negs and tau == tau else float("nan"),
+            "auroc": auroc([r["confidence"] for r in miss], [r["confidence"] for r in negs]),
+            "by_obstacle": {t: {"n": len(v), "flights": len({r["episode"] for r in v}),
+                                "recall": sum(r["confidence"] > 0 for r in v) / len(v)} for t, v in sorted(by_type.items())},
+        }
+    return out
+
+
+def fast_miss_report(fm: dict[str, Any], d_safe: float) -> str:
+    L = ["", f"### On the fast stack's misses (L1 at d_safe {d_safe:g} m): the frames a good gate would ask about", "",
+         "| Model / condition | missed frames (flights) | recall at 0 [95% CI] | FPR at 0 | AUROC | recall / FPR at the val-tuned cut |",
+         "|---|---|---|---|---|---|"]
+    for k, r in fm.items():
+        L.append(f"| {k} | {r['n']} ({r['flights']}) | {_f(r['recall'])} [{_ci(r['recall_ci'])}] | {_f(r['fpr'])} | {_f(r['auroc'])} | "
+                 f"{_f(r['recall_at_tau'])} / {_f(r['fpr_at_tau'])} |")
+    best = max(fm, key=lambda k: fm[k]["auroc"] if fm[k]["auroc"] == fm[k]["auroc"] else -1) if fm else None
+    if best:
+        L += ["", f"**{best}** (best AUROC on misses): recall at 0 by obstacle type among the missed frames", "",
+              "| Obstacle | missed frames (flights) | VLM recall |", "|---|---|---|"]
+        for t, r in fm[best]["by_obstacle"].items():
+            L.append(f"| {t} | {r['n']} ({r['flights']}) | {_f(r['recall'])} |")
+    return "\n".join(L)
 
 
 def agreement(rows: list[dict[str, Any]], d_pos: float) -> dict[str, dict[str, int]]:
@@ -509,6 +562,8 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--examples", help="directory for eyeball sheets; off if omitted")
     p.add_argument("--n-examples", type=int, default=6)
     p.add_argument("--summarize-only", action="store_true", help="score the rows already in --out; no model, no bank")
+    p.add_argument("--run", help="perception.run_bank JSONL: adds VLM recall on the fast stack's own misses")
+    p.add_argument("--d-safe", type=float, default=8.0, help="L1 threshold for --run")
     args = p.parse_args(argv)
     if "test" in args.splits:
         raise SystemExit("refusing to evaluate on the test split before the end of the project (CLAUDE.md rule 3)")
@@ -537,6 +592,13 @@ def main(argv: list[str] | None = None) -> None:
     summary_path = Path(args.out).with_suffix(".summary.json")
     summary_path.write_text(json.dumps({"d_pos": args.d_pos, "d_neg": args.d_neg, "summary": summary, "agreement": agree}, indent=1))
     text = report(summary, agree, args.d_pos, args.d_neg)
+    if args.run:
+        from perception.frame_bank import read_jsonl
+
+        est = {r["stem"]: float(r["corridor_min_est"]) for r in read_jsonl(args.run)}
+        fm = fast_miss_scores(rows, est, summary, args.d_safe, args.d_pos, args.d_neg)
+        text += "\n" + fast_miss_report(fm, args.d_safe)
+        summary_path.write_text(json.dumps({"d_pos": args.d_pos, "d_neg": args.d_neg, "summary": summary, "agreement": agree, "fast_misses": fm}, indent=1))
     Path(args.out).with_suffix(".report.md").write_text(text + "\n")
     print("\n" + text)
     print(f"\nrows: {args.out}\nsummary: {summary_path}\nreport: {Path(args.out).with_suffix('.report.md')}")
