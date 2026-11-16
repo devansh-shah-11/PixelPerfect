@@ -273,3 +273,23 @@
 - Problems found for the AirSim sweep: (1) the default start pose faces scenery about 12 m ahead (background depth 12.1 m), so flights need an open start from DS's scene scan (`results.json` key `400px.scene_scan.suggested_start_poses`); (2) our swept collision check only knows spawned obstacles, so a flight could pass through a map building uncounted. Fixed (2): `eval/run_episode.py` now also ends a flight as a crash when the ground-truth depth in the corridor window is below the drone radius, and records `collision_source` (obstacle, ground, scenery). Test added; pytest 117 passed.
 - Outcome: M4.1 and M4.2 done.
 - Follow-ups: pick the start pose; freeze `configs/seeds.yaml` (team, D13); then the true-depth sweep on Project AirSim (`configs/sweeps/airsim_true_depth.yaml`, which also needs `backend_kw.configs` set to the job's `sim_config` directory). Budget note from M4.2: about 0.22 s per step, so a 12 to 15 s flight costs about 30 s of rendering before the fast stack and the VLM.
+
+## 2026-11-16 10:33  |  vlm  |  Review of SB's M2 proposals: point 2, how the M2 gate is judged (discussion only)
+- Member: DS
+- Request: go through SB's review comments point by point; summarise point 2 (judge M2 on the fast stack's misses).
+- Action: laptop, read-only review of `vlm/judge.py`, `vlm/eval_bank.py`, `TASKS.md` M2, this log. No code changed, no jobs run.
+- Decisions & alternatives (proposed, needs team agreement): judge M2 on VLM recall over the fast stack's misses (the frames the gate actually sends), pass = recall >= 0.60 with false alarms <= 0.15, and also report the all-frames table and per-type recall within the misses. Reason: depth and VLM fail on different things (depth sees walls and buildings, the VLM sees wires, poles, balls), so all-frames recall penalises the VLM for cases depth already covers. The false-alarm cap is kept because a wrong "yes" when depth was right forces a needless avoid.
+- Assumptions: the VLM misses walls (0.44) and buildings (0.02) because a close surface fills the whole crop with no edges, and the D9 question asks whether something "crosses" the region [UNVERIFIED; supported by the episode 0007 sheets, 2B answered no at -2.2 to -3.0].
+- Evidence: job 33620 prompt results for 2B: "cross" recall 0.37 / FPR 0.06 / AUROC 0.67; "blocked" 0.55 / 0.18 / 0.75; "hit" 0.69 / 0.66 / 0.57. The fast-miss figures quoted in SB's notes (2B 15 to 18%, 8B 79% at FPR 0.14) are not yet in this log [UNVERIFIED until logged with job id and commit].
+- Outcome: discussion only.
+- Follow-ups: SB logs the fast-miss run; read per-type wall/building recall for "blocked" from the existing results (`--summarize-only`, no GPU); changing the default prompt is a D9 change (team + Decision-log row), chosen on val only; TASKS.md M2 gate wording updated once the team agrees.
+
+## 2026-11-16 10:45  |  sim  |  Review of SB's M4 proposals: point 3, freezing the seed lists (discussion only)
+- Member: DS
+- Request: go through SB's point 3 (freeze `configs/seeds.yaml`, D13).
+- Action: laptop, read-only review of `sim/scenario.py`, `configs/sweeps/airsim_*.yaml`. No code changed, no jobs run.
+- Decisions & alternatives (proposed, needs team agreement): (a) freeze the seed lists now with the defaults, 500 train / 300 val / 300 test (`sim/scenario.py:141`); sweeps always take the first n of a list, never hand-picked seeds. (b) Scenario settings (obstacles, distances, altitude, start pose) are not in `seeds.yaml`; keep tuning them on val until M4.7 (never-ask crashes 15 to 30%), then freeze them as a separate, written step before any test seed is opened. Nothing enforces (b) yet. (c) Use 3 to 5 open start poses from DS's scene scan, picked by seed, instead of the single (150, -150). Rejected: freezing with "current generator defaults" as if that fixed the scenarios (the AirSim sweeps already override them: goal 20 m, obstacle at 9 to 12 m).
+- Assumptions: 300 test flights at about a 20% crash rate gives a 95% interval of about +/-4.5 points (normal approximation). One start pose risks the gate overfitting to one background [UNVERIFIED].
+- Evidence: `airsim_smoke.yaml` and `airsim_true_depth.yaml` use start (150, -150), 24.9 m minimum clearance, 20 m flights. At 5 m/s a 2 s delay covers 10 m, about the whole distance to the obstacle, so the delay sweep (E5) cannot run on that layout.
+- Outcome: discussion only.
+- Follow-ups: team agrees on counts, then `python -m sim.scenario --write-seeds configs/seeds.yaml` (refuses to overwrite); add multi-pose start selection to the AirSim backend; add a scenario-config freeze step to TASKS.md M4.7.
