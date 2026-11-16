@@ -31,6 +31,30 @@ PROMPT = (
     "highlighted region? Answer yes or no."
 )
 
+# Prompt ablation (M2.4). "cross" is the D9 default. The variants target the
+# failure seen in job 33462: a surface that fills the whole region (a building
+# face at 6 to 9 m) does not "cross" it, and the 2B answered no with high
+# confidence. "{where}" becomes "the highlighted region" when the overlay is
+# shown and "the centre of the image" when it is not, so the question never
+# refers to a box the model cannot see.
+PROMPTS = {
+    "cross": "Does any object, including thin wires, cables, poles or glass, cross {where}? Answer yes or no.",
+    "blocked": (
+        "Is {where} blocked by any object or surface, including walls, buildings, glass, "
+        "poles or thin wires? Answer yes or no."
+    ),
+    "hit": (
+        "A drone is flying straight ahead towards {where}. Would it hit any object or surface "
+        "there, including walls, glass, poles or thin wires? Answer yes or no."
+    ),
+}
+
+
+def prompt_text(key: str, overlay: bool) -> str:
+    """The question for prompt ``key``, worded for whether the highlighted region is drawn."""
+    where = "the highlighted region" if overlay else "the centre of the image"
+    return PROMPTS[key].format(where=where)
+
 # Surface forms of the two answers. Several spellings are single tokens in most
 # tokenizers; the ones that are not are skipped, so the score is robust to how
 # the tokenizer splits them.

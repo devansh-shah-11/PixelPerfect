@@ -36,8 +36,13 @@ Shared types between workstreams live in [`interfaces.py`](interfaces.py) (PLAN_
 - `vlm/overlay.py`: the highlighted region (the corridor window the labels use) drawn on the frame, plus a full-resolution crop of it.
 - `vlm/surrogate.py`: the surrogate judge (noisy oracle with measured error rates). Every result from it is labelled "surrogate VLM".
 - `vlm/bench_latency.py`: latency benchmark (chunk M2.1).
+- `vlm/eval_bank.py`: standalone accuracy on labelled frame-bank frames and the M2 gate verdict (chunk M2.4). Writes `<out>.jsonl` (one row per model, condition and frame), `<out>.summary.json`, `<out>.report.md`, and eyeball sheets. `--summarize-only` re-scores saved rows without a GPU.
 
-Setup and submission are in the header of [`hpc/vlm_latency.sbatch`](hpc/vlm_latency.sbatch) (`pip install -e ".[dev,vlm]"`, weights under `HF_HOME` on scratch).
+Setup and submission are in the headers of [`hpc/vlm_latency.sbatch`](hpc/vlm_latency.sbatch) and [`hpc/vlm_eval_bank.sbatch`](hpc/vlm_eval_bank.sbatch) (`pip install -e ".[dev,vlm]"`, weights under `HF_HOME` on scratch).
+
+### VLM accuracy (M2.4), first look
+
+Job 33462, 2B, overlay + crop, D9 question, 500 val frames (50 per obstacle type): recall 0.40 (95% interval over flights 0.27 to 0.54), precision 0.90, false-positive rate 0.05, AUROC 0.70. On the visible types the gate counts, recall 0.28 (0.12 to 0.48) over 15 flights, below the 0.60 gate. Not the final table: glass had no ground truth in this run, and val alone gives only 2 to 5 flights per type. The full run (train + val flights, 2B and 8B, six conditions) replaces it.
 
 ### VLM latency (M2.1)
 
