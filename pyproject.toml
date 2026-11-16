@@ -10,7 +10,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.4"]
+dev = ["pytest>=7.4", "scikit-learn>=1.3"]
+gate = ["scikit-learn>=1.3"]
 perception = ["torch>=2.2", "transformers>=4.45"]
 # Qwen3-VL needs transformers with the qwen3_vl architecture (4.57+); accelerate for device
 # placement; torchvision because AutoProcessor also builds Qwen3VLVideoProcessor (job 33329 failed without it).

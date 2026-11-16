@@ -1,0 +1,20 @@
+# Laptop smoke sweep on the Plan B raycast backend with the BLIND synthetic stand-in and the SURROGATE judge.
+# Tests the whole gated loop end to end. Not a result: the stand-in imitates, it does not measure, Depth Anything V2.
+#   python -m eval.sweep --config configs/sweeps/raycast_smoke.yaml
+backend: raycast
+backend_kw: {width: 200, height: 113}
+stack: blind
+judge: surrogate
+judge_kw: {default_tpr: 0.8, default_fpr: 0.05, seed: 0}
+delay_s: 1.0
+split: val
+seeds: [100500, 100501, 100502, 100503, 100504, 100505, 100506, 100507, 100508, 100509,
+        100510, 100511, 100512, 100513, 100514, 100515, 100516, 100517, 100518, 100519]
+policies:
+  - {name: never, policy: never}
+  - {name: always, policy: always, cooldown_s: 0.5}
+  - {name: random_p0.05, policy: random, p: 0.05, cooldown_s: 0.5}
+  - {name: threshold_var, policy: threshold, feature: corridor_var, tau: 50.0, below: false, cooldown_s: 0.5}
+  - {name: oracle, policy: oracle, cooldown_s: 0.5}
+out: results/sweeps/raycast_smoke
+flight_logs: false

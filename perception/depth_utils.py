@@ -22,6 +22,11 @@ MAX_RANGE_M = 100.0
 CORRIDOR_ROWS = (0.4, 0.6)
 CORRIDOR_COLS = (0.45, 0.55)
 
+# Horizontal field of view of the bank's FrontCam: hpc/capability/make_configs.py copies the
+# shipped DownCamera of robot_quadrotor_nonphysics.jsonc (Project AirSim v1.0.1), which has
+# "fov-degrees": 90, and changes only width and height. That the 90 is horizontal is [UNVERIFIED].
+CAMERA_HFOV_DEG = 90.0
+
 
 def valid_depth_mask(depth: np.ndarray, max_range: float = MAX_RANGE_M) -> np.ndarray:
     """True where depth is a real surface: finite, positive and within ``max_range``."""

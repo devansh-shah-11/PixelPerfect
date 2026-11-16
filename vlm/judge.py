@@ -50,6 +50,11 @@ PROMPTS = {
 }
 
 
+def _slug_model(model_id: str) -> str:
+    """Short judge label for results, e.g. "qwen3-vl-2b"."""
+    return model_id.split("/")[-1].replace("-Instruct", "").lower()
+
+
 def prompt_text(key: str, overlay: bool) -> str:
     """The question for prompt ``key``, worded for whether the highlighted region is drawn."""
     where = "the highlighted region" if overlay else "the centre of the image"

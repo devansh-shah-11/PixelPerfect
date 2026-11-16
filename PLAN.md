@@ -65,7 +65,7 @@ Full architecture, labels (L1, L2, L3), the policy list and the metric definitio
 
 **Known broken or unknown** (all from `hpc/instructions.md` §3.5, which is the honest version; the first job log over-reported passes)
 
-- The **closed loop does not exist yet**. No kinematic drone, no collision check, no episode runner, so there are no crash rates of any kind.
+- **The closed loop exists, but only on the Plan B raycast simulator so far.** Kinematic drone, rule controller, own swept collision check, paused-time delay loop, resumable sweep and metrics all run and are tested; 60 of 60 true-depth flights reached the goal with no crash. The Project AirSim backend is written but untested until M4.1 and M4.2 run. There are still no crash rates from the real simulator or the real fast stack.
 - **Whether thin wires render at all is unknown.** A 1 cm wire at 10 m is not visible in the images. Wires must be checked through segmentation ids and ground-truth depth along the ray, not by eye.
 - **Segmentation did not distinguish spawned objects** in the earlier Blocks run.
 - **Pause/step was not tested**, and the paused-time delay model (`PLAN_DETAILED.md` D10) depends on it.

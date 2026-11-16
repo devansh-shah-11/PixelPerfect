@@ -60,20 +60,11 @@ CONDITIONS: dict[str, tuple[bool, bool, str]] = {
 }
 BUCKETS = ((0, 3), (3, 6), (6, 10), (10, 20), (20, float("inf")))
 MIN_ALONG_M = 1.0  # as in perception.analyze_bank: closer and the camera is inside the obstacle
-HFOV_DEG = 90.0  # FrontCam = shipped DownCamera config with width/height changed; fov-degrees 90
-CORRIDOR_HALF_FRAC_W = 0.05  # corridor columns 0.45 to 0.55 of the image width
 
-# Obstacles whose depth and segmentation are see-through in the simulator.
-METADATA_GT_TYPES = ("glass_pane_alpha20", "glass_pane_alpha50")
-# Half of the smaller in-plane size of each spawned obstacle, metres (hpc/capability/capability_test.py
-# CATALOG). Poles and wires use half their length: in job 33462 both "axis_z" types render as
-# horizontal bars at camera height, not vertical posts. Used for the glass label and the agreement
-# diagnostic only.
-HALF_WIDTH_M = {
-    "ball_20cm_red": 0.1, "box_1m_black": 0.5, "box_1m_grey": 0.5, "box_1m_white": 0.5,
-    "building_block": 6.0, "glass_pane_alpha20": 1.25, "glass_pane_alpha50": 1.25,
-    "wall_white_featureless": 1.5, "pole_10cm_axis_z": 2.5, "wire_1cm_axis_z": 3.0, "wire_3cm_axis_z": 3.0,
-}
+# Ground truth for see-through obstacles (glass) and the window geometry live in gate.labels,
+# shared with the gate labels and gate.bank_gt.
+from gate.labels import HALF_WIDTH_M, METADATA_GT_TYPES, metadata_in_window, window_half_width, with_metadata_fallback  # noqa: E402
+from perception.depth_utils import CAMERA_HFOV_DEG as HFOV_DEG  # noqa: E402
 
 GATE_RECALL = 0.60  # TASKS.md M2 kill switch: recall below about 60% on the visible types
 TUNE_MAX_FPR = 0.10  # the tuned cut is the lowest one that keeps val FPR at or below this
@@ -97,18 +88,6 @@ def frame_label(gt_clean_m: float, d_pos: float, d_neg: float) -> str:
     if gt_clean_m > d_neg:
         return "neg"
     return "ambiguous"
-
-
-def window_half_width(along_m: float, hfov_deg: float = HFOV_DEG) -> float:
-    """Half-width in metres of the corridor window at distance ``along_m`` ahead."""
-    return CORRIDOR_HALF_FRAC_W * 2 * along_m * math.tan(math.radians(hfov_deg) / 2)
-
-
-def metadata_in_window(obstacle: str, along_m: float | None, lateral_m: float | None, hfov_deg: float = HFOV_DEG) -> bool | None:
-    """Whether the episode metadata puts the obstacle inside the window; None when there is no metadata."""
-    if along_m is None or lateral_m is None or obstacle not in HALF_WIDTH_M:
-        return None
-    return along_m > 0 and abs(lateral_m) < HALF_WIDTH_M[obstacle] + window_half_width(along_m, hfov_deg)
 
 
 def select_frames(
@@ -150,22 +129,14 @@ def select_frames(
 
 
 def ground_truth(bank: str | Path, frame: dict[str, Any], hfov_deg: float = HFOV_DEG) -> dict[str, Any]:
-    """Clean corridor distances for one frame, with the metadata fallback for see-through obstacles."""
+    """Clean corridor distances for one frame, with the metadata fallback for see-through obstacles (gate.labels)."""
     from gate.labels import clean_corridor_min
     from perception.depth_utils import MAX_RANGE_M
     from perception.frame_bank import load_depth_gt, load_obstacle_mask
 
-    stem, obstacle = frame["stem"], str(frame["obstacle"])
-    gt: dict[str, Any] = dict(clean_corridor_min(load_depth_gt(bank, stem), load_obstacle_mask(bank, stem), MAX_RANGE_M))
-    along, lateral = frame.get("gt_along_m"), frame.get("gt_lateral_m")
-    meta_in = metadata_in_window(obstacle, along, lateral, hfov_deg)
-    gt["meta_in_window"] = meta_in
-    gt["gt_source"] = "seg"
-    if obstacle in METADATA_GT_TYPES and meta_in is not None:
-        gt["gt_source"] = "metadata"
-        gt["corridor_min_gt_obstacle"] = float(along) if meta_in else float(MAX_RANGE_M)
-        gt["corridor_min_gt_clean"] = min(gt["corridor_min_gt_obstacle"], float(gt["corridor_min_gt_scene"]))
-    return gt
+    stem = frame["stem"]
+    gt = clean_corridor_min(load_depth_gt(bank, stem), load_obstacle_mask(bank, stem), MAX_RANGE_M)
+    return with_metadata_fallback(gt, frame, hfov_deg)
 
 
 # ---- evaluation loop -----------------------------------------------------------------------

@@ -16,10 +16,19 @@ Companion to `PLAN.md` (orientation) and `PLAN_DETAILED.md` (the source of truth
 
 ---
 
-## Right now, one thing each
+## Right now, in order
 
-| Who | Next chunk | Why this one |
-|---|---|---|
+Everything below that is code is written and tested on the laptop (114 tests). What is left needs the HPC, in this order:
+
+| # | Job | Where | Unblocks |
+|---|---|---|---|
+| 1 | M2.4 full VLM evaluation, `sbatch hpc/vlm_eval_bank.sbatch` | A100, about 1 h 15 min | M2 gate verdict |
+| 2 | M1.8 clean labels (`gate.bank_gt`, now with glass) and M1.9 Part A (`perception.diagnose_depth`) | CPU node, minutes | trusting any miss rate; M3 |
+| 3 | M3.4 image features (`gate.image_features`), then `gate.train` | CPU node, minutes | M3 gate verdict |
+| 4 | M4.1 + M4.2 `sbatch hpc/m4_checks.sbatch` | A100 + Project AirSim env, about 10 min | wire story, D10, the AirSim backend |
+| 5 | Freeze `configs/seeds.yaml` (team call, D13), then the true-depth sweep on Project AirSim | A100 | M4 gate on the real simulator |
+
+---|---|---|
 | **Devansh (A)** | M4.1 verify wires through segmentation and ground-truth depth | The whole thin-wire story is unverified, and it decides whether wires are our main failure case or we switch to poles and glass |
 | **Parva (B)** | M1.9 explain the depth quality, then M1.5 merge into `main` | M1's gate has passed, but a val AbsRel of 2.42 and a 76% miss rate need a cause before any gate is trained on them |
 | **Sarvesh (C)** | M2.4 full A100 run, then the gate decision | Everything else in M2 is done; the run prints the verdict |
@@ -57,8 +66,8 @@ The CityEnviron bank (411 episodes, 19,267 frames) is the data everything runs o
 | M1.5 | **Merge the frame-bank work into `main`** | B | PR merged; `main` runs | TODO, and it blocks M3 |
 | M1.6 | L1 label function in `gate/labels.py`, false stops logged separately, unit tests, eyeball 20 positive and 20 negative [W-B3, §4.3] | B | Tests pass plus an eyeball note | DONE, but see M1.8 |
 | M1.7 | Ground-truth corridor distance from the segmentation mask | B | Agrees with `gt_along_m` on a sample | DONE (code and track check); not yet computed on the real bank, see M1.8 |
-| M1.8 | **Clean the L1 labels:** run `gate.bank_gt` and the analysis with `--gt` on the real bank, so labels come from the segmentation mask rather than raw corridor depth | B | Label rates recomputed; rain no longer noisy | TODO, **blocks gate training in M3.4** (flagged by B: labels must be fixed before any gate is trained) |
-| M1.9 | **Explain the depth quality before trusting any miss rate.** Val AbsRel is 2.42 raw and 1.88 scaled, with 76 to 78% of in-corridor obstacles missed: wires, the 10 cm pole, the 20 cm ball and the glass pane 100%, 1 m boxes about 90%, but the white wall only 2.5%. An error larger than the distance itself is a bug signal, not a result | B | A written cause: perspective-to-planar conversion, the metric checkpoint on CityEnviron, or the corridor window catching ground and sky (the corridor sees ground at about 12 x altitude) | TODO. Treat as a bug until proven otherwise (`CLAUDE.md` escalation). If the depth really is this bad, the gate will mostly learn "depth is broken" and M3's comparison becomes meaningless |
+| M1.8 | **Clean the L1 labels:** run `gate.bank_gt` and the analysis with `--gt` on the real bank, so labels come from the segmentation mask rather than raw corridor depth | B | Label rates recomputed; rain no longer noisy | READY TO RUN (SB): `gate.bank_gt` now also labels glass from metadata (see-through to depth and segmentation, job 33462). Rerun it over the bank on a CPU node, then `analyze_bank --gt` (commands in AGENT_LOG, 2026-11-15) |
+| M1.9 | **Explain the depth quality before trusting any miss rate.** Val AbsRel is 2.42 raw and 1.88 scaled, with 76 to 78% of in-corridor obstacles missed: wires, the 10 cm pole, the 20 cm ball and the glass pane 100%, 1 m boxes about 90%, but the white wall only 2.5%. An error larger than the distance itself is a bug signal, not a result | B | A written cause: perspective-to-planar conversion, the metric checkpoint on CityEnviron, or the corridor window catching ground and sky (the corridor sees ground at about 12 x altitude) | READY TO RUN (SB): `perception/diagnose_depth.py`. Likely explanation, to confirm: the 2.42 is a *mean over frames* of the corridor-minimum error and includes the misses themselves (truth 2 m, estimate 35 m adds 16.5), so a few missed thin obstacles inflate it while the model may be fine on ordinary surfaces. Part A splits the error by scene vs obstacle frames (seconds, no GPU); Part B scores pixels with the ray-to-planar conversion and writes a depth contact sheet |
 
 ---
 
@@ -88,11 +97,11 @@ If the closed loop never works, this milestone alone is still a defensible proje
 
 | | Chunk | Owner | Done when | Status |
 |---|---|---|---|---|
-| M3.1 | `eval/metrics.py`: crash rate and crashes per km, success, mission time, calls per flight, latency percentiles, safety retained, Wilson and bootstrap CIs [C-07, W-C4, §5] | C | Runs on bank-derived data and produces the results table | TODO |
-| M3.2 | `policies/` behind one `should_ask` interface: never, always, random(p), cooldown, plus unit tests [C-06, W-C5, §4.4] | C | Tests pass | TODO |
-| M3.3 | Depth-variance threshold baseline, then gradient boosting on corridor statistics; AUROC, AUPRC, ECE on val, per obstacle family [W-B4, B-xx] | B | Val table. AUROC above 0.99 means suspect leakage, not success | TODO |
-| M3.4 | Gate-L1 model (small MLP, then embedding variant), under 1 ms per frame [§4.2] | B | Beats M3.3's baseline on val, or a written explanation of why not | TODO |
-| M3.5 | Held-out obstacle family check [E6] | B | Numbers for the held-out family reported separately | TODO |
+| M3.1 | `eval/metrics.py`: crash rate and crashes per km, success, mission time, calls per flight, latency percentiles, safety retained, Wilson and bootstrap CIs [C-07, W-C4, §5] | C | Runs on bank-derived data and produces the results table | DONE (code + 15 tests): `eval/metrics.py`; Wilson intervals, crashes/km, success, mission time, calls/flight, query rate, latency p50/95/99, safety retained with a paired bootstrap over seeds; refuses to mix surrogate and real-VLM results in one table |
+| M3.2 | `policies/` behind one `should_ask` interface: never, always, random(p), cooldown, plus unit tests [C-06, W-C5, §4.4] | C | Tests pass | DONE (code + tests): `policies/base.py`: never, always, random(p), fixed interval, threshold(feature, tau), gate(tau), oracle; shared cooldown; seeded `reset` per flight; `make_policy` from YAML |
+| M3.3 | Depth-variance threshold baseline, then gradient boosting on corridor statistics; AUROC, AUPRC, ECE on val, per obstacle family [W-B4, B-xx] | B | Val table. AUROC above 0.99 means suspect leakage, not success | READY TO RUN (SB): `gate/train.py` has the depth-variance baseline and the best single tuned feature; needs M1.8's clean labels on the real bank |
+| M3.4 | Gate-L1 model (small MLP, then embedding variant), under 1 ms per frame [§4.2] | B | Beats M3.3's baseline on val, or a written explanation of why not | READY TO RUN (SB): logistic regression, gradient boosting and MLP on depth, + temporal, + thin-structure image features (`gate/image_features.py`, one CPU pass over the bank); AUROC with flight-level intervals, AUPRC, ECE, per family; leakage warning above 0.99; `gate/model.py` serves a trained gate behind `interfaces.Gate` |
+| M3.5 | Held-out obstacle family check [E6] | B | Numbers for the held-out family reported separately | READY TO RUN (SB): `gate.train --holdout-family <type>` |
 | M3.6 | Report skeleton in Overleaf: sections, owners, metric definitions [S-09] | C | Skeleton compiles | TODO |
 
 ---
@@ -104,13 +113,13 @@ If the closed loop never works, this milestone alone is still a defensible proje
 
 | | Chunk | Owner | Done when | Status |
 |---|---|---|---|---|
-| M4.1 | **Verify wires:** spawn 3 cm and 1 cm wire, check the segmentation id and ground-truth depth along the camera ray at 3, 6 and 10 m, not by eye [W-A1, §11 blocker 4] | A | A written yes or no per thickness and distance | TODO, decides the main failure case |
-| M4.2 | Test pause/step and measure seconds per step; this is what D10 depends on | A | Numbers in `hpc/instructions.md` | TODO |
-| M4.3 | Kinematic drone (fixed altitude band, speed v, 5 actions, hysteresis), scenario generator, **freeze `configs/seeds.yaml`** [A-06, D4, D13] | A | 100 seeded scenarios regenerate identically, seeds checksummed | TODO |
-| M4.4 | Own collision check against known obstacle geometry, engine flag only as a cross-check [A-05, D5] | A | Unit test: drone through a wire counts as a collision | TODO |
-| M4.5 | `eval/run_episode.py` closed loop, ground-truth depth as a fake fast stack first, then B's modules [A-08, H4] | A | True-depth flights crash near zero | TODO |
-| M4.6 | Paused-time delay loop: pause, ask, advance by `d` with brake and hold, `d` never zero [A-11, D10, D11] | A | Same seed and same `d` gives an identical flight | TODO, uses M2.5 surrogate until the real VLM is wired in |
-| M4.7 | Never-ask headroom check on at least 100 val episodes, and seconds per flight written into `README.md` [A-09] | A | Never-ask crashes in 15 to 30% of flights, or difficulty retuned | TODO |
+| M4.1 | **Verify wires:** spawn 3 cm and 1 cm wire, check the segmentation id and ground-truth depth along the camera ray at 3, 6 and 10 m, not by eye [W-A1, §11 blocker 4] | A | A written yes or no per thickness and distance | READY TO RUN (SB): `hpc/m4_checks.sbatch` (wires 1 cm and 3 cm, poles, glass at 3/6/10 m: segmentation pixels, depth on the mask, mask orientation to confirm the glTF axis mapping). Needs the Project AirSim env |
+| M4.2 | Test pause/step and measure seconds per step; this is what D10 depends on | A | Numbers in `hpc/instructions.md` | READY TO RUN (SB): same job: paused sim time, exact 100 ms steps, pose hold over 10 steps, wall seconds per step |
+| M4.3 | Kinematic drone (fixed altitude band, speed v, 5 actions, hysteresis), scenario generator, **freeze `configs/seeds.yaml`** [A-06, D4, D13] | A | 100 seeded scenarios regenerate identically, seeds checksummed | DONE on code (SB): `sim/drone.py`, `sim/scenario.py` (seeded, holdout family, catalog sizes), `python -m sim.scenario --write-seeds configs/seeds.yaml` freezes with a checksum and refuses to overwrite. **Not frozen yet: that is the team's go/no-go call (D13)** |
+| M4.4 | Own collision check against known obstacle geometry, engine flag only as a cross-check [A-05, D5] | A | Unit test: drone through a wire counts as a collision | DONE (SB): `sim/geometry.py` swept sphere vs oriented box; tests: a 1 cm wire crossed within one step is a hit, 1 m above is not. Bug found and fixed in the smoke flights: a vertical step parallel to a box face counted as a hit |
+| M4.5 | `eval/run_episode.py` closed loop, ground-truth depth as a fake fast stack first, then B's modules [A-08, H4] | A | True-depth flights crash near zero | DONE on the Plan B backend (SB): `eval/run_episode.py` + `sim/raycast.py` (glass see-through to depth and segmentation, as in Project AirSim); true-depth reference merges glass back from the geometry. **60/60 true-depth flights reached the goal with 0 crashes.** Project AirSim backend `sim/airsim_backend.py` written but [UNTESTED] until M4.1/M4.2 run |
+| M4.6 | Paused-time delay loop: pause, ask, advance by `d` with brake and hold, `d` never zero [A-11, D10, D11] | A | Same seed and same `d` gives an identical flight | DONE (SB): pause, ask, advance by `d` (> 0 enforced) with brake and hold; same seed and delay replay identically (test) |
+| M4.7 | Never-ask headroom check on at least 100 val episodes, and seconds per flight written into `README.md` [A-09] | A | Never-ask crashes in 15 to 30% of flights, or difficulty retuned | PARTLY (SB): `eval/sweep.py` resumable. Headroom on Plan B with the blind stand-in: 40% never-ask crashes, a stand-in figure only; the real number needs Depth Anything V2 on Project AirSim. Speed: about 0.8 s per flight at 200x113 on the laptop |
 | M4.8 | Golden set of about 20 saved episodes [A-10, H3] | A | Two copies, one on HPC scratch | TODO |
 
 ---
