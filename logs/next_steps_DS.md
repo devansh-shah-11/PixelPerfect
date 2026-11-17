@@ -143,8 +143,7 @@ git commit -m "eval: benchmark table for depth only, VLM only, depth + VLM"
 **Commit 4: docs**
 ```bash
 git add README.md TASKS.md CLAUDE.md PLAN_DETAILED.md AGENT_LOG.md logs/next_steps_DS.md
-git commit -m "docs: benchmark and seed-freeze instructions, D24 counts, agent log" \
-           -m "Records what was built, what is unverified, and the HPC jobs still to run."
+git commit -m "docs: benchmark and seed-freeze instructions, D24 counts, agent log"
 ```
 
 After the commits, per `CLAUDE.md`: add a `logs/PROGRESS.md` entry per commit, check `git status` is clean, and back up (commit 2 touches `configs/`). Push only when you decide to. The HPC needs the push before it can `git pull`.

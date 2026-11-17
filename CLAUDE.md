@@ -88,4 +88,7 @@ Be concise and factual. State what was run, where, and the result. Say plainly w
 - Fast stack over the frame bank (resumable): `python -m perception.run_bank --bank <bank dir> --out <file>.jsonl`
 - First look at a bank run (train and val only): `python -m perception.analyze_bank --run <file>.jsonl [--bank <bank dir> --sheet <file>.png]`
 - Clean ground-truth corridor distances (CPU only): `python -m gate.bank_gt --bank <bank dir> --out <file>.jsonl`, then pass it to `analyze_bank --gt`
+- Benchmark table, depth / VLM / depth + VLM (CPU only, reads result files): `python -m eval.benchmark --vlm results/vlm_eval.jsonl --run <file>.jsonl --latency results/vlm_latency_*.json [--flights <sweep dirs>]`
+- Sweep with overrides (one config, many variants): `python -m eval.sweep --config <file>.yaml --set judge_kw.model_id=Qwen/Qwen3-VL-8B-Instruct@4bit --set out=<dir>`
+- Seed lists: `configs/seeds.yaml` is frozen (1000 / 500 / 500, D24). Scenario settings freeze once, after M4.7: `python -m sim.scenario --freeze-scenario <sweep>.yaml --to configs/scenario.yaml`
 - HPC job template: `sbatch hpc/job_template.sbatch` (default: smoke test; other commands via `--export=ALL,CMD="..."`)

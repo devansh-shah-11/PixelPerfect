@@ -35,10 +35,25 @@ Shared types between workstreams live in [`interfaces.py`](interfaces.py) (PLAN_
 - `vlm/judge.py`: Qwen3-VL behind `interfaces.VLMJudge`. One forward pass per question; the answer is `logit(yes) - logit(no)`.
 - `vlm/overlay.py`: the highlighted region (the corridor window the labels use) drawn on the frame, plus a full-resolution crop of it.
 - `vlm/surrogate.py`: the surrogate judge (noisy oracle with measured error rates). Every result from it is labelled "surrogate VLM".
-- `vlm/bench_latency.py`: latency benchmark (chunk M2.1).
+- `vlm/bench_latency.py`: latency and peak GPU memory per model (chunk M2.1); `--depth` adds the fast stack.
+- Model variants: a model spec ending in `@8bit` or `@4bit` (for example `Qwen/Qwen3-VL-8B-Instruct@4bit`) is the bitsandbytes-quantized model, for the on-prem comparison (D22). Needs the `quant` extra and a CUDA GPU.
+- `eval/benchmark.py`: the benchmark table, depth only against VLM only against depth + VLM, per VLM variant (see below).
 - `vlm/eval_bank.py`: standalone accuracy on labelled frame-bank frames and the M2 gate verdict (chunk M2.4). Writes `<out>.jsonl` (one row per model, condition and frame), `<out>.summary.json`, `<out>.report.md`, and eyeball sheets. `--summarize-only` re-scores saved rows without a GPU.
 
 Setup and submission are in the headers of [`hpc/vlm_latency.sbatch`](hpc/vlm_latency.sbatch) and [`hpc/vlm_eval_bank.sbatch`](hpc/vlm_eval_bank.sbatch) (`pip install -e ".[dev,vlm]"`, weights under `HF_HOME` on scratch).
+
+### Benchmark table: depth only, VLM only, depth + VLM
+
+```
+python -m eval.benchmark --vlm results/vlm_eval.jsonl --run <bank runs>/da2_small.jsonl \
+    --latency results/vlm_latency_*.json --out results/benchmark.md
+```
+
+CPU only; it reads result files. One task for every system: is there an obstacle within 8 m in the corridor window. Depth only says yes when its corridor minimum is below 8 m, VLM only when the judge's confidence is above its cut, depth + VLM when either does. Columns: recall with a 95% interval over flights, false alarms, precision, AUROC, recall on the frames depth missed (the M2 gate number, D23), latency and peak GPU memory. A second table gives recall by obstacle type, and the last line names the smallest-memory variant that passes the M2 gate. Each VLM's condition and cut are chosen on val and the table is scored on train flights; test frames are refused.
+
+Inputs to produce on the HPC: `hpc/vlm_latency.sbatch` (latency and memory for the fast stack, 2B, 8B, 8B@8bit, 8B@4bit) and `hpc/vlm_eval_bank.sbatch` (accuracy rows; its header has the commands for the second prompt round and the quantized variants). **No numbers yet: the quantized variants and the new prompts have not been run.**
+
+`--flights <sweep dirs>` adds the flight side: crash rate per system from `eval.sweep` runs of `configs/sweeps/airsim_bench.yaml` (`--set stack=clear` flies VLM only; `--set judge_kw.model_id=...@4bit` another variant). Not runnable as a result until the start poses are checked and M4.7 passes.
 
 ### VLM accuracy (M2.4), first look
 
