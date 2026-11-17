@@ -15,7 +15,7 @@ The flight ends on a collision, at the goal, or at ``t_max``. Wall-clock time
 never enters the dynamics, so a seed and a delay replay the same flight
 exactly; the real VLM latency is only logged.
 
-    python -m eval.run_episode --policy never --seed 100500 --stack true-depth
+    python -m eval.run_episode --policy never --seed 101000 --stack true-depth
 """
 from __future__ import annotations
 
@@ -148,7 +148,8 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
         n_calls=sum(r.asked for r in records), delay_charged_s=round(delay_total, 3), latencies_s=latencies,
         obstacle_family=",".join(o.family for o in scenario.obstacles) or None,
         extra={"stack": getattr(stack, "name", type(stack).__name__), "backend": getattr(sim, "name", type(sim).__name__),
-               "delay_s": cfg.delay_s, "condition": scenario.condition, "collision_source": collision_source})
+               "delay_s": cfg.delay_s, "condition": scenario.condition, "collision_source": collision_source,
+               "start_index": getattr(sim, "start_index", None)})
     return records, result
 
 
@@ -171,9 +172,9 @@ def main(argv: list[str] | None = None) -> None:
 
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     p.add_argument("--policy", default="never", help="policy name, or a JSON spec like '{\"policy\": \"random\", \"p\": 0.1}'")
-    p.add_argument("--seed", type=int, default=100_500)
+    p.add_argument("--seed", type=int, default=101_000, help="default: the first val seed of configs/seeds.yaml")
     p.add_argument("--split", default="val")
-    p.add_argument("--stack", default="true-depth", choices=["true-depth", "blind", "da2"])
+    p.add_argument("--stack", default="true-depth", choices=["true-depth", "blind", "da2", "clear"])
     p.add_argument("--backend", default="raycast", choices=["raycast", "airsim"])
     p.add_argument("--judge", default="surrogate", choices=["surrogate", "qwen", "none"])
     p.add_argument("--delay", type=float, default=1.0)

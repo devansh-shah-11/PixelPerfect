@@ -243,14 +243,20 @@ def test_scenery_guard_counts_unspawned_walls_as_crashes():
 
 def test_airsim_configs_parse_and_expand(monkeypatch, tmp_path):
     import eval.sweep as sw
+    from sim.airsim_backend import pick_start
     from sim.scenario import ScenarioConfig, generate
 
-    for name in ("airsim_smoke", "airsim_true_depth"):
+    cfg = yaml.safe_load(open("configs/sweeps/airsim_smoke.yaml"))  # the 20 m smoke test that already ran: one start pose
+    scs = [generate(s, "smoke", ScenarioConfig(**cfg["scenario"])) for s in range(1, 41)]
+    assert all(len(s.obstacles) == 1 and s.obstacles[0].along_m <= 12.0 and s.goal_m == 20.0 for s in scs)
+    for name in ("airsim_starts_smoke", "airsim_true_depth", "airsim_bench"):  # 40 m flights from several start poses (D24)
         cfg = yaml.safe_load(open(f"configs/sweeps/{name}.yaml"))
-        sc_cfg = ScenarioConfig(**cfg["scenario"])
-        scs = [generate(s, "smoke", sc_cfg) for s in range(1, 41)]
-        assert all(len(s.obstacles) == 1 and s.obstacles[0].along_m <= 12.0 for s in scs)  # every flight has its obstacle
-        assert all(s.goal_m == 20.0 for s in scs)
+        starts = cfg["backend_kw"]["starts"]
+        assert len(starts) == 5 and len({(x, y, yaw) for x, y, yaw, _ in starts}) == 5
+        scs = [generate(s, "val", ScenarioConfig(**cfg["scenario"])) for s in range(1, 41)]
+        assert all(len(s.obstacles) == 1 and 15.0 <= s.obstacles[0].along_m <= 25.0 and s.goal_m == 40.0 for s in scs)  # room for a 2 s delay at 5 m/s
+        assert {pick_start(starts, s.seed, s.goal_m)[0] for s in scs} == set(range(5))  # every pose is used, and every flight fits
+    assert yaml.safe_load(open("configs/sweeps/airsim_starts_smoke.yaml"))["seeds"] == list(range(1, 11))  # two flights per pose
     seen = {}
     monkeypatch.setenv("PP_SIM_CONFIGS", "/scratch/x/sim_config")
     monkeypatch.setattr(sw, "make_sim", lambda name, **kw: seen.update(kw) or (_ for _ in ()).throw(SystemExit("stop")))
@@ -259,3 +265,101 @@ def test_airsim_configs_parse_and_expand(monkeypatch, tmp_path):
     with pytest.raises(SystemExit):
         sw.run(cfg)
     assert seen["configs"] == "/scratch/x/sim_config" and seen["start"] == [150.0, -150.0, 0.0]
+
+
+# ---- frozen seeds, start poses, frozen scenario settings (D24) --------------------------------
+
+
+def test_frozen_seed_file_is_intact_and_disjoint():
+    lists = load_seed_lists("configs/seeds.yaml")  # raises if the checksum fails or a seed is in two splits
+    assert {k: len(v) for k, v in lists.items()} == {"train": 1000, "val": 500, "test": 500}
+    assert lists == seed_lists()  # the defaults regenerate the frozen file exactly
+
+
+def test_start_pose_follows_the_seed_and_must_fit_the_flight():
+    from sim.airsim_backend import AirSimBackend, pick_start
+
+    starts = [[150.0, 150.0, 0.0, 145.0], [-150.0, 50.0, 180.0, 140.0], [50.0, -150.0, 90.0, 30.0]]
+    assert 101_002 % 3 == 1 and pick_start(starts, 101_002, 40.0) == (1, (-150.0, 50.0, math.pi))
+    assert pick_start(starts, 101_002, 40.0) == pick_start(starts, 101_002, 40.0)  # same seed, same pose: every policy flies it from one spot
+    assert {pick_start(starts, s, 20.0)[0] for s in range(101_000, 101_006)} == {0, 1, 2}
+    with pytest.raises(ValueError):
+        pick_start(starts, 2, 40.0)  # pose 2 has 30 m clear: a 40 m flight (+5 m margin) does not fit
+    sim = AirSimBackend(configs="unused", starts=starts)
+    with pytest.raises(ValueError):  # refused before the simulator is touched
+        sim.reset(scenario(seed=2, goal=40.0))
+    assert sim._world is None
+
+
+def test_scenario_settings_freeze_once_and_detect_edits(tmp_path, capsys):
+    from sim.scenario import ScenarioConfig, load_scenario_config, write_scenario_config
+    from sim.scenario import main as scenario_main
+
+    path = tmp_path / "scenario.yaml"
+    starts = [[150.0, 150.0, 0.0, 145.0]]
+    write_scenario_config(path, {"goal_m": 40.0, "n_obstacles": [1, 1]}, starts)
+    frozen = load_scenario_config(path)
+    assert frozen["starts"] == starts and frozen["scenario"]["goal_m"] == 40.0
+    assert frozen["scenario"]["speed_mps"] == 5.0  # defaults are written out too, so a later code default cannot change them
+    assert generate(7, "val", ScenarioConfig(**frozen["scenario"])).to_json() == generate(7, "val", ScenarioConfig(goal_m=40.0, n_obstacles=(1, 1))).to_json()
+    with pytest.raises(FileExistsError):
+        write_scenario_config(path, {"goal_m": 50.0})
+    d = yaml.safe_load(path.read_text())
+    d["scenario"]["goal_m"] = 60.0  # tamper
+    path.write_text(yaml.safe_dump(d))
+    with pytest.raises(ValueError):
+        load_scenario_config(path)
+    scenario_main(["--freeze-scenario", "configs/sweeps/airsim_true_depth.yaml", "--to", str(tmp_path / "cli.yaml")])
+    assert "checksum" in capsys.readouterr().out and len(load_scenario_config(tmp_path / "cli.yaml")["starts"]) == 5
+
+
+def _sweep_cfg(tmp_path, **over):
+    cfg = {"backend": "raycast", "backend_kw": {"width": 120, "height": 68}, "stack": "true-depth", "judge": "none", "delay_s": 1.0,
+           "split": "val", "seeds": [101_000, 101_001], "policies": [{"name": "never", "policy": "never"}], "out": str(tmp_path / "out")}
+    return {**cfg, **over}
+
+
+def test_test_seeds_fly_only_from_frozen_scenario_settings(tmp_path):
+    import eval.sweep as sw
+    from sim.scenario import write_seed_lists as wsl
+    from sim.scenario import write_scenario_config
+
+    seeds = tmp_path / "seeds.yaml"
+    wsl(seeds, seed_lists(4, 2, 2))
+    base = {"split": "test", "seeds": {"file": str(seeds), "n": 2}}
+    with pytest.raises(SystemExit, match="unfrozen scenario"):  # inline settings, even with the final-run flag
+        sw.run(_sweep_cfg(tmp_path, **base, final_test_run=True, scenario={"goal_m": 30.0}))
+    frozen = tmp_path / "scenario.yaml"
+    write_scenario_config(frozen, {"goal_m": 30.0})
+    with pytest.raises(SystemExit, match="final_test_run"):  # frozen settings, but not declared as the final run
+        sw.run(_sweep_cfg(tmp_path, **base, scenario={"file": str(frozen)}))
+    assert not (tmp_path / "out").exists()  # a refused run leaves nothing behind
+    val = sw.run(_sweep_cfg(tmp_path, scenario={"file": str(frozen)}))  # val seeds may use the frozen file too
+    assert len(val) == 2 and all(r.distance_m >= 30.0 for r in val)
+
+
+def test_sweep_overrides():
+    from eval.sweep import apply_overrides
+
+    cfg = apply_overrides({"stack": "da2", "judge_kw": {"model_id": "a", "tau": 0.0}},
+                          ["stack=clear", "judge_kw.model_id=Qwen/Qwen3-VL-8B-Instruct@4bit", "judge_kw.tau=-3.5", "backend_kw.width=120", "out=results/x"])
+    assert cfg == {"stack": "clear", "judge_kw": {"model_id": "Qwen/Qwen3-VL-8B-Instruct@4bit", "tau": -3.5}, "backend_kw": {"width": 120}, "out": "results/x"}
+    with pytest.raises(SystemExit):
+        apply_overrides({}, ["no-equals-sign"])
+    with pytest.raises(SystemExit):
+        apply_overrides({"stack": "da2"}, ["stack.inner=1"])
+
+
+def test_vlm_only_system_flies_on_the_judge_alone():
+    from perception.stand_ins import ClearStack
+
+    sc = scenario(Obstacle("box_1m_grey", 15.0, 0.0, 2.0))
+    _, floor = fly(sc, ClearStack(), Never())  # no depth model and no VLM: flies straight into the box
+    assert floor.crashed and floor.extra["stack"] == "none (no depth model)"
+    perfect = SurrogateJudge(default_tpr=1.0, default_fpr=0.0)
+    recs, vlm_only = fly(sc, ClearStack(), Always(cooldown_s=0.5), perfect, t_max=300.0)
+    assert not vlm_only.crashed and vlm_only.reached_goal and vlm_only.n_calls > 0
+    from perception.depth_utils import MAX_RANGE_M
+
+    assert all(r.corridor_min_est == pytest.approx(MAX_RANGE_M) for r in recs)  # the "depth" never reports anything: every avoid came from the judge
+    assert vlm_only.extra["start_index"] is None  # the raycast backend has no start poses

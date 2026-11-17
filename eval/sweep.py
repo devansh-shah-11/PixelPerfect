@@ -1,6 +1,8 @@
 """Resumable sweep: every policy over the same seeds (PLAN_DETAILED.md D15, §7 rules; chunks M4.7 and M5.3).
 
-    python -m eval.sweep --config configs/sweeps/smoke_raycast.yaml
+    python -m eval.sweep --config configs/sweeps/raycast_smoke.yaml
+    python -m eval.sweep --config configs/sweeps/airsim_bench.yaml --set stack=clear \
+        --set judge_kw.model_id=Qwen/Qwen3-VL-8B-Instruct@4bit --set out=results/sweeps/bench_vlm_8b-4bit
 
 One line per finished flight goes to ``<out>/results.jsonl``; on restart,
 finished ``(policy, seed)`` pairs are skipped (CLAUDE.md rule 10, the 20-minute
@@ -8,8 +10,12 @@ idle shutdown). At the end the metrics table is printed and written to
 ``<out>/table.md``. Each run appends one line to ``logs/runs.jsonl``.
 
 Config keys (YAML): ``backend``, ``stack``, ``judge`` (+ ``judge_kw``), ``delay_s``, ``split``,
-``seeds`` (a list, or ``{file: configs/seeds.yaml, n: 100}``), ``scenario`` (ScenarioConfig fields),
-``policies`` (list of policy specs, each with a unique ``name``), ``out``, ``flight_logs`` (bool).
+``seeds`` (a list, or ``{file: configs/seeds.yaml, n: 100}``: always the first n, D24), ``scenario``
+(ScenarioConfig fields, or ``{file: configs/scenario.yaml}`` for the frozen settings, which also carry
+the start poses), ``policies`` (list of policy specs, each with a unique ``name``), ``out``,
+``flight_logs`` (bool). ``--set a.b=value`` overrides a key, so one config serves every model variant.
+
+Test seeds fly only from the frozen scenario file and only with ``final_test_run: true`` (D14, D24).
 """
 from __future__ import annotations
 
@@ -30,7 +36,7 @@ from eval.factory import make_judge, make_sim, make_stack
 from eval.metrics import EpisodeResult, markdown, read_results, results_table
 from eval.run_episode import LoopConfig, run_episode
 from policies.base import make_policy
-from sim.scenario import ScenarioConfig, generate, load_seed_lists
+from sim.scenario import ScenarioConfig, generate, load_scenario_config, load_seed_lists
 
 REPO = Path(__file__).resolve().parent.parent
 
@@ -39,26 +45,61 @@ def resolve_seeds(cfg: dict[str, Any]) -> list[int]:
     s = cfg["seeds"]
     if isinstance(s, list):
         return [int(x) for x in s]
-    lists = load_seed_lists(REPO / s["file"] if not Path(s["file"]).is_absolute() else s["file"])
+    lists = load_seed_lists(_repo_path(s["file"]))
     split = cfg.get("split", "val")
     if split == "test" and not cfg.get("final_test_run", False):
         raise SystemExit("refusing to fly test seeds: set final_test_run: true only for the one final run (PLAN_DETAILED.md D14)")
     return lists[split][: s.get("n")]
 
 
+def _repo_path(p: str) -> Path:
+    return Path(p) if Path(p).is_absolute() else REPO / p
+
+
+def resolve_scenario(cfg: dict[str, Any]) -> tuple[ScenarioConfig, list | None]:
+    """(scenario settings, frozen start poses or None). Test seeds are refused unless the settings are frozen."""
+    s = cfg.get("scenario", {}) or {}
+    if "file" in s:
+        frozen = load_scenario_config(_repo_path(s["file"]))
+        return ScenarioConfig(**frozen["scenario"]), frozen["starts"]
+    if cfg.get("split", "val") == "test":
+        raise SystemExit("refusing to fly test seeds with unfrozen scenario settings: use scenario: {file: configs/scenario.yaml} (PLAN_DETAILED.md D24)")
+    return ScenarioConfig(**s), None
+
+
+def apply_overrides(cfg: dict[str, Any], overrides: list[str]) -> dict[str, Any]:
+    """Apply ``a.b=value`` overrides in place (value parsed as YAML). Returns ``cfg``."""
+    for item in overrides:
+        key, sep, value = item.partition("=")
+        if not sep or not key:
+            raise SystemExit(f"--set expects key=value, got {item!r}")
+        node = cfg
+        *parents, leaf = key.split(".")
+        for part in parents:
+            node = node.setdefault(part, {})
+            if not isinstance(node, dict):
+                raise SystemExit(f"--set {key}: {part!r} is not a mapping")
+        node[leaf] = yaml.safe_load(value)
+    return cfg
+
+
 def run(cfg: dict[str, Any]) -> list[EpisodeResult]:
+    scen_cfg, frozen_starts = resolve_scenario(cfg)  # before anything is created: a refused test run leaves no trace
+    seeds = resolve_seeds(cfg)
     out = Path(cfg["out"])
     out.mkdir(parents=True, exist_ok=True)
     results_path = out / "results.jsonl"
     done = {(r.policy, r.seed) for r in read_results(results_path)} if results_path.exists() else set()
     # Strings in backend_kw may name environment variables, e.g. configs: ${PP_SIM_CONFIGS} set by hpc/airsim_job.sbatch.
     backend_kw = {k: (os.path.expandvars(v) if isinstance(v, str) else v) for k, v in cfg.get("backend_kw", {}).items()}
+    if frozen_starts and cfg.get("backend") == "airsim":
+        if backend_kw.get("starts") not in (None, frozen_starts):
+            raise SystemExit("backend_kw.starts differs from the frozen start poses in the scenario file (PLAN_DETAILED.md D24)")
+        backend_kw["starts"] = frozen_starts
     sim = make_sim(cfg.get("backend", "raycast"), **backend_kw)
     stack = make_stack(cfg.get("stack", "true-depth"), **cfg.get("stack_kw", {}))
     judge, judge_name = make_judge(cfg.get("judge", "none"), **cfg.get("judge_kw", {}))
-    scen_cfg = ScenarioConfig(**cfg.get("scenario", {}))
     loop = LoopConfig(delay_s=cfg.get("delay_s", 1.0), **cfg.get("loop", {}))
-    seeds = resolve_seeds(cfg)
     names = [p["name"] for p in cfg["policies"]]
     if len(set(names)) != len(names):
         raise SystemExit("policy names must be unique")
@@ -89,16 +130,19 @@ def _log_run(cfg_path: str, cfg: dict[str, Any], n: int, wall: float, outcome: s
     (REPO / "logs").mkdir(exist_ok=True)
     with open(REPO / "logs" / "runs.jsonl", "a") as f:
         f.write(json.dumps({"time": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "commit": commit, "env": socket.gethostname(),
-                            "command": " ".join(sys.argv), "config": cfg_path, "seeds": cfg.get("seeds"), "n_episodes": n,
+                            "command": " ".join(sys.argv), "config": cfg_path, "seeds": cfg.get("seeds"),
+                            "stack": cfg.get("stack"), "judge": cfg.get("judge"), "judge_kw": cfg.get("judge_kw"), "n_episodes": n,
                             "wall_seconds": round(wall, 1), "outcome": outcome}) + "\n")
 
 
 def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     p.add_argument("--config", required=True)
+    p.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", dest="overrides",
+                   help="override a config key, dotted for nested ones, e.g. --set judge_kw.model_id=Qwen/Qwen3-VL-8B-Instruct@4bit")
     p.add_argument("--no-log", action="store_true", help="do not append to logs/runs.jsonl (tests)")
     a = p.parse_args(argv)
-    cfg = yaml.safe_load(Path(a.config).read_text())
+    cfg = apply_overrides(yaml.safe_load(Path(a.config).read_text()), a.overrides)
     start, outcome, results = time.time(), "failed", []
     try:
         results = run(cfg)

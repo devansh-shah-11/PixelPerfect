@@ -18,6 +18,13 @@ until M4.1 measures it; ``hpc/m4_checks.py`` does.
 
 Seed lists: ``write_seed_lists`` writes ``configs/seeds.yaml`` once, with a
 checksum, and refuses to overwrite it (D13: frozen at the simulator go/no-go).
+Runs always take the first n seeds of a list, never a hand-picked subset (D24).
+
+Scenario settings are a second, later freeze (D24): the seed lists hold only
+seed numbers, so the difficulty knobs (``ScenarioConfig``) and the start poses
+stay tunable on val seeds until the never-ask headroom check passes (M4.7).
+``write_scenario_config`` then writes ``configs/scenario.yaml`` once, with a
+checksum, and ``eval.sweep`` refuses to fly test seeds from anything else.
 """
 from __future__ import annotations
 
@@ -138,7 +145,7 @@ def generate(seed: int, split: str, cfg: ScenarioConfig | None = None) -> Scenar
 # ---- frozen seed lists (D13) -----------------------------------------------------------------
 
 
-def seed_lists(n_train: int = 500, n_val: int = 300, n_test: int = 300, base: int = 100_000) -> dict[str, list[int]]:
+def seed_lists(n_train: int = 1000, n_val: int = 500, n_test: int = 500, base: int = 100_000) -> dict[str, list[int]]:
     """Disjoint, contiguous seed ranges. Contiguous on purpose: nothing about a seed's value encodes its split."""
     return {
         "train": list(range(base, base + n_train)),
@@ -174,22 +181,64 @@ def load_seed_lists(path: str | Path) -> dict[str, list[int]]:
     return lists
 
 
+# ---- frozen scenario settings (D24, the second freeze) -----------------------------------------
+
+
+def _scenario_checksum(body: dict[str, Any]) -> str:
+    return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def write_scenario_config(path: str | Path, scenario: dict[str, Any], starts: Sequence[Sequence[float]] | None = None) -> str:
+    """Freeze the scenario settings and start poses. Refuses to overwrite.
+
+    Every ``ScenarioConfig`` field is written out, defaults included, so a later change to a default
+    in the code cannot silently change the frozen scenarios.
+    """
+    path = Path(path)
+    if path.exists():
+        raise FileExistsError(f"{path} exists and is frozen (PLAN_DETAILED.md D24); delete it by hand only with a Decision-log row")
+    body = {"scenario": json.loads(json.dumps(asdict(ScenarioConfig(**scenario)))),
+            "starts": [[float(v) for v in s] for s in starts] if starts else None}
+    check = _scenario_checksum(body)
+    path.write_text(yaml.safe_dump({"checksum": check, **body}, default_flow_style=None, width=100, sort_keys=False))
+    return check
+
+
+def load_scenario_config(path: str | Path) -> dict[str, Any]:
+    """``{"scenario": ScenarioConfig fields, "starts": poses or None}`` from a frozen file; checks the checksum."""
+    d = yaml.safe_load(Path(path).read_text())
+    body = {"scenario": d["scenario"], "starts": d.get("starts")}
+    if _scenario_checksum(body) != d["checksum"]:
+        raise ValueError(f"{path}: scenario settings do not match the stored checksum (edited after freezing?)")
+    ScenarioConfig(**body["scenario"])  # unknown fields fail here, not mid-sweep
+    return body
+
+
 def main(argv: list[str] | None = None) -> None:
-    """Freeze the seed lists, or print a scenario.
+    """Freeze the seed lists or the scenario settings, or print a scenario.
 
         python -m sim.scenario --write-seeds configs/seeds.yaml      # once, at the simulator go/no-go (D13)
-        python -m sim.scenario --show 100500
+        python -m sim.scenario --freeze-scenario configs/sweeps/airsim_true_depth.yaml --to configs/scenario.yaml   # once, after M4.7 (D24)
+        python -m sim.scenario --show 101000
     """
     import argparse
 
     p = argparse.ArgumentParser(description="seed lists and scenarios")
     p.add_argument("--write-seeds", help="path to write the frozen seed lists to (refuses to overwrite)")
-    p.add_argument("--n", nargs=3, type=int, default=[500, 300, 300], metavar=("TRAIN", "VAL", "TEST"))
+    p.add_argument("--n", nargs=3, type=int, default=[1000, 500, 500], metavar=("TRAIN", "VAL", "TEST"))
+    p.add_argument("--freeze-scenario", metavar="SWEEP_YAML", help="freeze this sweep config's scenario settings and start poses (refuses to overwrite)")
+    p.add_argument("--to", default="configs/scenario.yaml", help="where --freeze-scenario writes")
     p.add_argument("--show", type=int, help="print the scenario for this seed")
     p.add_argument("--split", default="val")
     a = p.parse_args(argv)
     if a.write_seeds:
         print(f"wrote {a.write_seeds}, checksum {write_seed_lists(a.write_seeds, seed_lists(*a.n))[:12]}")
+    if a.freeze_scenario:
+        cfg = yaml.safe_load(Path(a.freeze_scenario).read_text())
+        if not isinstance(cfg.get("scenario", {}), dict) or "file" in cfg.get("scenario", {}):
+            raise SystemExit(f"{a.freeze_scenario}: 'scenario' must be inline settings to freeze, not a file reference")
+        check = write_scenario_config(a.to, cfg.get("scenario", {}), cfg.get("backend_kw", {}).get("starts"))
+        print(f"wrote {a.to}, checksum {check[:12]}")
     if a.show is not None:
         print(generate(a.show, a.split).to_json())
 

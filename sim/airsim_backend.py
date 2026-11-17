@@ -11,6 +11,15 @@ flight loop's own clock (D10).
 [UNTESTED on a live simulator: written on a laptop against the capability-test
 helpers. Run ``hpc/m4_checks.sbatch`` first; it exercises the same calls.]
 
+Start poses (D24). ``starts`` is a list of ``[x, y, yaw_deg, clear_m]`` in world
+coordinates; a flight uses pose ``seed % len(starts)``, so the pose is part of
+the scenario and every policy flies a seed from the same spot (D15). ``clear_m``
+is the open distance ahead of that pose, from the capability scene scan
+(``results.json`` key ``400px.scene_scan.rows``, ``corridor_min_m``); a flight
+whose goal does not fit inside it is refused. The scan looked straight ahead
+from one spot, so each pose is [UNVERIFIED] until
+``configs/sweeps/airsim_starts_smoke.yaml`` flies it with no "scenery" crash.
+
 Assumptions, each [UNVERIFIED]:
 - the RGB array from ``unpack_image`` is BGR (the bank wrote it with ``cv2.imwrite`` and the PNGs
   look right), so it is flipped to RGB here;
@@ -24,7 +33,7 @@ import importlib.util
 import math
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 import numpy as np
 
@@ -52,12 +61,24 @@ def path_to_world(x: float, y: float, z: float, yaw: float, start: tuple[float, 
     return x0 + x * c - y * s, y0 + x * s + y * c, z, yaw0 + yaw
 
 
+def pick_start(starts: Sequence[Sequence[float]], seed: int, goal_m: float, margin_m: float = 5.0) -> tuple[int, tuple[float, float, float]]:
+    """(index, (x0, y0, yaw0 in radians)) of the start pose for ``seed``; raises if the flight does not fit its clearance."""
+    i = int(seed) % len(starts)
+    x, y, yaw_deg, clear_m = (float(v) for v in starts[i])
+    if goal_m + margin_m > clear_m:
+        raise ValueError(f"start pose {i} ({x:g}, {y:g}, {yaw_deg:g} deg) has {clear_m:g} m clear; a {goal_m:g} m flight needs {goal_m + margin_m:g} m")
+    return i, (x, y, math.radians(yaw_deg))
+
+
 class AirSimBackend:
     name = "project-airsim"
 
     def __init__(self, configs: str, scene_file: str = "scene_cap_400.jsonc", start: tuple[float, float, float] = (0.0, 0.0, 0.0),
-                 width: int = 400, height: int = 225, seg_id: int = 100) -> None:
+                 width: int = 400, height: int = 225, seg_id: int = 100, starts: Sequence[Sequence[float]] | None = None,
+                 clear_margin_m: float = 5.0) -> None:
         self.configs, self.scene_file, self.start, self.seg_id = configs, scene_file, start, seg_id
+        self.starts, self.clear_margin_m = starts, clear_margin_m
+        self.start_index: int | None = None  # which of ``starts`` the current flight uses (logged per flight)
         self.cam = Camera(width, height)
         self.boxes: list = []
         self.scenario: Scenario | None = None
@@ -85,6 +106,8 @@ class AirSimBackend:
         self._spawned = []
 
     def reset(self, scenario: Scenario) -> None:
+        if self.starts:  # before touching the simulator: a flight that does not fit must not spawn anything
+            self.start_index, self.start = pick_start(self.starts, scenario.seed, scenario.goal_m, self.clear_margin_m)
         self._connect()
         self._clear()
         self.scenario, self.boxes = scenario, scenario.obbs()
