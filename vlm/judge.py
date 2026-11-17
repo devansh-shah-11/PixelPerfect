@@ -25,6 +25,23 @@ from interfaces import VLMAnswer
 DEFAULT_MODEL = "Qwen/Qwen3-VL-2B-Instruct"  # D8 default
 REFERENCE_MODEL = "Qwen/Qwen3-VL-8B-Instruct"  # D8 "does size help?" reference
 
+# Quantized variants for the on-prem comparison (PLAN_DETAILED.md D22). A model spec is a Hugging Face
+# id with an optional suffix: "Qwen/Qwen3-VL-8B-Instruct@4bit". bitsandbytes, no calibration data:
+# 4-bit NF4 and 8-bit LLM.int8 (arXiv 2208.07339). 4-bit can shift the confidence scale (arXiv
+# 2607.24440, 2609.06922), so every variant gets its own cut tuned on val (vlm.eval_bank.tune_tau).
+# Needs the ``quant`` extra and a CUDA GPU. [UNVERIFIED on a live model until the A100 job runs.]
+QUANT_MODES = ("4bit", "8bit")
+
+
+def parse_model_spec(spec: str) -> tuple[str, str | None]:
+    """``"<hf id>@4bit"`` -> ``("<hf id>", "4bit")``; a plain id -> ``(id, None)``."""
+    model_id, _, quant = spec.partition("@")
+    if not quant:
+        return model_id, None
+    if quant not in QUANT_MODES:
+        raise ValueError(f"unknown quantization {quant!r} in {spec!r}; use one of {QUANT_MODES}")
+    return model_id, quant
+
 # Fixed prompt (D9). Variants only in the prompt ablation (M2.4).
 PROMPT = (
     "Does any object, including thin wires, cables, poles or glass, cross the "
@@ -47,12 +64,25 @@ PROMPTS = {
         "A drone is flying straight ahead towards {where}. Would it hit any object or surface "
         "there, including walls, glass, poles or thin wires? Answer yes or no."
     ),
+    # Second and last prompt round (PLAN_DETAILED.md D23), aimed at what job 33620 showed.
+    # "fill": the VLM misses surfaces that fill the whole region (wall 0.44, building 0.02), so say they count.
+    "fill": (
+        "Is {where} blocked by any object or surface, including walls, buildings, glass, "
+        "poles or thin wires? A flat wall or building face that fills the whole region counts as blocked. "
+        "Answer yes or no."
+    ),
+    # "free": the opposite question, so "yes" means clear. Separates what the model sees from its yes/no bias.
+    "free": "Is {where} completely free of obstacles, with nothing in the way? Answer yes or no.",
 }
+# Prompts where "yes" means the path is clear: the judge flips the sign so confidence > 0 still means "obstacle".
+INVERTED_PROMPTS = frozenset({"free"})
 
 
 def _slug_model(model_id: str) -> str:
-    """Short judge label for results, e.g. "qwen3-vl-2b"."""
-    return model_id.split("/")[-1].replace("-Instruct", "").lower()
+    """Short judge label for results, e.g. "qwen3-vl-2b" or "qwen3-vl-8b-4bit" for a quantized spec."""
+    name, quant = parse_model_spec(model_id)
+    slug = name.split("/")[-1].replace("-Instruct", "").lower()
+    return f"{slug}-{quant}" if quant else slug
 
 
 def prompt_text(key: str, overlay: bool) -> str:
@@ -91,11 +121,31 @@ def yes_no_score(logits: np.ndarray, yes_ids: Sequence[int], no_ids: Sequence[in
     )
 
 
+def quant_load_kwargs(quant: str, dtype: str = "bfloat16") -> dict[str, Any]:
+    """``from_pretrained`` keyword arguments for a bitsandbytes-quantized load on GPU 0."""
+    import torch
+    from transformers import BitsAndBytesConfig
+
+    if quant == "4bit":
+        cfg = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4", bnb_4bit_use_double_quant=False,
+                                 bnb_4bit_compute_dtype=getattr(torch, dtype))
+    elif quant == "8bit":
+        cfg = BitsAndBytesConfig(load_in_8bit=True)
+    else:
+        raise ValueError(f"unknown quantization {quant!r}; use one of {QUANT_MODES}")
+    return {"quantization_config": cfg, "device_map": {"": 0}}
+
+
 class QwenVLJudge:
     """Qwen3-VL as the slow system. ``ask`` returns ``(answer, confidence, latency_s)``.
 
     ``use_overlay`` and ``use_crop`` are the M2.4 ablation switches: with both
-    off the model sees only the raw frame.
+    off the model sees only the raw frame. ``model_id`` may be a spec with a
+    quantization suffix (``"...-8B-Instruct@4bit"``); ``spec`` keeps the full
+    string and ``model_id`` the plain Hugging Face id. ``invert`` is for prompts
+    where "yes" means clear (``INVERTED_PROMPTS``). ``tau`` is the cut on the
+    confidence: each model and prompt has its own, tuned on val (the 8B says
+    yes to almost nothing at 0, job 33620).
     """
 
     name = "qwen3-vl"
@@ -108,13 +158,23 @@ class QwenVLJudge:
         use_overlay: bool = True,
         use_crop: bool = True,
         prompt: str = PROMPT,
+        quant: str | None = None,
+        invert: bool = False,
+        tau: float = 0.0,
     ) -> None:
-        self.model_id = model_id
+        plain_id, spec_quant = parse_model_spec(model_id)
+        if quant is not None and quant not in QUANT_MODES:
+            raise ValueError(f"unknown quantization {quant!r}; use one of {QUANT_MODES}")
+        self.model_id = plain_id
+        self.quant = quant or spec_quant
+        self.spec = f"{plain_id}@{self.quant}" if self.quant else plain_id
         self.device = device
         self.dtype = dtype
         self.use_overlay = use_overlay
         self.use_crop = use_crop
         self.prompt = prompt
+        self.invert = invert
+        self.tau = tau  # "yes" when confidence > tau; the cut is tuned offline on val (vlm.eval_bank.tune_tau), never at run time
         self.load_seconds: float | None = None
         self._model = None
         self._processor = None
@@ -136,7 +196,12 @@ class QwenVLJudge:
         except ImportError:  # older transformers: generic image-text class [UNVERIFIED for qwen3_vl]
             from transformers import AutoModelForImageTextToText as ModelCls  # type: ignore
         self._processor = AutoProcessor.from_pretrained(self.model_id)
-        self._model = ModelCls.from_pretrained(self.model_id, dtype=torch_dtype).to(self.device).eval()
+        if self.quant:
+            if self.device != "cuda":
+                raise RuntimeError(f"{self.spec}: bitsandbytes quantization needs a CUDA GPU (got device {self.device!r})")
+            self._model = ModelCls.from_pretrained(self.model_id, **quant_load_kwargs(self.quant, self.dtype)).eval()
+        else:
+            self._model = ModelCls.from_pretrained(self.model_id, dtype=torch_dtype).to(self.device).eval()
         tok = self._processor.tokenizer
         self._yes_ids = variant_ids(tok, YES_FORMS)
         self._no_ids = variant_ids(tok, NO_FORMS)
@@ -177,4 +242,6 @@ class QwenVLJudge:
         logits = self._logits(images)
         latency = time.perf_counter() - start
         conf = yes_no_score(logits, self._yes_ids, self._no_ids)
-        return VLMAnswer(answer=conf > 0, confidence=float(conf), latency_s=latency)
+        if self.invert:  # the question asked whether the path is clear
+            conf = -conf
+        return VLMAnswer(answer=conf > self.tau, confidence=float(conf), latency_s=latency)

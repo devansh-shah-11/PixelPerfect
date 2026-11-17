@@ -16,6 +16,9 @@ perception = ["torch>=2.2", "transformers>=4.45"]
 # Qwen3-VL needs transformers with the qwen3_vl architecture (4.57+); accelerate for device
 # placement; torchvision because AutoProcessor also builds Qwen3VLVideoProcessor (job 33329 failed without it).
 vlm = ["torch>=2.2", "torchvision>=0.17", "transformers>=4.57", "accelerate>=0.30"]
+# Quantized judge variants (D22): model specs ending in @4bit / @8bit. CUDA only, so kept out of ``vlm``
+# and installed on the HPC: pip install -e ".[dev,vlm,quant]". [UNVERIFIED with Qwen3-VL until the A100 job runs.]
+quant = ["bitsandbytes>=0.43"]
 
 [build-system]
 requires = ["setuptools>=68"]

@@ -2,13 +2,18 @@
 
     python -m vlm.bench_latency --frames /scratch/$USER/frame_bank/CityEnviron/frames --n 50
     python -m vlm.bench_latency --models Qwen/Qwen3-VL-2B-Instruct --n 20 --no-crop
+    python -m vlm.bench_latency --depth --models Qwen/Qwen3-VL-2B-Instruct Qwen/Qwen3-VL-8B-Instruct \
+        Qwen/Qwen3-VL-8B-Instruct@8bit Qwen/Qwen3-VL-8B-Instruct@4bit     # every system of the benchmark table (D22)
 
 Reads ``*_rgb.png`` frames from a directory (any bank), or uses random noise
 frames if ``--frames`` is not given. Each model is loaded, warmed up, timed for
 ``--n`` calls, then freed. Results are written after every model, so a later
 model running out of memory does not lose the earlier numbers. Appends one line
 per model to ``logs/runs.jsonl`` (CLAUDE.md) and prints a Markdown table to
-paste into ``README.md``.
+paste into ``README.md``. ``--depth`` adds the fast stack (Depth Anything
+V2-Small) as one more row, so ``eval.benchmark`` gets every system's latency
+and peak memory from one job on one GPU. A model spec ending in ``@4bit`` or
+``@8bit`` is the bitsandbytes-quantized variant (vlm.judge).
 
 Latency here is one question = one forward pass with the overlay and the crop
 (two images). It is the real wall-clock number; the delay charged in flights
@@ -69,7 +74,8 @@ def bench_model(model_id: str, frames: list[np.ndarray], warmup: int, dtype: str
 
     judge = QwenVLJudge(model_id=model_id, dtype=dtype, use_overlay=use_overlay, use_crop=use_crop)
     rendered = [render(f) for f in frames]
-    result: dict[str, Any] = {"model": model_id, "dtype": dtype, "use_overlay": use_overlay, "use_crop": use_crop}
+    result: dict[str, Any] = {"model": judge.spec, "kind": "vlm", "dtype": dtype, "quant": judge.quant,
+                              "use_overlay": use_overlay, "use_crop": use_crop}
     try:
         warm = [judge.warmup() for _ in range(max(1, warmup))]
         result["load_s"] = judge.load_seconds
@@ -92,6 +98,49 @@ def bench_model(model_id: str, frames: list[np.ndarray], warmup: int, dtype: str
     finally:
         del judge
         if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.reset_peak_memory_stats()
+    return result
+
+
+def bench_depth(frames: list[np.ndarray], warmup: int, checkpoint: str | None = None, model: Any = None) -> dict[str, Any]:
+    """Latency and peak memory of the fast stack: one ``perceive`` per frame. ``model`` is injectable for tests."""
+    result: dict[str, Any] = {"kind": "depth", "dtype": "float32", "quant": None}
+    try:
+        import torch
+    except ImportError:  # a fake model in tests
+        torch = None
+    try:
+        if model is None:
+            from perception.depth_anything import DEFAULT_CHECKPOINT, DepthAnythingV2
+
+            model = DepthAnythingV2(checkpoint=checkpoint or DEFAULT_CHECKPOINT)
+        result["model"] = getattr(model, "checkpoint", type(model).__name__)
+        start = time.perf_counter()
+        warm = []
+        for _ in range(max(1, warmup)):  # the first call loads the weights
+            t0 = time.perf_counter()
+            model.perceive(frames[0])
+            warm.append(time.perf_counter() - t0)
+        result["load_s"] = time.perf_counter() - start - sum(warm[1:])
+        result["warmup_s"] = warm
+        lat = []
+        for frame in frames:
+            t0 = time.perf_counter()
+            model.perceive(frame)  # returns numpy, so the GPU work is finished when it returns
+            lat.append(time.perf_counter() - t0)
+        result.update(summarize(lat))
+        result["latencies_s"] = [round(x, 4) for x in lat]
+        if torch is not None and torch.cuda.is_available():
+            result["gpu_peak_mem_gb"] = round(torch.cuda.max_memory_allocated() / 1e9, 2)
+            result["gpu"] = torch.cuda.get_device_name(0)
+        result["outcome"] = "success"
+    except Exception as e:  # noqa: BLE001  (a failed depth row must not lose the VLM rows)
+        result.setdefault("model", checkpoint or "depth")
+        result["outcome"] = f"failed: {type(e).__name__}: {str(e)[:300]}"
+    finally:
+        del model
+        if torch is not None and torch.cuda.is_available():
             torch.cuda.empty_cache()
             torch.cuda.reset_peak_memory_stats()
     return result
@@ -123,16 +172,19 @@ def log_run(result: dict[str, Any], args: argparse.Namespace, wall_seconds: floa
 def markdown_table(results: list[dict[str, Any]]) -> str:
     lines = ["| Model | dtype | n | median (s) | p95 (s) | p99 (s) | load (s) | peak GPU (GB) | outcome |", "|---|---|---|---|---|---|---|---|---|"]
     for r in results:
+        dtype = f"{r['quant']} ({r['dtype']} compute)" if r.get("quant") else r["dtype"]
         if r["outcome"] == "success":
-            lines.append(f"| {r['model']} | {r['dtype']} | {r['n']} | {r['median_s']:.3f} | {r['p95_s']:.3f} | {r['p99_s']:.3f} | {r['load_s']:.1f} | {r.get('gpu_peak_mem_gb', 'n/a')} | success |")
+            lines.append(f"| {r['model']} | {dtype} | {r['n']} | {r['median_s']:.3f} | {r['p95_s']:.3f} | {r['p99_s']:.3f} | {r['load_s']:.1f} | {r.get('gpu_peak_mem_gb', 'n/a')} | success |")
         else:
-            lines.append(f"| {r['model']} | {r['dtype']} | | | | | | | {r['outcome']} |")
+            lines.append(f"| {r['model']} | {dtype} | | | | | | | {r['outcome']} |")
     return "\n".join(lines)
 
 
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    p.add_argument("--models", nargs="+", default=[DEFAULT_MODEL, REFERENCE_MODEL])
+    p.add_argument("--models", nargs="*", default=[DEFAULT_MODEL, REFERENCE_MODEL], help="model specs; @4bit / @8bit for quantized variants")
+    p.add_argument("--depth", action="store_true", help="also time the fast stack (Depth Anything V2-Small), first")
+    p.add_argument("--depth-checkpoint", help="depth checkpoint for --depth (default: perception.depth_anything.DEFAULT_CHECKPOINT)")
     p.add_argument("--frames", help="directory with *_rgb.png (frame bank); random noise frames if omitted")
     p.add_argument("--n", type=int, default=50, help="timed calls per model")
     p.add_argument("--warmup", type=int, default=3)
@@ -147,16 +199,20 @@ def main() -> None:
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     results: list[dict[str, Any]] = []
-    for model_id in args.models:
-        print(f"[{time.strftime('%H:%M:%S')}] {model_id}: loading", flush=True)
+    for model_id in ([None] if args.depth else []) + list(args.models):
+        print(f"[{time.strftime('%H:%M:%S')}] {model_id or 'depth (fast stack)'}: loading", flush=True)
         start = time.time()
-        r = bench_model(model_id, frames, args.warmup, args.dtype, not args.no_overlay, not args.no_crop)
+        if model_id is None:
+            r = bench_depth(frames, args.warmup, args.depth_checkpoint)
+        else:
+            r = bench_model(model_id, frames, args.warmup, args.dtype, not args.no_overlay, not args.no_crop)
         r["frames"] = args.frames or "random noise"
         results.append(r)
         log_run(r, args, time.time() - start)
         out_path.write_text(json.dumps(results, indent=1))
         if r["outcome"] == "success":
-            print(f"  median {r['median_s']:.3f} s  p95 {r['p95_s']:.3f} s  load {r['load_s']:.1f} s  yes-fraction {r['yes_fraction']:.2f}", flush=True)
+            yes = f"  yes-fraction {r['yes_fraction']:.2f}" if "yes_fraction" in r else ""
+            print(f"  median {r['median_s']:.3f} s  p95 {r['p95_s']:.3f} s  load {r['load_s']:.1f} s{yes}", flush=True)
         else:
             print(f"  {r['outcome']}", flush=True)
     print("\nPaste into README.md:\n")

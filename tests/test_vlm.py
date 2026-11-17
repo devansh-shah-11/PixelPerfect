@@ -10,8 +10,8 @@ import pytest
 
 from interfaces import VLMAnswer, VLMJudge
 from vlm import judge as judge_mod
-from vlm.bench_latency import load_frames, markdown_table, summarize
-from vlm.judge import QwenVLJudge, variant_ids, yes_no_score
+from vlm.bench_latency import bench_depth, load_frames, markdown_table, summarize
+from vlm.judge import INVERTED_PROMPTS, PROMPTS, QwenVLJudge, _slug_model, parse_model_spec, variant_ids, yes_no_score
 from vlm.overlay import CORRIDOR_COLS, CORRIDOR_ROWS, corridor_box, crop_region, draw_overlay, render
 from vlm.surrogate import SurrogateJudge
 
@@ -196,3 +196,76 @@ def test_load_frames_noise_and_dir(tmp_path):
     assert len(picked) == 2 and picked[0].dtype == np.uint8
     with pytest.raises(FileNotFoundError):
         load_frames(tmp_path / "empty", 2, seed=0)
+
+
+# ---- quantized variants, inverted prompts, the cut (D22, D23) ------------------------
+
+
+def test_model_spec_parsing_and_labels():
+    assert parse_model_spec("Qwen/Qwen3-VL-8B-Instruct") == ("Qwen/Qwen3-VL-8B-Instruct", None)
+    assert parse_model_spec("Qwen/Qwen3-VL-8B-Instruct@4bit") == ("Qwen/Qwen3-VL-8B-Instruct", "4bit")
+    with pytest.raises(ValueError):
+        parse_model_spec("Qwen/Qwen3-VL-8B-Instruct@2bit")
+    assert _slug_model("Qwen/Qwen3-VL-8B-Instruct") == "qwen3-vl-8b"
+    assert _slug_model("Qwen/Qwen3-VL-8B-Instruct@8bit") == "qwen3-vl-8b-8bit"  # results tell the variants apart
+    j = QwenVLJudge(model_id="Qwen/Qwen3-VL-8B-Instruct@4bit")
+    assert (j.model_id, j.quant, j.spec) == ("Qwen/Qwen3-VL-8B-Instruct", "4bit", "Qwen/Qwen3-VL-8B-Instruct@4bit")
+    k = QwenVLJudge(model_id="Qwen/Qwen3-VL-8B-Instruct", quant="8bit")
+    assert k.spec == "Qwen/Qwen3-VL-8B-Instruct@8bit"
+    assert QwenVLJudge().quant is None and QwenVLJudge().spec == QwenVLJudge().model_id
+    with pytest.raises(ValueError):
+        QwenVLJudge(quant="3bit")
+
+
+def test_factory_builds_a_quantized_judge_from_a_prompt_key():
+    from eval.factory import make_judge
+    from vlm.judge import prompt_text
+
+    j, label = make_judge("qwen", model_id="Qwen/Qwen3-VL-8B-Instruct@4bit", prompt_key="free", tau=-2.5)
+    assert label == "qwen3-vl-8b-4bit" and j.invert and j.tau == -2.5 and j.prompt == prompt_text("free", True)
+    j, label = make_judge("qwen", prompt_key="blocked")
+    assert label == "qwen3-vl-2b" and not j.invert and j.prompt == prompt_text("blocked", True)
+
+
+def test_inverted_prompt_flips_the_sign_and_the_cut_moves_the_answer():
+    assert INVERTED_PROMPTS <= set(PROMPTS) and "free" in INVERTED_PROMPTS
+    bright = np.full((H, W, 3), 255, dtype=np.uint8)  # FakeJudge: logits favour "yes" by 3
+    assert FakeJudge().ask(bright, bright, bright).confidence == pytest.approx(3.0)
+    inv = FakeJudge(invert=True).ask(bright, bright, bright)  # "yes, it is free" means no obstacle
+    assert inv.confidence == pytest.approx(-3.0) and not inv.answer
+    assert not FakeJudge(tau=5.0).ask(bright, bright, bright).answer  # above the cut only
+    dark = np.zeros((H, W, 3), dtype=np.uint8)
+    low = FakeJudge(tau=-4.0).ask(dark, dark, dark)  # a conservative model needs a cut below 0 to say yes at all
+    assert low.confidence == pytest.approx(-3.0) and low.answer
+
+
+def test_quantized_judge_refuses_cpu():
+    pytest.importorskip("torch")
+    pytest.importorskip("transformers")
+    j = QwenVLJudge(model_id="Qwen/Qwen3-VL-2B-Instruct@4bit", device="cpu")
+    with pytest.raises((RuntimeError, OSError)):  # OSError: no weights and no network on this machine
+        j._load()
+
+
+def test_bench_depth_times_a_fast_stack_and_the_table_shows_quantization():
+    class FakeDepth:
+        checkpoint = "fake/depth-small"
+
+        def __init__(self):
+            self.calls = 0
+
+        def perceive(self, rgb):
+            self.calls += 1
+
+    model = FakeDepth()
+    r = bench_depth([frame(i) for i in range(4)], warmup=2, model=model)
+    assert r["outcome"] == "success" and r["kind"] == "depth" and r["model"] == "fake/depth-small" and r["n"] == 4 and model.calls == 6
+
+    class Broken:
+        def perceive(self, rgb):
+            raise MemoryError("boom")
+
+    assert bench_depth([frame(0)], warmup=1, model=Broken())["outcome"].startswith("failed: MemoryError")
+    stats = summarize([0.1, 0.2])
+    table = markdown_table([{"model": "m@4bit", "dtype": "bfloat16", "quant": "4bit", "outcome": "success", "load_s": 1.0, **stats}, {**r, "load_s": 0.1}])
+    assert "4bit (bfloat16 compute)" in table and "| fake/depth-small | float32 |" in table

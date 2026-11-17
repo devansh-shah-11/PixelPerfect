@@ -57,6 +57,8 @@ CONDITIONS: dict[str, tuple[bool, bool, str]] = {
     "raw": (False, False, "cross"),
     "both_blocked": (True, True, "blocked"),
     "both_hit": (True, True, "hit"),
+    "both_fill": (True, True, "fill"),  # second prompt round (D23)
+    "both_free": (True, True, "free"),  # inverted question: the judge flips the sign
 }
 BUCKETS = ((0, 3), (3, 6), (6, 10), (10, 20), (20, float("inf")))
 MIN_ALONG_M = 1.0  # as in perception.analyze_bank: closer and the camera is inside the obstacle
@@ -160,7 +162,7 @@ def evaluate(
     ``gt_clean_m`` at scoring time, so other ``d_pos`` / ``d_neg`` need no rerun.
     """
     from perception.frame_bank import load_rgb
-    from vlm.judge import prompt_text
+    from vlm.judge import INVERTED_PROMPTS, prompt_text
     from vlm.overlay import render
 
     conditions = tuple(conditions)
@@ -185,6 +187,7 @@ def evaluate(
                     use_overlay, use_crop, prompt_key = CONDITIONS[cond]
                     judge.use_overlay, judge.use_crop = use_overlay, use_crop
                     judge.prompt = prompt_text(prompt_key, use_overlay)
+                    judge.invert = prompt_key in INVERTED_PROMPTS  # "yes" means clear: confidence > 0 must still mean obstacle
                     ans = judge.ask(rgb, overlay, crop)
                     row = {
                         "model": model_name, "condition": cond, "prompt": prompt_key, "stem": stem, "split": fr["split"],
@@ -206,6 +209,44 @@ def evaluate(
     for sheet in sheets.values():
         sheet.save()
     return rows
+
+
+def evaluate_models(
+    models: Iterable[str], make_judge: Any, one_at_a_time: bool, bank: str | Path, frames: list[dict[str, Any]],
+    out_path: str | Path, **kw: Any,
+) -> list[dict[str, Any]]:
+    """``evaluate`` over model specs, all loaded together (default) or one after the other.
+
+    One at a time is for the quantized variants (D22): 2B + 8B + 8B@8bit + 8B@4bit do not fit the 40 GB
+    A100 together. Each judge is released before the next loads; rows are keyed by the model spec, so
+    either order of running gives the same file and a rerun skips what is done.
+    """
+    models = list(models)
+    if not one_at_a_time:
+        return evaluate({m: make_judge(m) for m in models}, bank, frames, out_path, **kw)
+    rows: list[dict[str, Any]] = []
+    for m in models:
+        judge = make_judge(m)
+        rows = evaluate({m: judge}, bank, frames, out_path, **kw)  # returns every row in the file, old and new
+        release(judge)
+    return rows
+
+
+def release(judge: Any) -> None:
+    """Drop a judge's weights and return its GPU memory."""
+    import gc
+
+    for attr in ("_model", "_processor"):
+        if hasattr(judge, attr):
+            setattr(judge, attr, None)
+    gc.collect()
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except ImportError:  # laptop without torch: nothing to free
+        pass
 
 
 def read_rows(path: str | Path) -> list[dict[str, Any]]:
@@ -521,7 +562,9 @@ def tile(row: dict[str, Any], overlay: np.ndarray, crop: np.ndarray, text_h: int
 
 
 def _slug(model_id: str) -> str:
-    return model_id.split("/")[-1].replace("-Instruct", "").lower()
+    from vlm.judge import _slug_model
+
+    return _slug_model(model_id)
 
 
 # ---- CLI -----------------------------------------------------------------------------------
@@ -537,7 +580,8 @@ def _log_run(args: argparse.Namespace, n_rows: int, wall_seconds: float, outcome
         f.write(json.dumps({"time": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "commit": commit, "env": socket.gethostname(),
                             "command": " ".join(sys.argv),
                             "config": {"models": args.models, "conditions": args.conditions, "splits": args.splits, "stride": args.stride,
-                                       "d_pos": args.d_pos, "d_neg": args.d_neg, "per_type": args.per_type, "dtype": args.dtype, "hfov": args.hfov},
+                                       "d_pos": args.d_pos, "d_neg": args.d_neg, "per_type": args.per_type, "dtype": args.dtype, "hfov": args.hfov,
+                                       "one_at_a_time": args.one_at_a_time},
                             "seeds": f"split {args.split}; frame sample seed {args.seed}", "n_episodes": n_rows,
                             "wall_seconds": round(wall_seconds, 1), "outcome": outcome}) + "\n")
 
@@ -550,7 +594,9 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--split", default=str(REPO / "configs" / "bank_split.yaml"))
     p.add_argument("--splits", nargs="+", default=["train", "val"], help="never 'test' before the end (CLAUDE.md rule 3)")
     p.add_argument("--stride", type=int, default=3, help="keep every k-th step of a flight (neighbours are near-duplicates)")
-    p.add_argument("--models", nargs="+", default=[DEFAULT_MODEL, REFERENCE_MODEL])
+    p.add_argument("--models", nargs="+", default=[DEFAULT_MODEL, REFERENCE_MODEL],
+                   help="model specs; add @4bit or @8bit for a bitsandbytes-quantized variant (D22)")
+    p.add_argument("--one-at-a-time", action="store_true", help="load one model, evaluate it, free it (needed when the variants do not fit the GPU together)")
     p.add_argument("--conditions", nargs="+", default=list(CONDITIONS), choices=list(CONDITIONS))
     p.add_argument("--d-pos", type=float, default=15.0)
     p.add_argument("--d-neg", type=float, default=30.0)
@@ -578,10 +624,10 @@ def main(argv: list[str] | None = None) -> None:
         from vlm.judge import QwenVLJudge
 
         frames = select_frames(args.bank, args.split, args.splits, args.stride, args.per_type, args.seed)
-        judges = {m: QwenVLJudge(model_id=m, dtype=args.dtype) for m in args.models}
         start, outcome, rows = time.time(), "failed", []
         try:
-            rows = evaluate(judges, args.bank, frames, args.out, args.conditions, args.examples, args.n_examples, args.hfov)
+            rows = evaluate_models(args.models, lambda m: QwenVLJudge(model_id=m, dtype=args.dtype), args.one_at_a_time, args.bank, frames,
+                                   args.out, conditions=args.conditions, examples_dir=args.examples, n_examples=args.n_examples, hfov_deg=args.hfov)
             outcome = "success"
         finally:
             _log_run(args, len(rows), time.time() - start, outcome)

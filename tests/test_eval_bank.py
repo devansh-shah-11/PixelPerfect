@@ -15,7 +15,7 @@ from perception.bank_split import make_split
 from perception.frame_bank import OBSTACLE_SEG_RGB
 from vlm import eval_bank
 from vlm.eval_bank import (
-    CONDITIONS, ExampleSheet, agreement, auroc, bucket, evaluate, flight_ci, frame_label, gate_verdict, labelled,
+    CONDITIONS, ExampleSheet, agreement, auroc, bucket, evaluate, evaluate_models, flight_ci, frame_label, gate_verdict, labelled,
     metadata_in_window, report, scores, select_frames, summarize, tune_tau, window_half_width,
 )
 from vlm.judge import PROMPTS, prompt_text
@@ -278,3 +278,53 @@ def test_recall_on_fast_stack_misses(tmp_path, capsys):
     run.write_text("".join(json.dumps({"stem": k, "corridor_min_est": v}) + "\n" for k, v in est.items()))
     eval_bank.main(["--summarize-only", "--out", str(out), "--run", str(run)])
     assert "fast stack's misses" in out.with_suffix(".report.md").read_text()
+
+
+# ---- second prompt round and one model at a time (D22, D23) --------------------------------
+
+
+class SignJudge(DarkPixelJudge):
+    """DarkPixelJudge that honours ``invert`` the way QwenVLJudge does, answering the question it was asked."""
+
+    def __init__(self):
+        super().__init__()
+        self.invert, self._model, self._processor = False, object(), object()
+
+    def ask(self, image, path_overlay, crop):
+        a = super().ask(image, path_overlay, crop)
+        raw = -a.confidence if "free of obstacles" in self.prompt else a.confidence  # the model's own yes/no to this wording
+        conf = -raw if self.invert else raw
+        return VLMAnswer(answer=conf > 0, confidence=conf, latency_s=a.latency_s)
+
+
+def test_inverted_prompt_condition_still_means_obstacle(bank, tmp_path):
+    b, split_path, _ = bank
+    frames = select_frames(b, split_path, ("train", "val"))
+    assert CONDITIONS["both_free"] == (True, True, "free") and CONDITIONS["both_fill"] == (True, True, "fill")
+    judge = SignJudge()
+    rows = evaluate({"fake": judge}, b, frames, tmp_path / "rows.jsonl", ("both", "both_free", "both_fill"))
+    assert prompt_text("free", True) in judge.prompts and prompt_text("fill", True) in judge.prompts
+    by = {(r["condition"], r["stem"]): r for r in rows}
+    for r in rows:  # "is it free?" answered yes means clear: after the flip all three conditions agree frame by frame
+        assert r["confidence"] == by[("both", r["stem"])]["confidence"] and r["answer"] == by[("both", r["stem"])]["answer"]
+    assert not judge.invert  # the last condition asked ("both_fill") is not inverted: the flag follows the prompt
+
+
+def test_models_one_at_a_time_gives_the_same_rows_and_releases_each(bank, tmp_path):
+    b, split_path, _ = bank
+    frames = select_frames(b, split_path, ("val",))
+    made: list[SignJudge] = []
+
+    def make(spec):
+        made.append(SignJudge())
+        if len(made) > 1:  # the previous judge must be released before the next one loads
+            assert made[-2]._model is None and made[-2]._processor is None
+        return made[-1]
+
+    specs = ["org/M-8B-Instruct", "org/M-8B-Instruct@4bit"]
+    seq = evaluate_models(specs, make, True, b, frames, tmp_path / "seq.jsonl", conditions=("both",))
+    assert len(made) == 2 and made[-1]._model is None
+    together = evaluate_models(specs, lambda spec: SignJudge(), False, b, frames, tmp_path / "all.jsonl", conditions=("both",))
+    key = lambda rows: sorted((r["model"], r["condition"], r["stem"], r["confidence"]) for r in rows)  # noqa: E731
+    assert key(seq) == key(together) and {r["model"] for r in seq} == set(specs)
+    assert len(evaluate_models(specs, make, True, b, frames, tmp_path / "seq.jsonl", conditions=("both",))) == len(seq)  # resumable

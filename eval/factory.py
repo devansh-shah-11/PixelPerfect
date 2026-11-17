@@ -17,12 +17,14 @@ def make_sim(name: str, **kw: Any) -> Any:
 
 
 def make_stack(name: str, **kw: Any) -> Any:
-    from perception.stand_ins import BlindStack, RgbStack, TrueDepthStack
+    from perception.stand_ins import BlindStack, ClearStack, RgbStack, TrueDepthStack
 
     if name == "true-depth":
         return TrueDepthStack()
     if name == "blind":
         return BlindStack(**kw)
+    if name == "clear":
+        return ClearStack()
     if name == "da2":
         from perception.depth_anything import DepthAnythingV2
 
@@ -42,6 +44,13 @@ def make_judge(name: str, **kw: Any) -> tuple[Any, str]:
     if name == "qwen":
         from vlm.judge import QwenVLJudge, _slug_model
 
-        j = QwenVLJudge(**kw)
-        return j, _slug_model(j.model_id)
+        kw = dict(kw)
+        key = kw.pop("prompt_key", None)  # a name from vlm.judge.PROMPTS instead of the raw text
+        if key is not None:
+            from vlm.judge import INVERTED_PROMPTS, prompt_text
+
+            kw["prompt"] = prompt_text(key, kw.get("use_overlay", True))
+            kw["invert"] = key in INVERTED_PROMPTS
+        j = QwenVLJudge(**kw)  # model_id may carry a quantization suffix, e.g. "...-8B-Instruct@4bit"
+        return j, _slug_model(j.spec)
     raise ValueError(f"unknown judge {name!r}")

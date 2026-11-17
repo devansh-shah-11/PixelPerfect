@@ -9,6 +9,10 @@ ground truth. Both stand-ins below are references or test tools, never results:
   imitation of how Depth Anything V2 misses wires, poles and glass. Lets the gated loop be tested
   on a laptop. Its results must never be reported as fast-stack results.
 
+- ``ClearStack``: no depth model at all; it always reports the path clear. With the always-ask
+  policy this is the "VLM only" system of the benchmark table (eval.benchmark): the VLM alone
+  decides when to avoid. It reads nothing from the simulator's ground truth.
+
 The real fast stack (``perception.depth_anything.DepthAnythingV2``) has only
 ``perceive(rgb)``; ``RgbStack`` adapts it.
 """
@@ -55,6 +59,16 @@ class BlindStack:
     def perceive_obs(self, obs: Any, state: Any = None, sim: Any = None) -> DepthEstimate:
         d = sim.render_depth(state, keep=lambda b: not b.see_through and min(b.half) >= self.thin_m)
         d = clip_depth(d, MAX_RANGE_M)
+        return DepthEstimate(depth=d, features=corridor_features(d))
+
+
+class ClearStack:
+    """Always "clear to max range". The benchmark's "VLM only" system, and a no-perception floor with never-ask."""
+
+    name = "none (no depth model)"
+
+    def perceive_obs(self, obs: Any, state: Any = None, sim: Any = None) -> DepthEstimate:
+        d = np.full(np.asarray(obs.rgb).shape[:2], MAX_RANGE_M, dtype=np.float32)
         return DepthEstimate(depth=d, features=corridor_features(d))
 
 
