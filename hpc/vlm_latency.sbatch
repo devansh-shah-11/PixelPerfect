@@ -5,8 +5,9 @@
 # One-time setup on the HPC (CPU terminal is fine; the download is a few GB):
 #   cd /scratch/$USER && git clone https://github.com/devansh-shah-11/PixelPerfect.git && cd PixelPerfect
 #   git checkout C/M2.1
-#   conda create -y -p /scratch/$USER/envs/pp python=3.11
-#   conda activate /scratch/$USER/envs/pp
+#   # env pa already exists on the HPC; create it only if missing:
+#   conda create -y -p /scratch/$USER/envs/pa python=3.11
+#   conda activate /scratch/$USER/envs/pa
 #   pip install -e ".[dev,vlm,quant,perception]"     # quant = bitsandbytes, for the @8bit / @4bit variants
 #   export HF_HOME=/scratch/$USER/hf        # weights go to scratch, never home
 #   python -c "from huggingface_hub import snapshot_download as d; [d(m) for m in ('Qwen/Qwen3-VL-2B-Instruct','Qwen/Qwen3-VL-8B-Instruct')]"
@@ -33,7 +34,7 @@
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:-.}"
 
-PP_ENV="${PP_ENV:-/scratch/$USER/envs/pp}"
+PP_ENV="${PP_ENV:-/scratch/$USER/envs/pa}"
 export HF_HOME="${HF_HOME:-/scratch/$USER/hf}"
 export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-0}"
 MODELS="${MODELS:-Qwen/Qwen3-VL-2B-Instruct Qwen/Qwen3-VL-8B-Instruct Qwen/Qwen3-VL-8B-Instruct@8bit Qwen/Qwen3-VL-8B-Instruct@4bit}"

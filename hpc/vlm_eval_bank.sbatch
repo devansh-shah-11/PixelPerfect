@@ -1,7 +1,7 @@
 #!/bin/bash
 # Chunk M2.4: VLM standalone evaluation on the CityEnviron frame bank, and the M2 gate verdict.
 #
-# Same env as hpc/vlm_latency.sbatch (/scratch/$USER/envs/pp, weights under HF_HOME).
+# Same env as hpc/vlm_latency.sbatch (/scratch/$USER/envs/pa, weights under HF_HOME).
 # Full run (default): train + val flights, every 3rd step (~3,600 frames), 2B and 8B together,
 # 6 conditions (overlay/crop on-off with the D9 question, plus two reworded questions).
 # About 0.5 s of model time per model per frame -> roughly 1 h 15 min. Ask the team before launching.
@@ -34,7 +34,7 @@
 set -euo pipefail
 cd "${SLURM_SUBMIT_DIR:-.}"
 
-PP_ENV="${PP_ENV:-/scratch/$USER/envs/pp}"
+PP_ENV="${PP_ENV:-/scratch/$USER/envs/pa}"
 export HF_HOME="${HF_HOME:-/scratch/$USER/hf}"
 BANK="${BANK:-/scratch/dns5508/frame_bank/CityEnviron}"
 MODELS="${MODELS:-Qwen/Qwen3-VL-2B-Instruct Qwen/Qwen3-VL-8B-Instruct}"
