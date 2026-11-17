@@ -130,16 +130,14 @@ git commit -m "vlm: quantized 8B variants, second prompt round, per-model cut" \
 git add sim/scenario.py sim/airsim_backend.py eval/sweep.py eval/run_episode.py configs/seeds.yaml \
         configs/sweeps/airsim_true_depth.yaml configs/sweeps/airsim_starts_smoke.yaml \
         configs/sweeps/airsim_bench.yaml configs/sweeps/raycast_smoke.yaml tests/test_sim_loop.py
-git commit -m "sim: freeze seed lists, five start poses, scenario freeze, sweep overrides" \
-           -m "D24: seeds frozen at 1000/500/500. One start pose left no room for a 2 s delay, so flights are 40 m from five poses picked by seed. Test seeds now need frozen scenario settings. Start poses are unverified until airsim_starts_smoke runs."
+git commit -m "sim: freeze seed lists, five start poses, scenario freeze, sweep overrides"
 ```
 Check that `configs/seeds.yaml` is in this commit. It is a new file, so `git add -u` would miss it.
 
 **Commit 3: benchmark table**
 ```bash
 git add eval/benchmark.py tests/test_benchmark.py
-git commit -m "eval: benchmark table for depth only, VLM only, depth + VLM" \
-           -m "One table per VLM variant with accuracy, latency and memory, and a pick by the D23 rule, so the team can choose the judge (D22). Reads result files only."
+git commit -m "eval: benchmark table for depth only, VLM only, depth + VLM"
 ```
 
 **Commit 4: docs**
@@ -171,7 +169,9 @@ python -c "import bitsandbytes, torch; print(bitsandbytes.__version__, torch.cud
 | 1 | Latency and memory of all five systems | `sbatch hpc/vlm_latency.sbatch` | about 20 min | `results/vlm_latency_<job>.json`. **Also the first proof that the quantized models load.** |
 | 2 | New prompts on 2B and 8B | `sbatch hpc/vlm_eval_bank.sbatch` (same `OUT` as job 33620, so only the two new prompts are asked) | about 25 min | more rows in `results/vlm_eval.jsonl` |
 | 3 | Quantized 8B, small sample | the `PER_TYPE=50` command in the header of `hpc/vlm_eval_bank.sbatch` | unknown, short | how many seconds per call |
+sbatch --export=ALL,MODELS="Qwen/Qwen3-VL-8B-Instruct@8bit Qwen/Qwen3-VL-8B-Instruct@4bit",CONDITIONS="both both_blocked",ONE_AT_A_TIME=1,PER_TYPE=50,OUT=results/vlm_eval_quant_quick.jsonl hpc/vlm_eval_bank.sbatch
 | 4 | Quantized 8B, full | the last command in that header | **unknown, maybe over 1 h** | rows for `@8bit` and `@4bit` |
+sbatch --export=ALL,MODELS="Qwen/Qwen3-VL-8B-Instruct@8bit Qwen/Qwen3-VL-8B-Instruct@4bit",CONDITIONS="both both_blocked",ONE_AT_A_TIME=1 hpc/vlm_eval_bank.sbatch
 | 5 | Start-pose check | `sbatch --export=ALL,PA_ENV=/scratch/dns5508/envs/pa,CMD="python -m eval.sweep --config configs/sweeps/airsim_starts_smoke.yaml" hpc/airsim_job.sbatch` | about 15 min | which of the five poses are really open |
 
 Then build the table (laptop or a CPU node):
