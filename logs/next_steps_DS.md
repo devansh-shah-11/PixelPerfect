@@ -179,6 +179,8 @@ python -m eval.benchmark --vlm results/vlm_eval.jsonl --run <bank runs>/da2_smal
     --latency results/vlm_latency_*.json --out results/benchmark.md
 ```
 
+First `sbatch hpc/run_bank.sbatch` if you don't have `da2_small.jsonl` (see section 7, step 1). D23 (revised) defines the three tables and the pass and pick rules; write them down before scoring.
+
 **How to read job 5.** Open `results/sweeps/airsim_starts_smoke/results.jsonl`. Each line has `extra.start_index` (0 to 4) and `extra.collision_source`. A pose passes if both of its flights reached the goal. If a flight crashed with `collision_source: "scenery"`, the map is in the way: delete that pose from the `starts` list in all three AirSim configs, then rerun.
 
 **Log every job** in `AGENT_LOG.md` with its job id and commit. Two earlier results are still not logged: the fast-miss numbers (2B 15 to 18%, 8B 79%) and the 5-flight AirSim smoke run.
@@ -243,7 +245,12 @@ If the quantized models can't be made to load at all, that is a finding, not a b
 
 In order. Each step unblocks the one after.
 
-1. **Team approves D21 to D24** and closes M2 with the benchmark table (jobs 1 to 4). Decide the judge: 8B, or a quantized 8B if it passes.
+1. **Team approves D21 to D24** and closes M2 with three tables (D23, revised 2026-11-18). Order:
+   1. Get `da2_small.jsonl` (ask the owner of job 32117, or `sbatch hpc/run_bank.sbatch`, about 10 min).
+   2. **Write the pass rule and the pick rule down first** (already in D23: recall >= 0.60 at FPR <= 0.15 on depth's misses, cut tuned on val, smallest memory among the passing variants).
+   3. Job 3 (quantized sample) so table 1 has accuracy for every variant.
+   4. Table 1: all variants, every obstacle type, independent of depth. Table 2: recall on depth's misses plus FPR on all negatives, on val, to pick the judge. Table 3: the picked judge on another split (`--score-split train`), depth only, VLM only, depth + VLM. Add the learnings to `results/benchmark.md`.
+   5. Report the all-frames table next to table 2, and the proxy caveat: the end result is crash rate against calls per flight.
 2. **Start poses checked** (job 5), then the **true-depth sweep on Project AirSim** (`airsim_true_depth.yaml`, 100 val seeds). This is the M4 gate: near-zero crashes, and the same seed gives the same flight.
 3. **M3 on the real bank:** clean labels, then `gate.train`. This gives the first learned gate and the "fallback paper" table. CPU only.
 4. **M4.7 headroom:** fly never-ask with Depth Anything on Project AirSim. Target: 15 to 30% crashes. If not, retune the scenario settings on val.

@@ -22,7 +22,7 @@ Everything below that is code is written and tested on the laptop (137 tests). W
 
 | # | Job | Where | Unblocks |
 |---|---|---|---|
-| 1 | M2.4 full VLM evaluation, `sbatch hpc/vlm_eval_bank.sbatch` | A100, about 1 h 15 min | M2 gate verdict |
+| 1 | M2.4 full VLM evaluation done (jobs 33620, 35102). Next: `da2_small.jsonl` (`sbatch hpc/run_bank.sbatch`, about 10 min) | A100 | M2 gate verdict (D23) |
 | 2 | M1.8 clean labels (`gate.bank_gt`, now with glass) and M1.9 Part A (`perception.diagnose_depth`) | CPU node, minutes | trusting any miss rate; M3 |
 | 3 | M3.4 image features (`gate.image_features`), then `gate.train` | CPU node, minutes | M3 gate verdict |
 | 4 | M4.1 + M4.2 `sbatch hpc/m4_checks.sbatch` | A100 + Project AirSim env, about 10 min | wire story, D10, the AirSim backend |
@@ -78,7 +78,7 @@ The CityEnviron bank (411 episodes, 19,267 frames) is the data everything runs o
 Nothing here has started, and it is the longest pole for the first curve. Owner: **C (Sarvesh)**.
 
 **Gate:** a recall and precision table by obstacle type and distance, with crop on and off and path drawing on and off, for the 2B model.
-**Proposed change (D23, needs one teammate's approval):** judge the gate on the frames the fast stack misses: VLM recall there at least 0.60 with false alarms at most 0.15, the all-frames table and recall by type reported alongside. `eval.benchmark` computes it per model variant.
+**Proposed change (D23, revised 2026-11-18, needs one teammate's approval):** pick the judge and judge the gate on the frames the fast stack misses (`d_safe` 8 m, negatives beyond 30 m): VLM recall there at least 0.60 with false alarms at most 0.15 on all clear frames, cut tuned on val, reported on another split; the all-frames table and recall by type alongside; `d_safe` sensitivity at 6 and 10 m. `eval.benchmark` computes it per model variant. Overview in `PLAN.md` §3.
 **Kill switch:** if recall is below roughly 60% on the types that are definitely visible (poles, boxes, white walls, glass), take the backup chain in `PLAN_DETAILED.md` §11 blocker 6, in order: bigger crop and zoom, prompt variants, the 8B model, a different open VLM, then the surrogate judge. Wires are reported separately and flagged unverified until M4.1 says whether they render at all.
 
 | | Chunk | Owner | Done when | Status |
