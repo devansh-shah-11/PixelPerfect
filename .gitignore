@@ -241,4 +241,3 @@ slurm-*.out
 .serena/*
 capability_*
 Framebank/*
-*.out

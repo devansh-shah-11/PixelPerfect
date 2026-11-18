@@ -16,7 +16,7 @@
 #SBATCH --gres=gpu
 #SBATCH --time=00:30:00
 #SBATCH --job-name=pp-m4-checks
-#SBATCH --output=slurm-%x-%j.out
+#SBATCH --output=logs/slurm/%x-%j.out
 
 set -uo pipefail
 REPO="${SLURM_SUBMIT_DIR:-$(pwd)}"

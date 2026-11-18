@@ -11,7 +11,7 @@
 #SBATCH --gres=gpu
 #SBATCH --time=00:30:00
 #SBATCH --job-name=pp-airsim
-#SBATCH --output=slurm-%x-%j.out
+#SBATCH --output=logs/slurm/%x-%j.out
 #SBATCH --requeue
 
 set -uo pipefail

@@ -19,7 +19,7 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
 #SBATCH --time=00:15:00
-#SBATCH --output=slurm-%x-%j.out
+#SBATCH --output=logs/slurm/%x-%j.out
 #SBATCH --requeue
 ##SBATCH --array=0-9
 
