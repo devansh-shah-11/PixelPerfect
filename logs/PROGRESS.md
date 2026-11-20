@@ -103,3 +103,9 @@
 - Unblocked: DS can build the paused-time delay loop (M4.6) against `vlm.surrogate.SurrogateJudge`; the latency job can be submitted as soon as SB has the HPC env (M0.3).
 - Still blocked: M2.1 numbers (needs the A100 job); M2.4 standalone evaluation (needs the bank reader and split from PP's branch, M1.5); eyeballing the overlay on real bank frames (PNGs are on HPC scratch).
 - Sanity check: pytest 19 passed, 1 skipped (laptop, `.venv`, Python 3.11). transformers 5.23.0 source checked for the class export, the processor call path and the `dtype=` kwarg.
+
+## 2026-11-18 16:45  |  ea37902  |  vlm results for benchmarking (jobs 35101 latency, 35102 bank evaluation)
+- Advances: M2.1 (latency and memory of all five systems, measured), M2.4 (evaluation v3 on 8 conditions), M2.7 (inputs ready; table not built).
+- Unblocked: judge pick on memory (`@4bit`, 6.9 GB); jobs 3 and 4 (quantized accuracy) now known to load and run.
+- Still blocked: `results/benchmark.md` and the D23 recall on depth's misses need `da2_small.jsonl` (job 32117, teammate's scratch) or a rerun (`hpc/run_bank.sbatch`, new).
+- Sanity check: results read only on the laptop; no tests run for this commit (data only). Latency rows measured on random-noise frames. Not pushed by the assistant.
