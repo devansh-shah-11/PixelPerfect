@@ -12,7 +12,7 @@
 | M4 Closed loop | AirSim works: 10/10 true-depth `never` flights reached the goal, 0 crashes (job 36229, n=10, a sanity check only). Headroom with the real depth model (target 15 to 30% crashes) is unmeasured. |
 | M5 to M7 | Not started. |
 
-### da2_small findings (laptop, `perception.analyze_bank`, train+val only, raw corridor minimum, no `--gt`)
+### da2_small findings, FIRST LOOK ON RAW LABELS (superseded: clean-label, benchmark and gate results are in the 2026-11-20 entry of `AGENT_LOG.md`, `results/benchmark.md`, `results/depth_diag/`, `results/gate_val.json/gate_report.md`)
 - The rerun reproduces the old numbers exactly (val AbsRel raw 2.418, median scale 0.790, affine 0.525 and +3.83 m, val 1.588), so the bank run is deterministic and the earlier analysis stands.
 - Miss rate at d_safe 6 / 8 / 10 m: train 76.0 / 76.4 / 77.3%, val 86.5 / 85.5 / 85.3% (raw labels; scaled depth 86.1 / 85.2 / 85.0%).
 - By type: ball, glass, pole and both wires 100% missed; 1 m boxes about 90%; building_block and white wall 0 to 5%, with their false stops (building 24 to 29%, wall 9 to 13%). Rain misses most (83 to 84%), dusk least (67 to 70%).
@@ -31,13 +31,67 @@
 - **Building block and white wall:** depth sees them (0 to 5% missed) but they cause the false stops; a gate that only targets misses may hide that cost.
 Team: D23 approval, D3 sign-off (M0.5), M1.5 merge, trim result PNGs and the AirSim config artifacts from PR #3.
 
-### Immediate action items (in order)
-1. CPU (laptop if the bank is reachable, else a CPU node): `python -m perception.diagnose_depth` Part A, to test whether the 2.42 is inflated by the misses themselves (M1.9).
-3. CPU node: `python -m gate.bank_gt --bank <bank dir> --out <file>.jsonl`, then `analyze_bank --run results/bank_runs/da2_small.jsonl --split configs/bank_split.yaml --gt <file>.jsonl` for clean miss rates (M1.8).
-4. Laptop: `python -m eval.benchmark --vlm results/vlm_eval.jsonl --run results/bank_runs/da2_small.jsonl --latency results/vlm_latency_35101.json --summarize-only` for the D23 verdict. Trust it only after step 3.
-5. Message teammates: approve D23, sign off D3, review and merge PR #3 (M1.5).
-6. CPU: `gate.image_features`, then `gate.train` (M3.3 to M3.5). An AUROC above 0.99 means suspect leakage.
-7. A100 (needs your OK first): never-ask headroom sweep with Depth Anything on val seeds (M4.7), then the M5 policies with the real VLM in one job.
+### Reproducing gitignored files (for the next person or their Claude)
+The three `results/bank_runs/*.jsonl` files ARE now committed (2026-11-20); `*.pkl` is the only ignored item. If they are missing or stale, regenerate with the commands below, in order. HPC paths use `/scratch/dns5508`; set `BANK=/scratch/dns5508/frame_bank/CityEnviron`. Activate first: `eval "$(conda shell.bash hook)"; conda activate /scratch/dns5508/envs/pa; cd /scratch/dns5508/PixelPerfect`. Everything is deterministic (frozen seeds and split), so reruns should match the logged numbers.
+
+| Missing file (gitignored) | Needed by | Regenerate (where) |
+|---|---|---|
+| `results/bank_runs/da2_small.jsonl` (depth over the bank) | analyze_bank, diagnose_depth, benchmark, gate.train | `sbatch hpc/run_bank.sbatch` (A100, about 11 min), writes `/scratch/dns5508/bank_runs/da2_small.jsonl` |
+| `results/bank_runs/bank_gt.jsonl` (clean labels) | analyze_bank `--gt`, gate.train | `python -m gate.bank_gt --bank $BANK --out /scratch/dns5508/bank_runs/bank_gt.jsonl` (HPC CPU, minutes) |
+| `results/bank_runs/image_features.jsonl` | gate.train `--image-features` | `python -m gate.image_features --bank $BANK --out /scratch/dns5508/bank_runs/image_features.jsonl` (HPC CPU, minutes) |
+| `results/gate_*/gate_*.pkl` (trained gates, served by `gate/model.py`) | the closed loop with a learned gate (M5) | `python -m gate.train --run <da2_small> --gt <bank_gt> --split configs/bank_split.yaml --image-features <image_features> --d-safe 8 --out results/gate_val.json` (seconds, CPU; `--out` makes a directory). The best model is `gate_mlp_depth+temporal+image.pkl` |
+
+Copy the three bank files to the laptop with `rsync -avP dns5508@<hpc-login-host>:/scratch/dns5508/bank_runs/<file> results/bank_runs/`. The frame bank itself (images) lives only at `$BANK` on HPC scratch; the laptop `Framebank/` has metadata only. `gate_report.md` and `gate_results.json` are small and are kept in git; only the pickles are ignored.
+
+### Run-book (run one step at a time; paste the output back before the next step)
+Paths: `HPC` = `/scratch/dns5508`, bank = `/scratch/dns5508/frame_bank/CityEnviron`. The laptop `Framebank/` holds metadata only (no images), so image-reading steps run on the HPC. Replace `<hpc-login-host>`.
+
+**Step 1. HPC CPU node, minutes, no GPU: clean labels (M1.8).** Reads segmentation masks. Do not leave an idle session open.
+```
+cd /scratch/dns5508/PixelPerfect && git pull
+python -m gate.bank_gt --bank /scratch/dns5508/frame_bank/CityEnviron --out /scratch/dns5508/bank_runs/bank_gt.jsonl
+```
+Then, on the laptop:
+```
+rsync -avP dns5508@<hpc-login-host>:/scratch/dns5508/bank_runs/bank_gt.jsonl results/bank_runs/
+```
+Check: 19,267 rows (`wc -l`). Impact: every later miss rate, label and gate uses it.
+
+**Step 2. Laptop, seconds: depth diagnosis and clean miss rates (M1.9 Part A, M1.8).**
+```
+.venv/bin/python -m perception.diagnose_depth --run results/bank_runs/da2_small.jsonl --gt results/bank_runs/bank_gt.jsonl --split configs/bank_split.yaml --pixels 0
+.venv/bin/python -m perception.analyze_bank --run results/bank_runs/da2_small.jsonl --gt results/bank_runs/bank_gt.jsonl --split configs/bank_split.yaml --d-safe 6 8 10
+```
+Look for: is the 2.42 AbsRel still large on scene (non-obstacle) frames (a depth bug) or only on obstacle frames (miss-inflated)? Do the 53 train / 24 val obstacle-free "obstacle" frames disappear? Part B (`--pixels N --bank`, contact sheet) needs the HPC bank; only if Part A is unclear.
+
+**Step 3. Laptop, seconds: benchmark and the D23 verdict (M2.4, M2.7).** (The old line with `--summarize-only` was wrong; that flag belongs to `vlm.eval_bank`, not `eval.benchmark`.)
+```
+.venv/bin/python -m eval.benchmark --vlm results/vlm_eval.jsonl --run results/bank_runs/da2_small.jsonl --latency results/vlm_latency_35101.json --out results/benchmark.md
+```
+Trust it only after step 2. Look for: VLM recall on the frames depth misses at least 0.60 with false alarms at most 0.15 (D23); which variant wins on the rule (D22). A `results/benchmark.md` from before the clean labels exists; overwrite it.
+
+**Step 3b. HPC A100, needs your OK, over an hour (quantized accuracy, so the benchmark can score 8B@8bit and 8B@4bit).** First `pip install -e ".[quant]"` in the `pa` env. Small run first (add `,PER_TYPE=50` and use `OUT=results/vlm_eval_quant_quick.jsonl`), then:
+```
+sbatch --export=ALL,MODELS="Qwen/Qwen3-VL-8B-Instruct@8bit Qwen/Qwen3-VL-8B-Instruct@4bit",CONDITIONS="both both_blocked",ONE_AT_A_TIME=1,OUT=results/vlm_eval_quant.jsonl hpc/vlm_eval_bank.sbatch
+```
+Then rsync it to `results/` and rerun step 3 with `--vlm results/vlm_eval.jsonl results/vlm_eval_quant.jsonl`. Steps 1, 2, 4 and 5 do not need a rerun.
+
+**Step 4. HPC CPU node, minutes: image features (M3.4).**
+```
+python -m gate.image_features --bank /scratch/dns5508/frame_bank/CityEnviron --out /scratch/dns5508/bank_runs/image_features.jsonl
+```
+Then rsync it to `results/bank_runs/` as in step 1.
+
+**Step 5. DONE 2026-11-20 on the laptop (paths below are the laptop copies; on the HPC use `/scratch/dns5508/bank_runs/...`). Note `--out` creates a directory named `*.json`. Train and evaluate the gate (M3.3 to M3.5).**
+```
+.venv/bin/python -m gate.train --run results/bank_runs/da2_small.jsonl --gt results/bank_runs/bank_gt.jsonl --split configs/bank_split.yaml --image-features results/bank_runs/image_features.jsonl --d-safe 8 --out results/gate_val.json
+.venv/bin/python -m gate.train --run results/bank_runs/da2_small.jsonl --gt results/bank_runs/bank_gt.jsonl --split configs/bank_split.yaml --image-features results/bank_runs/image_features.jsonl --d-safe 8 --holdout-family wire_3cm_axis_z --out results/gate_holdout_wire3.json
+```
+Val only; never the test split. AUROC above 0.99 means suspect leakage, not success. The gate must beat the depth-variance baseline on val.
+
+**Step 6. Team (no commands).** Ask for D23 approval, D3 sign-off (M0.5), review and merge of PR #3 (M1.5), and trim the PNGs and AirSim configs from the PR.
+
+**Step 7. A100, needs your OK first, about 15 min: never-ask headroom (M4.7).** Command to be written once steps 1 to 5 are read; it uses `eval.sweep` with the depth stack on val seeds and `configs/sweeps/airsim_bench.yaml`.
 
 ---
 
