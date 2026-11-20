@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -29,7 +30,7 @@ from typing import Any
 import numpy as np
 
 from eval.metrics import EpisodeResult
-from gate.features import TemporalFeatures
+from gate.features import IMAGE_KEYS, TemporalFeatures
 from interfaces import Action, DepthEstimate, FrameRecord, RuntimeStep
 from sim.drone import DroneParams, KinematicState, hold, step
 from sim.geometry import hits_ground, segment_hits
@@ -62,6 +63,11 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
     if hasattr(policy, "reset"):
         policy.reset(scenario.seed)
     temporal = TemporalFeatures()
+    # RGB image features only when the gate was trained on them (gate.image_features; RGB only, rule 5).
+    use_image = bool(set(IMAGE_KEYS) & set(getattr(policy, "feature_names", ()) or ()))
+    if use_image:
+        from gate.image_features import image_features
+    image_ms: list[float] = []
     boxes = scenario.obbs()
     state = KinematicState(t=0.0, x=0.0, y=0.0, z=-scenario.alt_m, yaw=0.0, speed=0.0)
     history: list[RuntimeStep] = []
@@ -87,6 +93,10 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
             break
         est = stack.perceive_obs(obs, state, sim)
         feats = temporal.update(est.features)
+        if use_image:
+            t0 = time.perf_counter()
+            feats = {**feats, **image_features(obs.rgb)}
+            image_ms.append((time.perf_counter() - t0) * 1e3)
         est = DepthEstimate(depth=est.depth, features=feats)
         public = state.public()
         proposed = controller.act(est, public)
@@ -150,6 +160,8 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
         extra={"stack": getattr(stack, "name", type(stack).__name__), "backend": getattr(sim, "name", type(sim).__name__),
                "delay_s": cfg.delay_s, "condition": scenario.condition, "collision_source": collision_source,
                "start_index": getattr(sim, "start_index", None)})
+    if image_ms:  # wall-clock cost of the gate's image features per frame (PLAN_DETAILED.md §4.2 budget: under 1 ms)
+        result.extra["image_features_ms"] = {"median": round(float(np.median(image_ms)), 3), "p95": round(float(np.percentile(image_ms, 95)), 3)}
     return records, result
 
 

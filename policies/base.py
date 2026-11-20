@@ -134,6 +134,12 @@ class GatePolicy(CooldownPolicy):
         self.gate, self.tau = gate, tau
         self.name = label
 
+    @property
+    def feature_names(self) -> list[str]:
+        """The inputs the gate was trained on (empty if the gate does not say). The flight loop reads this to
+        decide whether it must compute the RGB image features for each frame."""
+        return list(getattr(self.gate, "names", []))
+
     def _score(self, features: dict[str, Any], drone_state: DroneState) -> float:
         self.last_score = float(self.gate.score(features, drone_state))
         return self.last_score
@@ -174,9 +180,20 @@ REGISTRY: dict[str, Callable[..., CooldownPolicy]] = {
 
 
 def make_policy(spec: dict[str, Any]) -> CooldownPolicy:
-    """Build a policy from a config dict, e.g. ``{"policy": "random", "p": 0.05, "cooldown_s": 1.0}``."""
+    """Build a policy from a config dict, e.g. ``{"policy": "random", "p": 0.05, "cooldown_s": 1.0}``.
+
+    The learned gate is given by file: ``{"policy": "gate", "model_path": "results/gate/gate_mlp_depth+temporal+image.pkl",
+    "tau": 0.5}``. ``model_path`` may name environment variables (``$SCRATCH/...``); the pickle is a ``gate.train``
+    output loaded by ``gate.model.GateModel``.
+    """
     spec = dict(spec)
     kind = spec.pop("policy")
     if kind not in REGISTRY:
         raise ValueError(f"unknown policy {kind!r}; known: {sorted(REGISTRY)}")
+    if kind == "gate" and "model_path" in spec:
+        import os
+
+        from gate.model import GateModel
+
+        spec["gate"] = GateModel(os.path.expandvars(str(spec.pop("model_path"))))
     return REGISTRY[kind](**spec)
