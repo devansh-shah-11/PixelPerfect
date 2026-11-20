@@ -1,4 +1,47 @@
-# Next steps for DS (written Tue Nov 17)
+# Next steps for DS
+
+## Update Fri Nov 20: overall picture, pending tasks, immediate actions
+
+### Overall picture
+| Milestone | Status now |
+|---|---|
+| M0 Foundations | Nearly done. Open: SB's smoke test (M0.3), Project AirSim sign-off (M0.5, D3). |
+| M1 Frame bank | Gate passed. `da2_small.jsonl` (19,267 rows, job 36206) is now on the laptop at `results/bank_runs/` (gitignored). Open: M1.5 merge to `main`, M1.8 clean labels, M1.9 depth diagnosis. |
+| M2 VLM | Measured (jobs 33620, 35101, 35102). Every standalone row fails the M2 gate. The verdict that matters (VLM recall on the frames depth misses) still needs clean GT from M1.8. D23 revision needs a teammate's approval. |
+| M3 Saved-frame gate | Code ready and tested, not run on the real bank. Blocked on M1.8. |
+| M4 Closed loop | AirSim works: 10/10 true-depth `never` flights reached the goal, 0 crashes (job 36229, n=10, a sanity check only). Headroom with the real depth model (target 15 to 30% crashes) is unmeasured. |
+| M5 to M7 | Not started. |
+
+### da2_small findings (laptop, `perception.analyze_bank`, train+val only, raw corridor minimum, no `--gt`)
+- The rerun reproduces the old numbers exactly (val AbsRel raw 2.418, median scale 0.790, affine 0.525 and +3.83 m, val 1.588), so the bank run is deterministic and the earlier analysis stands.
+- Miss rate at d_safe 6 / 8 / 10 m: train 76.0 / 76.4 / 77.3%, val 86.5 / 85.5 / 85.3% (raw labels; scaled depth 86.1 / 85.2 / 85.0%).
+- By type: ball, glass, pole and both wires 100% missed; 1 m boxes about 90%; building_block and white wall 0 to 5%, with their false stops (building 24 to 29%, wall 9 to 13%). Rain misses most (83 to 84%), dusk least (67 to 70%).
+- Caveats: these are raw-label figures. Episodes with no obstacle still show 53 train / 24 val "obstacle" frames, so labels are noisy until M1.8. Val has 0 positive frames for box_1m_black and only 2 to 10 for the white wall, so val per-type numbers are thin.
+
+### High-level pending tasks
+1. Clean labels and depth diagnosis (M1.8, M1.9): needed before any miss rate or gate is trusted.
+2. M2 verdict and judge pick (M2.4, M2.6, M2.7): VLM recall on depth's misses, quantized accuracy, `results/benchmark.md`.
+3. Gate training and held-out family (M3.3 to M3.5).
+4. Closed-loop headroom and policies (M4.7, M5.1 to M5.3): never-ask crash rate with real depth, threshold and oracle policies, real VLM in the flight job.
+5. Crash-cause tool, then the two headline experiments (M5.4, M6.3, M6.4).
+6. Final test runs, report, demo (M6.8, M7).
+### To look at and improve later (not for now; not a plan item until a Decision-log row says so)
+- **Thin val coverage:** val has 0 positive frames for box_1m_black and 2 to 10 for the white wall, so per-type val miss rates and gate metrics for those types are unreliable. Options when there is time: report those types with train-fold cross-validation by episode, or note them as not evaluable. The split is frozen (`configs/bank_split.yaml`), so this cannot be fixed by resplitting.
+- **Raw-label noise:** obstacle-free episodes show 53 train / 24 val "obstacle" frames. Check after M1.8 whether `--gt` removes them; if some remain, find the cause (rain, ground or sky in the corridor window) before training any gate.
+- **Building block and white wall:** depth sees them (0 to 5% missed) but they cause the false stops; a gate that only targets misses may hide that cost.
+Team: D23 approval, D3 sign-off (M0.5), M1.5 merge, trim result PNGs and the AirSim config artifacts from PR #3.
+
+### Immediate action items (in order)
+1. CPU (laptop if the bank is reachable, else a CPU node): `python -m perception.diagnose_depth` Part A, to test whether the 2.42 is inflated by the misses themselves (M1.9).
+3. CPU node: `python -m gate.bank_gt --bank <bank dir> --out <file>.jsonl`, then `analyze_bank --run results/bank_runs/da2_small.jsonl --split configs/bank_split.yaml --gt <file>.jsonl` for clean miss rates (M1.8).
+4. Laptop: `python -m eval.benchmark --vlm results/vlm_eval.jsonl --run results/bank_runs/da2_small.jsonl --latency results/vlm_latency_35101.json --summarize-only` for the D23 verdict. Trust it only after step 3.
+5. Message teammates: approve D23, sign off D3, review and merge PR #3 (M1.5).
+6. CPU: `gate.image_features`, then `gate.train` (M3.3 to M3.5). An AUROC above 0.99 means suspect leakage.
+7. A100 (needs your OK first): never-ask headroom sweep with Depth Anything on val seeds (M4.7), then the M5 policies with the real VLM in one job.
+
+---
+
+# Earlier notes (written Tue Nov 17)
 
 What changed in the working tree on `C/M2.1`, how to test it, how to commit it in small steps, what can go wrong, and what comes after. Nothing here has been committed, and **nothing has run on a GPU or in Project AirSim yet**, so there are no new numbers.
 

@@ -109,3 +109,9 @@
 - Unblocked: judge pick on memory (`@4bit`, 6.9 GB); jobs 3 and 4 (quantized accuracy) now known to load and run.
 - Still blocked: `results/benchmark.md` and the D23 recall on depth's misses need `da2_small.jsonl` (job 32117, teammate's scratch) or a rerun (`hpc/run_bank.sbatch`, new).
 - Sanity check: results read only on the laptop; no tests run for this commit (data only). Latency rows measured on random-noise frames. Not pushed by the assistant.
+
+## 2026-11-20 14:10  |  (pending commit)  |  da2_small.jsonl on the laptop; first analysis logged; next steps updated
+- Advances: M1.3 inputs available locally (job 36206, 19,267 rows), M2.4 verdict input (needs M1.8), M4.2 start-pose smoke (job 36229, 10/10 true-depth flights, 0 crashes). Not pushed.
+- Unblocked: M1.8, M1.9 Part A and `eval.benchmark --summarize-only` can run on the laptop or a CPU node.
+- Still blocked: clean labels (M1.8), the M2 verdict, gate training (M3), D23 approval, M1.5 merge.
+- Sanity check: `analyze_bank` rerun reproduces the earlier val AbsRel 2.418 exactly. pytest not run.

@@ -241,3 +241,6 @@ slurm-*.out
 .serena/*
 capability_*
 Framebank/*
+
+# Bank runs copied from HPC scratch (large, regenerable with hpc/run_bank.sbatch)
+results/bank_runs/
