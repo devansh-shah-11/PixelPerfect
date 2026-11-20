@@ -1,0 +1,46 @@
+[2026-11-19T07:30:46+00:00] job=36206 partition=c12m85-a100-1 host=b-19-69 commit=d2f80eb
+name, memory.total [MiB]
+NVIDIA A100-SXM4-40GB, 40960 MiB
+Loading weights:   0%|          | 0/287 [00:00<?, ?it/s]Loading weights:  32%|███▏      | 92/287 [00:00<00:00, 898.98it/s]Loading weights:  68%|██████▊   | 194/287 [00:00<00:00, 965.08it/s]Loading weights: 100%|██████████| 287/287 [00:00<00:00, 1028.03it/s]
+/scratch/dns5508/envs/pa/lib/python3.11/site-packages/transformers/image_processing_backends.py:135: UserWarning: The given NumPy array is not writable, and PyTorch does not support non-writable tensors. This means writing to this tensor will result in undefined behavior. You may want to copy the array to protect its data or make it writable before converting it to a tensor. This type of warning will be suppressed for the rest of this program. (Triggered internally at /__w/pytorch/pytorch/torch/csrc/utils/tensor_numpy.cpp:208.)
+  image = torch.from_numpy(image)
+500/19267 frames
+1000/19267 frames
+1500/19267 frames
+2000/19267 frames
+2500/19267 frames
+3000/19267 frames
+3500/19267 frames
+4000/19267 frames
+4500/19267 frames
+5000/19267 frames
+5500/19267 frames
+6000/19267 frames
+6500/19267 frames
+7000/19267 frames
+7500/19267 frames
+8000/19267 frames
+8500/19267 frames
+9000/19267 frames
+9500/19267 frames
+10000/19267 frames
+10500/19267 frames
+11000/19267 frames
+11500/19267 frames
+12000/19267 frames
+12500/19267 frames
+13000/19267 frames
+13500/19267 frames
+14000/19267 frames
+14500/19267 frames
+15000/19267 frames
+15500/19267 frames
+16000/19267 frames
+16500/19267 frames
+17000/19267 frames
+17500/19267 frames
+18000/19267 frames
+18500/19267 frames
+19000/19267 frames
+19267 frames processed, 0 already done -> /scratch/dns5508/bank_runs/da2_small.jsonl
+[2026-11-19T07:41:54+00:00] done: 19267 rows in /scratch/dns5508/bank_runs/da2_small.jsonl
