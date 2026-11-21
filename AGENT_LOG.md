@@ -379,3 +379,11 @@
 - Follow-ups: on the HPC, train the gate pickle in the flight env (`pa`, which runs the sweeps) or check its sklearn version matches `pp`; then add the gate policy to the M5 AirSim sweep once M4.7 headroom is in; team call on the 0.4 vs 0.5 m step mismatch.
 - Follow-up resolved (2026-11-20, SB on HPC b-9-10): scikit-learn is 1.9.1 in both `pa` (/scratch/dns5508/envs/pa) and `pp` (/scratch/sb10583/envs/pp), so a gate pickle trained in `pp` loads in the flight env.
 - Gate trained on HPC (2026-11-20, SB, pp env, b-9-10) from SB's own bank files in /scratch/sb10583/bank_runs: mlp/depth+temporal+image val AUROC 0.832 [0.756 to 0.908], vs 0.829 from DS's committed `results/bank_runs/`. Same labels in both (train 9023 / 1489 pos, val 1830 / 281 pos, 668 glass metadata rows; baseline_var 0.425 and best_single 0.695 identical). Cause: the depth runs differ in float detail, SB's job 33778 on a CPU node vs DS's job 36206 on the A100 (log: partition c12m85-a100-1), and the seeded MLP (random_state 0) is sensitive to that. Within the CI, not a result change. Decision: use DS's committed (GPU) files for the flight gate, since the flight loop also runs Depth Anything V2 on the A100.
+
+## 2026-11-20 19:20  |  gate, eval  |  AirSim gate check config (5 val flights, not a result)
+- Member: SB
+- Request: "lets run on gpu" with the recommended settings: check whether the gate reacts to real Project AirSim renders before the M5 sweep.
+- Action (laptop): `configs/sweeps/airsim_gate_check.yaml`: DS's airsim_bench settings (5 start poses, 40 m flights, one obstacle at 15 to 25 m), stack da2, judge Qwen3-VL-8B (prompt cross, tau -4.02 = its val cut in results/benchmark.md), first 5 val seeds, policies gate_mlp (tau 0.256) and never, flight logs on. Launched by SB on the A100 via hpc/airsim_job.sbatch with HF_HOME=/scratch/$USER/hf (the job script does not set it).
+- Assumptions: the `pa` env runs Depth Anything V2 and Qwen3-VL-8B (DS's latency job 35101 ran in `pa`) and finds the weights in SB's HF cache [UNVERIFIED].
+- Decisions & alternatives: not a result; M4.7 difficulty is not tuned and the 0.4 vs 0.5 m step mismatch is open. Val seeds only.
+- Follow-ups: read gate_score against corridor_min_gt in results/sweeps/gate_check_airsim/flights/.

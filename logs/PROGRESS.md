@@ -114,3 +114,5 @@
 - Advances: M1.8, M1.9 Part A, M2.4 verdict input, M3.3 to M3.5 (best gate val AUROC 0.829 vs baseline 0.425), M4 start-pose smoke (10/10). Not pushed.
 - Unblocked: gate in the closed loop (M5). Still blocked: headroom sweep (M4.7), quantized VLM rows, D23 approval, M1.5 merge.
 - Sanity check: all three bank files have 19,267 rows; the analysis rerun reproduced the earlier numbers.
+
+- 2026-11-20 18:50 | 41b96c7 | gate: load the learned gate from sweep configs and compute image features in flight | TASKS.md M5.1 / M5.3 (plumbing) | Unblocked: a gate policy in any sweep config (model_path + tau); trained pickle in place on HPC (val AUROC 0.829). Still blocked: M5 gate sweep waits for the M4.7 headroom run; 0.4 vs 0.5 m step mismatch in temporal features needs a team call. Sanity: pytest 146 passed, 1 skipped. Pushed to origin/C/M2.1.
