@@ -1,197 +1,193 @@
 # Pixel Perfect: Task Board
 
-Companion to `PLAN.md` (design, decisions, and reasons live there; this file is only *what to do*).
-Each person can work independently whenever they have time. Everything you need from someone else has a **stand-in** so you're never blocked waiting.
+Companion to `PLAN.md` (orientation) and `PLAN_DETAILED.md` (the source of truth for every design decision). This file is only **what to do next, and in what order**.
+
+**No dates.** Work is ordered by what it unblocks, not by a calendar, because every date on the old board went stale and stopped being read. The only real deadlines are: final test runs launch at the start of the last week of November, and the report and presentation are due in the last week of the semester.
+
+**Status:** `TODO` · `DOING (XX)` · `DONE` · `BLOCKED` · `CUT` (with a reason)
+
+**How to use it**
+1. Find your workstream's next unchecked chunk in the lowest open milestone. Set the chunk status to `DOING (your initials)`.
+2. Work on a branch named `<workstream>/<chunk-id>`, for example `C/M2.1`. Small commits.
+3. A chunk is finished when its **done when** line is true, not when the code is written.
+4. A milestone is finished when its **gate** passes. If the gate fails, take the fallback written under it and record it in `AGENT_LOG.md`. Do not quietly carry on.
+5. Changing a design decision happens in `PLAN_DETAILED.md` through a PR with a Decision-log row, never here.
+6. Old task ids (`A-xx`, `B-xx`, `C-xx`, `W-xx`) are kept in brackets so the old board, the handoffs H1 to H9 and the commit history still resolve. Look them up in `TASKS_DETAILED.md`.
 
 ---
 
-## How to use this file
+## Right now, in order
 
-1. **Pick a task** in your workstream whose dependencies are `DONE` (or that has a stand-in). Set status to `DOING` and put your initials.
-2. **Work on a branch** named `<workstream>/<task-id>`, e.g. `A/A-03`. Small commits, daily if possible.
-3. **Finish** = the "Done when" check passes. Set `DONE`, add the PR/commit link in Notes, and write any agent mistakes in `AGENT_LOG.md`.
-4. **Blocked?** Set `BLOCKED`, write why in Notes, and post in the team chat. Then switch to another task or use the stand-in.
-5. **Changing a design decision?** Don't do it here. Open a PR to `PLAN.md` (Decision log).
-6. **Don't edit other people's rows** except to add a note. Shared rows (`S-`) can be claimed by anyone.
+Everything below that is code is written and tested on the laptop (137 tests). What is left needs the HPC, in this order:
 
-**Status values:** `TODO` · `DOING (XX)` · `DONE` · `BLOCKED` · `CUT` (dropped, with reason)
+| # | Job | Where | Unblocks |
+|---|---|---|---|
+| 1 | M2.4 full VLM evaluation done (jobs 33620, 35102). Next: `da2_small.jsonl` (`sbatch hpc/run_bank.sbatch`, about 10 min) | A100 | M2 gate verdict (D23) |
+| 2 | M1.8 clean labels (`gate.bank_gt`, now with glass) and M1.9 Part A (`perception.diagnose_depth`) | CPU node, minutes | trusting any miss rate; M3 |
+| 3 | M3.4 image features (`gate.image_features`), then `gate.train` | CPU node, minutes | M3 gate verdict |
+| 4 | M4.1 + M4.2 `sbatch hpc/m4_checks.sbatch` | A100 + Project AirSim env, about 10 min | wire story, D10, the AirSim backend |
+| 5 | ~~Freeze `configs/seeds.yaml`~~ done 2026-11-17 (1000 / 500 / 500, D24). Start-pose check `configs/sweeps/airsim_starts_smoke.yaml`, then the true-depth sweep on Project AirSim | A100, about 15 min for the check | M4 gate on the real simulator |
+| 6 | M2.6 latency and memory of every system: `sbatch hpc/vlm_latency.sbatch` (fast stack, 2B, 8B, 8B@8bit, 8B@4bit) | A100, about 20 min | the cost columns of the benchmark table |
+| 7 | M2.6 accuracy: second prompt round on 2B and 8B, then the quantized 8B variants (commands in the header of `hpc/vlm_eval_bank.sbatch`; small sample first, bitsandbytes speed is unknown) | A100, about 25 min + unknown | M2.7 benchmark table, the D22 choice |
 
-**Owners:** A = Simulator and flights (`____`) · B = Fast stack and gate (`____`) · C = VLM and evaluation (`____`)
-
----
-
-## Sync rhythm
-
-| When | What | Where |
-|---|---|---|
-| Whenever you work | Update your task rows in this file (status + notes) and push | repo |
-| **Daily, async (by 11 pm)** | Post a 3-line update in the team chat using the template below | chat |
-| **Mon and Thu, 15 min** | Live sync: blockers and handoffs only | call |
-| **Sun, 1 hour** | Code walkthrough: each person walks the other two through their code; merge branches; update `PROGRESS LOG` at the bottom | call |
-| Kill-switch dates (see PLAN.md §11) | Go/no-go decision, recorded in PLAN.md Decision log | call |
-
-**Daily update template**
-```
-[Initials] [date]
-Done: A-03 (link)
-Next: A-04
-Blocked / need from others: none | "need interface X from B by Thu"
-```
+---|---|---|
+| **Devansh (A)** | M4.1 verify wires through segmentation and ground-truth depth | The whole thin-wire story is unverified, and it decides whether wires are our main failure case or we switch to poles and glass |
+| **Parva (B)** | M1.9 explain the depth quality, then M1.5 merge into `main` | M1's gate has passed, but a val AbsRel of 2.42 and a 76% miss rate need a cause before any gate is trained on them |
+| **Sarvesh (C)** | M2.4 full A100 run, then the gate decision | Everything else in M2 is done; the run prints the verdict |
 
 ---
 
-## Handoffs (the only points where we depend on each other)
+## M0 · Foundations
 
-| ID | What | From → To | Needed by | Stand-in until then |
+**Gate:** every member can push to a branch, run an sbatch job on Cloud Bursting, and import `interfaces.py`.
+**Status: nearly done.** Only Sarvesh's smoke test is outstanding.
+
+| | Chunk | Owner | Done when | Status |
 |---|---|---|---|---|
-| H1 | Interface stubs (`perceive`, `act`, `score`, `should_ask`, `ask`) + flight-log schema | All → All | Thu Oct 22 | none (agree on the call) |
-| H2 | Simulator that saves RGB + GT depth + seg + pose | A → B, C | Thu Oct 22 | DDOS images |
-| H3 | Golden set (~20 saved episodes, train/val split) | A → B, C | Tue Oct 27 | DDOS images |
-| H4 | `perception/` + `control/` modules usable in the loop | B → A | Sun Oct 25 | A uses GT depth as fake fast stack |
-| H5 | `vlm.ask()` server + path-overlay/crop renderer | C → A | Fri Oct 30 | `vlm/surrogate.py` (random answers with set accuracy) |
-| H6 | Never-ask training episodes (300 to 500, train seeds) | A → B | Fri Oct 30 | golden set |
-| H7 | Trained gate checkpoint `gate.pt` + `score()` | B → A, C | Mon Nov 2 | threshold policy |
-| H8 | Flight forking (replay from frame t) | A → B | Mon Nov 9 | none (L3 waits) |
-| H9 | Cached VLM answers for fork frames | C → B | Mon Nov 16 | surrogate judge |
+| M0.1 | Repo, README, `AGENT_LOG.md`, branch rules [S-01] | B | Everyone can push to their branch | DONE |
+| M0.2 | Shared types and flight-log schema in `interfaces.py` + tests [S-04, H1] | B | `pytest` passes; all three have read it and agreed | DONE (needs A and C to confirm they agree) |
+| M0.3 | HPC access: account, partitions, scratch, cached weights [S-06] | each | Each member has one finished sbatch job id | DOING: A done, B done, **C outstanding** |
+| M0.4 | Owners written down, Q1 closed [S-02] | all | `PLAN.md` §5 table confirmed at a sync | DOING (filled in, needs confirming) |
+| M0.5 | Project AirSim sign-off: Decision-log row for D3 and Q4 [S-05] | all | Row added to `PLAN_DETAILED.md` §3 | TODO |
 
 ---
 
-## Shared tasks (S)
+## M1 · The frame bank is usable
 
-| ID | Task | Due | Depends on | Done when | Status | Notes |
-|---|---|---|---|---|---|---|
-| S-01 | Create repo with PLAN.md layout, README, AGENT_LOG.md, TASKS.md; branch rules | Wed Oct 21 | | Everyone can push to their branch | TODO | |
-| S-02 | Fill in owners for A, B, C (Q1) | Wed Oct 21 | | Names in header | TODO | |
-| S-03 | Read **Stress-Query** paper ([arXiv 2610.23877](https://arxiv.org/html/2610.23877)) and AESOP; 5-line summary each in `report/related_work.md` | Fri Oct 23 | | Summary committed; Q7 answered | TODO | If Stress-Query already does learned gating for UAVs, flag for D16 |
-| S-04 | Agree interfaces + flight-log schema (H1) and metric definitions (PLAN.md §5, §6) | Thu Oct 22 | | `interfaces.py` stubs merged | TODO | |
-| S-05 | Simulator go/no-go; record D3 and D17 | Fri Oct 23 | A-01, A-02 | Decision-log rows added | TODO | |
-| S-06 | Each person: confirm HPC account, partitions, GPU hours (Q5) | Wed Oct 21 | | Notes added here | TODO | |
-| S-07 | Weekly walkthrough #1 | Sun Oct 25 | | Each module explained once | TODO | |
-| S-08 | MVP milestone review memo (first curve, ~30 crash causes, next decisions); tag `mvp-v1` | Tue Nov 3 | A-10, B-08, C-09 | Memo in `report/`, tag pushed | TODO | |
-| S-09 | Report skeleton in Overleaf (sections, owners, metric definitions) | Mon Nov 9 | | Skeleton compiles | TODO | |
-| S-10 | Pick final 2 to 3 ablations | Mon Nov 16 | E2 results | Decision-log row | TODO | |
-| S-11 | Merge Agent Logs into report appendix | Sun Dec 6 | | Appendix drafted | TODO | |
-| S-12 | Slides + rehearsal; each person explains the other two's code | Week 7 | | Dry run done | TODO | |
+The CityEnviron bank (411 episodes, 19,267 frames) is the data everything runs on until the closed loop exists.
 
----
+**Gate:** a frozen episode split plus estimated depth and L1 labels for every kept frame, with no episode in two splits. **Passed**, with the two caveats in M1.8 and M1.9 carried into M3.
+**Fallback if the gate fails:** DDOS images for perception and VLM work (`PLAN_DETAILED.md` D12), and say plainly in any result that the bank was not used.
 
-## Workstream A: Simulator and flights
-
-### Sprint 1 (to Tue Nov 3)
-
-| ID | Task | Due | Depends on | Done when | Status | Notes |
-|---|---|---|---|---|---|---|
-| A-01 | GPU machine ready (GCP VM or HPC node): driver, Vulkan/OpenGL, prebuilt AirSim/Colosseum binary downloaded | Wed Oct 21 | | `nvidia-smi` works; binary launches headless | TODO | |
-| A-02 | Python script: take off/teleport, save RGB + GT depth + seg + pose | Thu Oct 22 | A-01 | 10 frames saved to `data/` (H2) | TODO | Kill switch: no frame by Thu → start A-07 full time |
-| A-03 | Apptainer try on HPC (time-boxed ≤ half day) | Thu Oct 22 | A-01 | Works or written "no" with reason | TODO | |
-| A-04 | Obstacle spawner: wall/box, pole, thin wire (thickness, contrast), glass-like, fog | Fri Oct 23 | A-02 | Wire visible at 10 m in RGB | TODO | |
-| A-05 | Own collision check (capsule/raycast vs. spawned geometry); cross-check engine flag | Fri Oct 23 | A-04 | Unit test: drone through wire = collision | TODO | |
-| A-06 | Kinematic drone (fixed altitude band, speed v, 5 actions, hysteresis) + scenario generator; **freeze `configs/seeds.yaml`** (train/val/test) | Sat Oct 24 | A-04 | 100 seeded scenarios regenerate identically; seeds checksummed | TODO | |
-| A-07 | Plan B simulator skeleton (raycast scene or Habitat-sim), same interface | Sun Oct 25 | | Flies one scripted episode with GT depth | TODO | Insurance; half a day |
-| A-08 | `eval/run_episode.py` closed loop using GT depth as fake fast stack; then B's modules (H4) | Mon Oct 26 | A-06, (H4) | True-depth flights crash near zero | TODO | |
-| A-09 | Never-ask + true-depth on ≥100 val episodes; measure sec/flight; write budget in README; headroom check (15 to 30% crashes) | Tue Oct 27 | A-08 | Numbers in README; difficulty retuned if needed | TODO | Kill switch Mon Oct 26 |
-| A-10 | Save golden set (H3); VM snapshot | Tue Oct 27 | A-09 | 20 episodes on HPC scratch + VM | TODO | |
-| A-11 | Paused-time delay loop: pause, call `ask()`, advance by `d` with brake-and-hold | Thu Oct 29 | A-08 | Same seed + same `d` gives identical flight | TODO | Uses surrogate until H5 |
-| A-12 | Collect 300 to 500 never-ask episodes on train seeds with action noise (H6) | Fri Oct 30 | A-09 | Logs on HPC scratch, 2 copies | TODO | |
-| A-13 | Smoke-test all MVP policies (10 val flights each); first sweep at 2 to 3 operating points | Mon Nov 2 | A-11, C-06, (H7) | `results/mvp_sweep.csv` | TODO | |
-
-### Later (Weeks 3 to 7)
-
-| ID | Task | Due | Depends on | Done when | Status | Notes |
-|---|---|---|---|---|---|---|
-| A-14 | Flight forking: replay from frame t, two branches (H8) | Mon Nov 9 | A-11 | Fork replays match original up to t | TODO | |
-| A-15 | Throughput: parallel sim instances / HPC arrays; resumable `sweep.py` | Mon Nov 9 | A-13 | Restart skips finished pairs | TODO | |
-| A-16 | Main grid E3 (all policies × 3 rates, d = 1 s, val-tuned, test once) | Sun Nov 15 | A-15, B-12, C-11 | Headline CSV | TODO | |
-| A-17 | Delay sweep E5 (top 3 × d ∈ {0.25, 1, 3}); speed sweep if budget | Sun Nov 22 | A-16 | CSV + plot | TODO | |
-| A-18 | Held-out environment runs (E6) | Sun Nov 22 | A-16 | CSV | TODO | |
-| A-19 | Speed-limited waiting ablation (D11) | Sun Nov 22 | A-11 | CSV | TODO | |
-| A-20 | Final test runs split across 3 HPC accounts; crash-vs-catch videos | Sun Nov 29 | A-16, A-17 | Videos in `results/` | TODO | |
-| A-21 | Repo cleanup, reproduction instructions, versions in README; "Simulator and setup" section | Sun Dec 6 | | Fresh clone reproduces one figure | TODO | |
-
----
-
-## Workstream B: Fast stack and gate
-
-### Sprint 1 (to Tue Nov 3)
-
-| ID | Task | Due | Depends on | Done when | Status | Notes |
-|---|---|---|---|---|---|---|
-| B-01 | HPC env on scratch; cache Depth Anything V2-Small (metric); sbatch template | Wed Oct 21 | | Test job prints `nvidia-smi` | TODO | |
-| B-02 | Depth Anything V2 on DDOS: depth error, thin-wire failure examples, FPS | Thu Oct 22 | B-01 | Notebook + 5 failure images | TODO | Stand-in data: DDOS |
-| B-03 | Rule controller (corridor min depth → stop/yaw/climb/continue, hysteresis) | Fri Oct 23 | | Unit tests on hand-made depth maps | TODO | |
-| B-04 | `perception/` + `control/` behind the agreed interface (H4) | Sun Oct 25 | B-02, B-03, S-04 | A can import and run them in the loop | TODO | |
-| B-05 | L1 label function (missed obstacle) + false-stop flag; unit tests | Sun Oct 25 | S-04 | Tests pass on hand-made frames | TODO | |
-| B-06 | Scale check on sim frames; frozen global scale fit if needed; log scale error | Tue Oct 27 | H3 | Scale error plot by distance | TODO | |
-| B-07 | Feature extraction on HPC (corridor stats, Canny/Frangi, encoder embedding, speed, temporal) | Fri Oct 30 | H6 | Feature table for train/val | TODO | |
-| B-08 | Label sanity (eyeball 20 pos + 20 neg); gradient boosting + depth-variance baseline; AUROC/AUPRC/ECE on val | Sat Oct 31 | B-05, B-07 | Gate beats depth-variance baseline (kill switch) | TODO | |
-| B-09 | Gate MLP; export `gate.pt` + `score()` (H7); < 1 ms per frame | Mon Nov 2 | B-08 | A can load it | TODO | |
-
-### Later (Weeks 3 to 7)
-
-| ID | Task | Due | Depends on | Done when | Status | Notes |
-|---|---|---|---|---|---|---|
-| B-10 | E2 gate study on sim frames: per obstacle family, held-out family, risk–coverage | Mon Nov 9 | B-09 | Table + figure | TODO | Fallback-paper result |
-| B-11 | Uncertainty baseline (TTA/ensemble disagreement) | Mon Nov 9 | B-04 | `policies/uncertainty.py` | TODO | |
-| B-12 | L2 labels (future collision) and comparison | Sun Nov 15 | B-09 | AUROC table L1 vs L2 | TODO | |
-| B-13 | L3 replay labels from forks + cached VLM answers; gate-L3 (E4) | Sun Nov 22 | H8, H9 | gate-L3 vs gate-L1 at equal query rate | TODO | Headline 1 |
-| B-14 | Generalization E6 (held-out family/environment) | Sun Nov 22 | B-10 | Table | TODO | |
-| B-15 | Stretch: conformal threshold; DAgger round | Sun Nov 29 | B-13 | Result or CUT with reason | TODO | |
-| B-16 | "Method" section draft | Sun Dec 6 | | In Overleaf | TODO | |
-
----
-
-## Workstream C: VLM and evaluation
-
-### Sprint 1 (to Tue Nov 3)
-
-| ID | Task | Due | Depends on | Done when | Status | Notes |
-|---|---|---|---|---|---|---|
-| C-01 | Serve Qwen3-VL 4B and 8B (vLLM/HF) on HPC; measure latency (median, p95) | Wed Oct 21 | | Latency numbers in README | TODO | |
-| C-02 | Ask TA: sim-only evaluation OK? (Q3); confirm presentation dates (Q6); GCP status (Q2) | Fri Oct 23 | | Answers in PLAN.md §16 | TODO | |
-| C-03 | VLM on DDOS wires: with/without crop; yes/no via logit(yes) − logit(no) | Thu Oct 22 | C-01 | Precision/recall table | TODO | Stand-in data: DDOS |
-| C-04 | Path-overlay + full-res crop renderer (draws next `T_h` s of flight path) | Sun Oct 25 | S-04 | Overlay images look right on 10 frames | TODO | |
-| C-05 | `vlm/surrogate.py`: answers with set TPR/FPR per obstacle type | Sun Oct 25 | | Same interface as `ask()` | TODO | Unblocks A-11 |
-| C-06 | `policies/` with one `should_ask` interface: never, always, random(p), cooldown | Sun Oct 25 | S-04 | Unit tests | TODO | |
-| C-07 | Eval harness `eval/metrics.py`: crash rate/km, success, mission time, calls, latency p50/95/99, safety retained, Wilson/bootstrap CIs; auto results table | Tue Oct 27 | S-04 | Runs on golden set | TODO | |
-| C-08 | VLM standalone on ~200 labeled sim frames per obstacle type (kill switch: wire recall ≥ ~60%) | Wed Oct 28 | H3, C-04 | Table by type and distance | TODO | |
-| C-09 | `vlm.ask()` server reachable from the loop (H5); threshold(τ) and oracle policies | Fri Oct 30 | C-06, C-08 | A runs one gated flight | TODO | |
-| C-10 | Crash-cause tool (gate miss / VLM wrong / delay / controller) on first ~30 crashes | Mon Nov 2 | A-13 | Pie/bar + examples | TODO | |
-
-### Later (Weeks 3 to 7)
-
-| ID | Task | Due | Depends on | Done when | Status | Notes |
-|---|---|---|---|---|---|---|
-| C-11 | VLM ablations: crop on/off, path on/off, 4B vs 8B, 2 prompt variants; cache answers per frame | Mon Nov 9 | C-08 | Table | TODO | |
-| C-12 | Fixed-interval, scene-change, anomaly (AESOP-style) policies | Sun Nov 15 | C-06 | Policies pass smoke test | TODO | |
-| C-13 | Cached VLM answers for fork frames (H9) | Mon Nov 16 | A-14 | Cache file on scratch | TODO | |
-| C-14 | Headline figure, crash-cause figure, CI tables (scripts only) | Sun Nov 22 | A-16 | `results/figures/` regenerated by one command | TODO | |
-| C-15 | Commercial VLM comparison (only if budgeted) | Sun Nov 22 | C-11 | Result or CUT | TODO | |
-| C-16 | Gradio replay (frame, depth est vs GT, gate score, VLM markers); GIF fallback | Sun Nov 29 | A-12 | Loads a saved flight with no simulator | TODO | |
-| C-17 | Venue/deadline check (CVPR/ICRA 2027 workshops, IROS 2027, RA-L) | Sun Nov 29 | | Dates in PLAN.md §15 | TODO | |
-| C-18 | "Experiments and analysis" section draft; failure gallery | Sun Dec 6 | | In Overleaf | TODO | |
-
----
-
-## Backlog pool (anyone, when ahead)
-
-Pull from `PLAN.md` Appendix A. Copy the item here with an ID (`X-01`, ...) before starting.
-
-| ID | Task | Owner | Status | Notes |
+| | Chunk | Owner | Done when | Status |
 |---|---|---|---|---|
-| X-01 | SAM 2 features ablation | | TODO | |
-| X-02 | Explicit cost-aware gate score (speed × risk vs. delay) | | TODO | |
-| X-03 | Alternate open VLM (InternVL / Qwen2.5-VL) | | TODO | |
+| M1.1 | Episode split `configs/bank_split.yaml`, stratified by obstacle and condition, with a checksum; keep clear and dusk, rain as clear, exclude fog, exclude or mask snow [W-S1, D13] | B | Script check shows no episode in two splits | DONE: train 202 / val 40 / test 39, 130 excluded (fog 53 + snow 77), checksum `6e3af228c9f6` |
+| M1.2 | Depth clipping and sky mask as one function in `perception/` [W-S2] | B | Unit test on 3 saturated frames (65504 m sky) | DONE |
+| M1.3 | Depth Anything V2-Small (metric) over the kept frames, resumable JSONL, corridor minimum per frame [W-B1, D7] | B | JSONL for every kept frame | DONE: job 32117, 19,267 rows in `da2_small.jsonl` |
+| M1.4 | Scale check against ground-truth distance; frozen global scale and shift fit on **train episodes only** if needed [W-B2] | B | Plot plus a frozen parameter file | DONE (median scale 0.790). Whether to freeze a scale correction is still a team decision; scaling moved val false stops 10 to 24 |
+| M1.5 | **Merge the frame-bank work into `main`** | B | PR merged; `main` runs | TODO, and it blocks M3 |
+| M1.6 | L1 label function in `gate/labels.py`, false stops logged separately, unit tests, eyeball 20 positive and 20 negative [W-B3, §4.3] | B | Tests pass plus an eyeball note | DONE, but see M1.8 |
+| M1.7 | Ground-truth corridor distance from the segmentation mask | B | Agrees with `gt_along_m` on a sample | DONE (code and track check); not yet computed on the real bank, see M1.8 |
+| M1.8 | **Clean the L1 labels:** run `gate.bank_gt` and the analysis with `--gt` on the real bank, so labels come from the segmentation mask rather than raw corridor depth | B | Label rates recomputed; rain no longer noisy | READY TO RUN (SB): `gate.bank_gt` now also labels glass from metadata (see-through to depth and segmentation, job 33462). Rerun it over the bank on a CPU node, then `analyze_bank --gt` (commands in AGENT_LOG, 2026-11-15) |
+| M1.9 | **Explain the depth quality before trusting any miss rate.** Val AbsRel is 2.42 raw and 1.88 scaled, with 76 to 78% of in-corridor obstacles missed: wires, the 10 cm pole, the 20 cm ball and the glass pane 100%, 1 m boxes about 90%, but the white wall only 2.5%. An error larger than the distance itself is a bug signal, not a result | B | A written cause: perspective-to-planar conversion, the metric checkpoint on CityEnviron, or the corridor window catching ground and sky (the corridor sees ground at about 12 x altitude) | READY TO RUN (SB): `perception/diagnose_depth.py`. Likely explanation, to confirm: the 2.42 is a *mean over frames* of the corridor-minimum error and includes the misses themselves (truth 2 m, estimate 35 m adds 16.5), so a few missed thin obstacles inflate it while the model may be fine on ordinary surfaces. Part A splits the error by scene vs obstacle frames (seconds, no GPU); Part B scores pixels with the ray-to-planar conversion and writes a depth contact sheet |
 
 ---
 
-## Progress log (updated at each Sunday walkthrough)
+## M2 · The VLM can see the obstacles
 
-| Week | Date | Done this week | Slipped (and new date) | Decisions made | Risks / kill switches hit |
-|---|---|---|---|---|---|
-| 1 | Sun Oct 25 | | | | |
-| 2 | Sun Nov 1 | | | | |
-| 3 | Sun Nov 8 | | | | |
-| 4 | Sun Nov 15 | | | | |
-| 5 | Sun Nov 22 | | | | |
-| 6 | Sun Nov 29 | | | | |
-| 7 | Sun Dec 6 | | | | |
+Nothing here has started, and it is the longest pole for the first curve. Owner: **C (Sarvesh)**.
+
+**Gate:** a recall and precision table by obstacle type and distance, with crop on and off and path drawing on and off, for the 2B model.
+**Proposed change (D23, revised 2026-11-18, needs one teammate's approval):** pick the judge and judge the gate on the frames the fast stack misses (`d_safe` 8 m, negatives beyond 30 m): VLM recall there at least 0.60 with false alarms at most 0.15 on all clear frames, cut tuned on val, reported on another split; the all-frames table and recall by type alongside; `d_safe` sensitivity at 6 and 10 m. `eval.benchmark` computes it per model variant. Overview in `PLAN.md` §3.
+**Kill switch:** if recall is below roughly 60% on the types that are definitely visible (poles, boxes, white walls, glass), take the backup chain in `PLAN_DETAILED.md` §11 blocker 6, in order: bigger crop and zoom, prompt variants, the 8B model, a different open VLM, then the surrogate judge. Wires are reported separately and flagged unverified until M4.1 says whether they render at all.
+
+| | Chunk | Owner | Done when | Status |
+|---|---|---|---|---|
+| M2.1 | Serve Qwen3-VL-2B and the larger reference model on an A100; one-token yes/no output; median and p95 latency over at least 50 calls [C-01, W-C2, D8] | C | Latency numbers in `README.md` | DONE: job 33341 on the A100. 2B median 0.073 s, p95 0.076 s; 8B median 0.089 s, p95 0.091 s; both in README. Real latency is under 0.1 s, so the swept delay `d` (D10) is what carries the "asking costs distance" argument, not the measured number |
+| M2.2 | Path overlay and full-resolution corridor crop renderer in `vlm/` [C-04, W-C1, D9]. MVP region is the fixed corridor window the labels use; the projected `T_h` flight tube waits for camera intrinsics | C | Looks right on 10 frames per obstacle type | DONE: eyeballed on real bank frames in the job 33462 sheets (all 10 types). Box sits on the path, the 4x crop makes the 1 cm wire visible at 8 to 13 m where the full frame does not |
+| M2.3 | `vlm.ask()` behind the `interfaces.py` signature, reading `logit(yes) - logit(no)` so it can be thresholded [H5] | C | Returns answer, confidence and real latency | DONE: real-model path ran in jobs 33341 (noise) and 33400 (100 real frames). Answers vary with content: yes-fraction 0.22 (2B) and 0.05 (8B) on real frames, 0.00 on noise. Whether they are correct is M2.4 |
+| M2.4 | Standalone evaluation on about 200 labelled bank frames per obstacle type; table by type and distance; crop and path ablations [C-03, C-08, W-C3] | C | Table committed; kill switch above decided | DOING (SB). Full run done (job 33620: 2B and 8B x 6 conditions, 3,698 frames, 168 positive flights). Threshold-free, the best eyes are 8B overlay+crop (AUROC 0.79) and 2B with the 'blocked' wording (0.75). Recall at cut 0 mostly tracks each model's yes/no bias: 2B default question 0.37 at FPR 0.06, 'blocked' 0.55 at 0.18, 'hit' 0.69 but at FPR 0.66 (a yes-machine; the old verdict wrongly passed it, fixed). The crop carries the signal; the tinted overlay alone is near chance. By type the VLM sees small things (ball, wires, pole: AUROC 0.79 to 0.94) and misses surfaces that fill the box (wall 0.44, building 0.02), which are what the depth model does see. **Verdict pending the decisive table: VLM recall on the fast stack's own misses** (`--summarize-only --run da2_small.jsonl`, needs M1.8's depth run). Team decision needed on whether M2's gate should be judged there |
+| M2.6 | Model variants and one more prompt round: 8B quantized to 8 and 4 bits (bitsandbytes, `@8bit` / `@4bit` model specs), prompts `fill` and `free` (inverted), a per-model cut on the confidence in the flight loop [D22, D23] | C | Latency, memory and accuracy rows for 2B, 8B, 8B@8bit, 8B@4bit | CODE DONE (DS, laptop, fake-model tests); **not run on a GPU**: bitsandbytes with Qwen3-VL is unverified |
+| M2.7 | Benchmark table: depth only, VLM only, depth + VLM, per variant; accuracy, latency, memory, and a pick by rule [D22] | C | `results/benchmark.md` from logged runs | CODE DONE (DS): `eval/benchmark.py`, tested on synthetic rows; needs M2.6's runs and `da2_small.jsonl`. Flight side: `configs/sweeps/airsim_bench.yaml`, waits for M4.7 |
+| M2.5 | `vlm/surrogate.py`: fake judge with the true and false positive rates measured in M2.4, same interface [C-05, W-C4] | C | Same interface as `ask()`; every output labelled "surrogate VLM" | DONE (code, tested); rates are placeholders until M2.4 measures them. **A can start M4.6 against it now** |
+
+---
+
+## M3 · Saved-frame results exist (the fallback paper)
+
+If the closed loop never works, this milestone alone is still a defensible project. Do not skip it to chase M4.
+
+**Gate:** a val-only results table showing the gate against the depth-variance baseline, per obstacle family, plus the VLM table from M2.4.
+**Fallback if the gate fails:** `PLAN_DETAILED.md` §11 blocker 9, in order: fix the labels first, then the features (temporal, thin-structure, embedding), then L2 labels, then calibration. Reporting that the learned gate does not beat a tuned threshold is an acceptable result if the crash causes explain it.
+
+| | Chunk | Owner | Done when | Status |
+|---|---|---|---|---|
+| M3.1 | `eval/metrics.py`: crash rate and crashes per km, success, mission time, calls per flight, latency percentiles, safety retained, Wilson and bootstrap CIs [C-07, W-C4, §5] | C | Runs on bank-derived data and produces the results table | DONE (code + 15 tests): `eval/metrics.py`; Wilson intervals, crashes/km, success, mission time, calls/flight, query rate, latency p50/95/99, safety retained with a paired bootstrap over seeds; refuses to mix surrogate and real-VLM results in one table |
+| M3.2 | `policies/` behind one `should_ask` interface: never, always, random(p), cooldown, plus unit tests [C-06, W-C5, §4.4] | C | Tests pass | DONE (code + tests): `policies/base.py`: never, always, random(p), fixed interval, threshold(feature, tau), gate(tau), oracle; shared cooldown; seeded `reset` per flight; `make_policy` from YAML |
+| M3.3 | Depth-variance threshold baseline, then gradient boosting on corridor statistics; AUROC, AUPRC, ECE on val, per obstacle family [W-B4, B-xx] | B | Val table. AUROC above 0.99 means suspect leakage, not success | READY TO RUN (SB): `gate/train.py` has the depth-variance baseline and the best single tuned feature; needs M1.8's clean labels on the real bank |
+| M3.4 | Gate-L1 model (small MLP, then embedding variant), under 1 ms per frame [§4.2] | B | Beats M3.3's baseline on val, or a written explanation of why not | READY TO RUN (SB): logistic regression, gradient boosting and MLP on depth, + temporal, + thin-structure image features (`gate/image_features.py`, one CPU pass over the bank); AUROC with flight-level intervals, AUPRC, ECE, per family; leakage warning above 0.99; `gate/model.py` serves a trained gate behind `interfaces.Gate` |
+| M3.5 | Held-out obstacle family check [E6] | B | Numbers for the held-out family reported separately | READY TO RUN (SB): `gate.train --holdout-family <type>` |
+| M3.6 | Report skeleton in Overleaf: sections, owners, metric definitions [S-09] | C | Skeleton compiles | TODO |
+
+---
+
+## M4 · The drone flies closed-loop
+
+**Gate:** the same seed reproduces the same flight exactly, and true-depth flights crash near zero. Until both hold, no crash-rate number from this loop means anything.
+**Fallback if the gate fails:** the Plan B simulator (`PLAN_DETAILED.md` §11), a lightweight raycast or Habitat-sim scene behind the same interface. A complete simpler study beats a stalled realistic one.
+
+| | Chunk | Owner | Done when | Status |
+|---|---|---|---|---|
+| M4.1 | **Verify wires:** spawn 3 cm and 1 cm wire, check the segmentation id and ground-truth depth along the camera ray at 3, 6 and 10 m, not by eye [W-A1, §11 blocker 4] | A | A written yes or no per thickness and distance | DONE (SB, job 33776, CityEnviron): 1 cm and 3 cm horizontal wires visible to segmentation and ground-truth depth at 3/6/10 m (1 cm: 400/210/124 px); glass invisible to both; glTF mapping confirmed (axis_z horizontal across the view, axis_y vertical). New: a vertical 1 cm wire is invisible to both at all three distances, likely sub-pixel sampling at the centre column [UNVERIFIED]. Depth reads about 0.3 m short at every distance, consistent with FrontCam mounted 0.3 m ahead of the drone origin |
+| M4.2 | Test pause/step and measure seconds per step; this is what D10 depends on | A | Numbers in `hpc/instructions.md` | DONE (SB, job 33776): paused sim time does not move (0 ns over 2 s wall); every 100 ms step is exactly 100 ms (20/20); 0.22 s wall per step with images (p95 0.24 s), 0.06 s without; 0.45x real time. D10 stands |
+| M4.3 | Kinematic drone (fixed altitude band, speed v, 5 actions, hysteresis), scenario generator, **freeze `configs/seeds.yaml`** [A-06, D4, D13] | A | 100 seeded scenarios regenerate identically, seeds checksummed | DONE on code (SB): `sim/drone.py`, `sim/scenario.py` (seeded, holdout family, catalog sizes), `python -m sim.scenario --write-seeds configs/seeds.yaml` freezes with a checksum and refuses to overwrite. **Seed lists frozen 2026-11-17 (DS): 1000 / 500 / 500, checksum `167283b229d0`, D24.** Scenario settings are a second freeze after M4.7 (`python -m sim.scenario --freeze-scenario`); `eval.sweep` refuses test seeds without it. Start poses: five candidates from the scene scan, picked by seed, **unverified until `airsim_starts_smoke.yaml` runs** |
+| M4.4 | Own collision check against known obstacle geometry, engine flag only as a cross-check [A-05, D5] | A | Unit test: drone through a wire counts as a collision | DONE (SB): `sim/geometry.py` swept sphere vs oriented box; tests: a 1 cm wire crossed within one step is a hit, 1 m above is not. Bug found and fixed in the smoke flights: a vertical step parallel to a box face counted as a hit |
+| M4.5 | `eval/run_episode.py` closed loop, ground-truth depth as a fake fast stack first, then B's modules [A-08, H4] | A | True-depth flights crash near zero | DONE on the Plan B backend (SB): `eval/run_episode.py` + `sim/raycast.py` (glass see-through to depth and segmentation, as in Project AirSim); true-depth reference merges glass back from the geometry. **60/60 true-depth flights reached the goal with 0 crashes.** Project AirSim backend `sim/airsim_backend.py` written but [UNTESTED] until M4.1/M4.2 run |
+| M4.6 | Paused-time delay loop: pause, ask, advance by `d` with brake and hold, `d` never zero [A-11, D10, D11] | A | Same seed and same `d` gives an identical flight | DONE (SB): pause, ask, advance by `d` (> 0 enforced) with brake and hold; same seed and delay replay identically (test) |
+| M4.7 | Never-ask headroom check on at least 100 val episodes, and seconds per flight written into `README.md` [A-09] | A | Never-ask crashes in 15 to 30% of flights, or difficulty retuned | PARTLY (SB): `eval/sweep.py` resumable. Headroom on Plan B with the blind stand-in: 40% never-ask crashes, a stand-in figure only; the real number needs Depth Anything V2 on Project AirSim. Speed: about 0.8 s per flight at 200x113 on the laptop |
+| M4.8 | Golden set of about 20 saved episodes [A-10, H3] | A | Two copies, one on HPC scratch | TODO |
+
+---
+
+## M5 · First curve
+
+**Gate:** every MVP policy (never, always, random, tuned threshold, gate-L1, oracle, plus the true-depth reference) runs end to end; crash rate against calls per flight on val seeds with confidence intervals; about 30 crashes each assigned a cause. Then tag `mvp-v1`.
+**Fallback if the gate fails:** cut the grid and freeze scope (`PLAN_DETAILED.md` §13 cut order).
+
+| | Chunk | Owner | Done when | Status |
+|---|---|---|---|---|
+| M5.1 | Threshold(τ) and oracle policies, tuned as carefully as the gate [C-09, §4.4] | C | Both run in the loop | TODO |
+| M5.2 | Real `vlm.ask()` reachable from the flight loop, in the same job as the simulator [H5, D17] | C | One gated flight completes | TODO |
+| M5.3 | Smoke test every policy on 10 val flights, then a first sweep at 2 or 3 matched query rates [A-13] | A | `results/mvp_sweep.csv` | TODO |
+| M5.4 | Crash-cause tool: gate did not ask / VLM wrong / delay / controller [C-10, §5] | C | Breakdown plus examples for about 30 crashes | TODO |
+| M5.5 | Milestone memo and `mvp-v1` tag [S-08] | all | Memo in `report/`, tag pushed | TODO |
+
+---
+
+## M6 · The research results
+
+Both headlines live here (`PLAN_DETAILED.md` D16). Test seeds are opened **once**, at the end of this milestone.
+
+**Gate:** headline 1 and headline 2 each have a figure generated by a script from logged runs, and rerunning the script gives identical numbers.
+
+| | Chunk | Owner | Done when | Status |
+|---|---|---|---|---|
+| M6.1 | Flight forking: replay from frame t [A-14, H8] | A | Two forks from one frame diverge only by the injected answer | TODO |
+| M6.2 | Cached VLM answers for fork frames [C-13, H9] | C | Cache file on scratch | TODO |
+| M6.3 | **Headline 1:** L3 replay labels, gate-L3 against gate-L1 at equal query rates [E4] | B | Figure plus table | TODO |
+| M6.4 | **Headline 2:** delay sweep, top 3 policies by `d` in {0.25, 1, 3} s [E5] | A + C | Figure showing when asking stops being worth it | TODO |
+| M6.5 | Extra asking policies: fixed interval, scene change, anomaly in the AESOP style [C-12] | C | Each passes a smoke test | TODO |
+| M6.6 | Slow-system comparison: VLM judge against the VLM choosing the action directly [C-19, E7, D18] | C | Table plus figure | TODO |
+| M6.7 | Pick the final 2 to 3 ablations [S-10] | all | Decision-log row | TODO |
+| M6.8 | **Final test runs**, split across all three accounts | all | Test seeds used once, no tuning afterwards | TODO, the one hard deadline |
+
+---
+
+## M7 · Report, demo, walkthrough
+
+**Gate:** the repo reproduces every figure with one command, and each member can explain every module.
+
+| | Chunk | Owner | Done when | Status |
+|---|---|---|---|---|
+| M7.1 | Headline figure, crash-cause figure, CI tables, all from scripts [C-14] | C | `results/figures/` regenerates from one command | TODO |
+| M7.2 | Gradio replay, GIF fallback [C-16] | C | Loads a saved flight with no simulator running | TODO |
+| M7.3 | Crash-versus-catch side-by-side video | A | Opening slide clip | TODO |
+| M7.4 | Report: 4 to 9 pages, track restated, individual contributions | all | Compiles, read by all three | TODO |
+| M7.5 | Agent Logs merged into the report appendix, with what the tools got wrong [S-11] | all | Appendix drafted | TODO |
+| M7.6 | Slides and rehearsal; each member explains the other two's code [S-12] | all | Dry run done | TODO |
+| M7.7 | Verification checklist in `PLAN_DETAILED.md` §14 walked through line by line | all | Every box ticked or explained | TODO |
+
+---
+
+## Parked until a gate says otherwise
+
+- **Thin wires as the headline failure case** until M4.1 proves they render and collide. Poles, glass, white walls and boxes are the hard cases in the meantime.
+- **Any weather result**, because the bank's weather is unusable (`PLAN.md` §3).
+- **Hardware demo** (D20), decided at M5.
+- **Everything in `PLAN_DETAILED.md` Appendix A.** Pull an item in with a Decision-log row, and give it a chunk id here before starting.
+
+---
+
+## Progress log
+
+Per-commit entries are in `logs/PROGRESS.md`, and assistant behaviour in `AGENT_LOG.md`. The old dated board, its handoffs H1 to H9 and its original progress log are in `TASKS_DETAILED.md`.
