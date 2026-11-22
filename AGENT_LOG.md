@@ -426,3 +426,13 @@
 - Interpretation [assistant, for the team]: with this surrogate, asking anywhere in the last 3 s saves most crashing flights, so L3 here mostly reflects the surrogate's 15 m range, not a property of the gate problem. Real labels need da2 on Project AirSim and real or measured VLM answers.
 - Outcome: success (plumbing).
 - Follow-ups: AirSim replay job; L1 vs L3 disagreement by seconds-before-crash.
+
+## 2026-11-22 13:52  |  gate  |  gate-L3 against gate-L1 at equal query rates (M6.3 / E4 script)
+- Member: PP
+- Request: continue while the CityEnviron download and AirSim replay jobs run.
+- Action (laptop): gate/train_replay.py: trains gate-L1 and gate-L3 (same model, same run-time features, only the label differs) on train-seed replay frames; on val-seed replay frames reports AUROC against L3 with flight-level intervals and, at query rates 0.02 / 0.05 / 0.10 / 0.20, L3 recall, share of savable flights saved, and wasted asks; reference rows: seeded random and the best single depth feature (sign chosen on train). Writes both pickles for the closed-loop M5 sweep. Refuses train/val seed overlap. Test added to tests/test_replay.py.
+- Decisions & alternatives: equal query rate set by the top-share of val scores (rate matching, not tuning). "Flights saved" is an offline estimate (in flight the first ask changes what follows); the closed-loop sweep with the two pickles is the real check.
+- Evidence: pytest tests/test_replay.py 7 passed. No replay-label results on Project AirSim yet.
+- HPC (psp8502): /scratch/psp8502/airsim has Blocks and ProjectAirSim but no envs/; CityEnviron download submitted as a CPU job (hpc/capability/download_envs.sh).
+- Outcome: success (code).
+- Follow-ups: val replay run (same config with `--set split=val --set out=results/replay/airsim_da2_surrogate_val`), then this script.

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from control.rules import RuleController
 from eval.factory import make_judge, make_sim, make_stack
@@ -74,3 +75,31 @@ def test_fork_all_matches_the_shortcut_on_l3():
     full = replay_flight(scen, sim, stack, judge, LoopConfig(), horizon_s=2.0, every=3, judge_name=name, fork_all=True)
     assert [r["l3"] for r in fast] == [r["l3"] for r in full]
     assert all(r["crash_with"] is not None for r in full)
+
+
+def test_train_replay_compares_gates_at_equal_query_rates(tmp_path):
+    import json
+
+    from gate.train_replay import ask_mask, at_rate, main as train_replay_main
+
+    s = np.array([0.9, 0.1, 0.8, 0.2])
+    assert ask_mask(s, 0.5).tolist() == [True, False, True, False]
+    rows = [{"seed": 1, "l3": 1}, {"seed": 1, "l3": 0}, {"seed": 2, "l3": 1}, {"seed": 2, "l3": 0}]
+    r = at_rate(rows, s, 0.5)
+    assert r["l3_recall"] == 1.0 and r["flights_saved"] == 1.0 and r["wasted"] == 0.0
+
+    sim, stack = _parts()
+    judge, name = make_judge("surrogate", default_tpr=0.9, default_fpr=0.05)
+    paths = {}
+    for split, seeds in (("train", (100_000, 100_001, 100_002)), ("val", (101_000, 101_001))):
+        p = tmp_path / f"{split}.jsonl"
+        with open(p, "w") as f:
+            for sd in seeds:
+                for row in replay_flight(generate(sd, split), sim, stack, judge, LoopConfig(), horizon_s=2.0, every=2, judge_name=name):
+                    f.write(json.dumps(row) + "\n")
+        paths[split] = p
+    train_replay_main(["--train", str(paths["train"]), "--val", str(paths["val"]), "--model", "logreg", "--out", str(tmp_path / "out")])
+    res = json.loads((tmp_path / "out" / "replay_gate_results.json").read_text())
+    assert {"random"} <= set(res["at_rate"]) and all(len(v) == 4 for v in res["at_rate"].values())
+    with pytest.raises(SystemExit):  # val flights passed as train are refused
+        train_replay_main(["--train", str(paths["val"]), "--val", str(paths["val"]), "--out", str(tmp_path / "o2")])
