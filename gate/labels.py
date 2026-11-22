@@ -127,3 +127,53 @@ def clean_corridor_min(
         "corridor_min_gt_clean": min(obstacle, scene),
         "obstacle_px": int(mask.sum()),
     }
+
+
+# ---- control-consequence labels (PLAN_DETAILED.md §4.3): L2 future collision, L3 replay ----------
+
+
+def l2_labels(frame_times: np.ndarray | list[float], crash_time: float | None, k: float) -> np.ndarray:
+    """L2 per frame of one never-ask flight: 1 if that flight crashes within ``k`` seconds after the frame.
+
+    ``crash_time`` is None for a flight that did not crash. Frames after the crash (none, in a
+    flight that stops at the crash) are 0.
+    """
+    t = np.asarray(frame_times, dtype=np.float64)
+    if k <= 0:
+        raise ValueError("k must be positive")
+    if crash_time is None:
+        return np.zeros(t.shape, dtype=np.int8)
+    return ((t <= crash_time) & (crash_time - t <= k)).astype(np.int8)
+
+
+class ReplayOutcome(IntEnum):
+    """What asking at frame t changed, from two forks of the same flight over the horizon H."""
+
+    NO_EFFECT_SAFE = 0  # neither fork crashes
+    SAVED = 1  # fast stack alone crashes, the fork with the VLM answer does not: the L3 positive
+    CAUSED = 2  # asking causes a crash (delay or a wrong answer): logged, not a positive
+    NO_EFFECT_CRASH = 3  # both forks crash: asking here is too late or does not help
+
+
+def replay_outcomes(crash_without: np.ndarray | list[bool], crash_with: np.ndarray | list[bool]) -> np.ndarray:
+    """``ReplayOutcome`` per fork pair. ``crash_without``: fork (a), fast stack only; ``crash_with``:
+    fork (b), the VLM answer applied after delay ``d`` with the waiting behaviour."""
+    a = np.asarray(crash_without, dtype=bool)
+    b = np.asarray(crash_with, dtype=bool)
+    if a.shape != b.shape:
+        raise ValueError(f"fork outcome shapes differ: {a.shape} vs {b.shape}")
+    out = np.full(a.shape, ReplayOutcome.NO_EFFECT_SAFE, dtype=np.int8)
+    out[a & ~b] = ReplayOutcome.SAVED
+    out[~a & b] = ReplayOutcome.CAUSED
+    out[a & b] = ReplayOutcome.NO_EFFECT_CRASH
+    return out
+
+
+def l3_labels(crash_without: np.ndarray | list[bool], crash_with: np.ndarray | list[bool]) -> np.ndarray:
+    """L3 "worth asking" label: 1 only when asking at this frame turns a crash into no crash.
+
+    The plan says "the outcomes differ"; a fork where asking *causes* a crash also differs, but
+    labelling it positive would teach the gate to ask exactly where asking hurts, so it is
+    0 here and counted separately as ``ReplayOutcome.CAUSED``.
+    """
+    return (replay_outcomes(crash_without, crash_with) == ReplayOutcome.SAVED).astype(np.int8)

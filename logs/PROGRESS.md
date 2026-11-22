@@ -123,3 +123,10 @@
 - Unblocked: the M5 gate sweep no longer depends on the cruise speed; the scenario freeze can pick any speed.
 - Still blocked: every gate pickle trained before this commit must be retrained (keys renamed d_ -> dpm_); M4.7 headroom run; PR #3 review.
 - Sanity check: pytest 147 passed, 1 failed (test_quantized_judge_refuses_cpu, pre-existing laptop ImportError); raycast plumbing sweep ran (10 val seeds, not a result).
+
+## 2026-11-22 13:39  |  eval, gate  |  flight forking and replay labels; L2/L3 label functions; CPU sbatch
+- Advances: M6.1 (forking, code and tests), M6.3 groundwork (L2, L3, replay runner), gate labels L2/L3 (§4.3).
+- Pushed to C/M2.1 (PR #3).
+- Unblocked: replay labels on the raycast backend now (CPU job); on Project AirSim after M4.7.
+- Still blocked: real replay labels need the da2 stack on AirSim and cached VLM answers (M6.2); L3 definition (save-only positives) needs one teammate's agreement.
+- Sanity check: pytest 160 passed, 1 failed (pre-existing, laptop ImportError); bash -n hpc/cpu_job.sbatch ok.

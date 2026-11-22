@@ -20,6 +20,7 @@ exactly; the real VLM latency is only logged.
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import math
 import time
@@ -38,6 +39,23 @@ from sim.raycast import corridor_truth
 from sim.scenario import Scenario
 
 
+@dataclass(frozen=True)
+class ForkPoint:
+    """Everything the loop carries from one step to the next, taken just before observing step ``k``.
+
+    The simulator needs no snapshot: kinematic stepping sets the pose every step (D4), so
+    ``observe(state)`` depends only on the scenario and the state. Controller and temporal
+    features are deep copies, so a fork can never change the flight it came from.
+    """
+
+    k: int
+    state: KinematicState
+    controller: Any
+    temporal: TemporalFeatures
+    avoid_until: float
+    distance: float
+
+
 @dataclass
 class LoopConfig:
     dt: float = 0.1
@@ -54,26 +72,36 @@ class LoopConfig:
 
 
 def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, policy: Any, judge: Any = None,
-                cfg: LoopConfig | None = None, params: DroneParams | None = None, judge_name: str = "none") -> tuple[list[FrameRecord], EpisodeResult]:
+                cfg: LoopConfig | None = None, params: DroneParams | None = None, judge_name: str = "none",
+                snapshots: list[ForkPoint] | None = None, resume: ForkPoint | None = None,
+                t_stop: float | None = None) -> tuple[list[FrameRecord], EpisodeResult]:
+    """Fly one episode. For replay labels (M6.1): ``snapshots`` collects a ``ForkPoint`` per step;
+    ``resume`` continues from one (the simulator must already hold this scenario; ``controller`` is
+    replaced by the snapshot's copy) and ``t_stop`` ends the flight at that simulated time."""
     from vlm.overlay import render
 
     cfg, params = cfg or LoopConfig(), params or DroneParams(v=scenario.speed_mps)
-    sim.reset(scenario)
-    controller.reset()
+    if resume is None:
+        sim.reset(scenario)
+        controller.reset()
+    else:
+        controller = copy.deepcopy(resume.controller)
     if hasattr(policy, "reset"):
         policy.reset(scenario.seed)
-    temporal = TemporalFeatures()
+    temporal = TemporalFeatures() if resume is None else copy.deepcopy(resume.temporal)
     # RGB image features only when the gate was trained on them (gate.image_features; RGB only, rule 5).
     use_image = bool(set(IMAGE_KEYS) & set(getattr(policy, "feature_names", ()) or ()))
     if use_image:
         from gate.image_features import image_features
     image_ms: list[float] = []
     boxes = scenario.obbs()
-    state = KinematicState(t=0.0, x=0.0, y=0.0, z=-scenario.alt_m, yaw=0.0, speed=0.0)
+    state = KinematicState(t=0.0, x=0.0, y=0.0, z=-scenario.alt_m, yaw=0.0, speed=0.0) if resume is None else resume.state
     history: list[RuntimeStep] = []
     records: list[FrameRecord] = []
     latencies: list[float] = []
     avoid_until, distance, delay_total, crashed, reached = -1.0, 0.0, 0.0, False, False
+    if resume is not None:
+        avoid_until, distance = resume.avoid_until, resume.distance
     episode_id = f"{scenario.split}-{scenario.seed}-{getattr(policy, 'name', 'policy')}"
     save = Path(cfg.save_dir) / episode_id if cfg.save_dir else None
     if save:
@@ -82,7 +110,9 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
     from perception.depth_utils import corridor_window
 
     collision_source = None
-    for k in range(int(math.ceil(cfg.t_max / cfg.dt)) + 1):
+    for k in range(0 if resume is None else resume.k, int(math.ceil(cfg.t_max / cfg.dt)) + 1):
+        if snapshots is not None:
+            snapshots.append(ForkPoint(k, state, copy.deepcopy(controller), copy.deepcopy(temporal), avoid_until, distance))
         obs = sim.observe(state)
         # Scenery guard: our swept check only knows the spawned obstacles. On Project AirSim the map has its own
         # buildings, so a ground-truth surface closer than the drone's radius straight ahead also counts as a crash
@@ -149,7 +179,7 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
         if state.x >= scenario.goal_m:
             reached = True
             break
-        if state.t >= cfg.t_max:
+        if state.t >= cfg.t_max or (t_stop is not None and state.t >= t_stop - 1e-6):
             break
 
     result = EpisodeResult(
