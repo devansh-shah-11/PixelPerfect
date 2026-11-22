@@ -29,15 +29,28 @@ def feats(cm, var=1.0, grad=0.1):
 
 def test_temporal_offline_matches_online_and_respects_gaps():
     rows = [{"episode": 1, "step": s, "features": feats(30 - s)} for s in (0, 1, 2, 4)]  # step 3 missing
-    off = add_temporal_offline(rows)
-    assert off[0]["features"]["d_corridor_min"] == 0.0
-    assert off[1]["features"]["d_corridor_min"] == -1.0
-    assert off[3]["features"]["d_corridor_min"] == 0.0  # after the gap: treated as a fresh start
+    off = add_temporal_offline(rows)  # 0.40 m per bank step
+    assert off[0]["features"]["dpm_corridor_min"] == 0.0
+    assert off[1]["features"]["dpm_corridor_min"] == pytest.approx(-2.5)  # -1 m over 0.4 m flown
+    assert off[3]["features"]["dpm_corridor_min"] == 0.0  # after the gap: treated as a fresh start
     online = TemporalFeatures()
-    got = [online.update(r["features"]) for r in rows[:3]]
-    assert [g["d_corridor_min"] for g in got] == [0.0, -1.0, -1.0]
+    got = [online.update(r["features"], (0.4 * i, 0.0, -2.0)) for i, r in enumerate(rows[:3])]
+    assert [g["dpm_corridor_min"] for g in got] == pytest.approx([0.0, -2.5, -2.5])
     online.reset()
-    assert online.update(feats(5.0))["d_corridor_min"] == 0.0
+    assert online.update(feats(5.0), (0.0, 0.0, -2.0))["dpm_corridor_min"] == 0.0
+
+
+def test_temporal_is_speed_invariant_and_survives_a_hold():
+    """A wall approached at 0.4 m or 0.5 m per frame gives the same rate; holding keeps the last rate."""
+    slow, fast = TemporalFeatures(), TemporalFeatures()
+    for k in range(4):
+        a = slow.update(feats(20 - 0.4 * k), (0.4 * k, 0.0, -2.0))
+        b = fast.update(feats(20 - 0.5 * k), (0.5 * k, 0.0, -2.0))
+    assert a["dpm_corridor_min"] == pytest.approx(-1.0) and b["dpm_corridor_min"] == pytest.approx(-1.0)
+    held = fast.update(feats(18.4), (1.5, 0.0, -2.0))  # no movement, noisy estimate: rate carried over
+    assert held["dpm_corridor_min"] == pytest.approx(-1.0)
+    moved = fast.update(feats(18.0), (2.0, 0.0, -2.0))  # measured from the last frame before the hold
+    assert moved["dpm_corridor_min"] == pytest.approx(-1.0)
 
 
 def test_matrix_refuses_missing_features():
@@ -126,9 +139,9 @@ def test_train_end_to_end_and_gate_model(tmp_path, capsys):
     assert "beats" in text and "WARNING" not in text
     g = GateModel(d / "out" / "gate_gbt_depth+temporal+image.pkl")
     assert isinstance(g, Gate)
-    hi = g.score({**feats(40.0, grad=0.5), "d_corridor_min": 0, "d_corridor_p05": 0, "d_corridor_median": 0, "d_corridor_var": 0,
+    hi = g.score({**feats(40.0, grad=0.5), "dpm_corridor_min": 0, "dpm_corridor_p05": 0, "dpm_corridor_median": 0, "dpm_corridor_var": 0,
                   "img_grad_mean": 5.0, "img_edge_frac": 0.1, "img_hline": 5.0, "img_vline": 1.0, "img_contrast": 30.0, "img_brightness": 120.0}, S)
-    lo = g.score({**feats(40.0, grad=0.1), "d_corridor_min": 0, "d_corridor_p05": 0, "d_corridor_median": 0, "d_corridor_var": 0,
+    lo = g.score({**feats(40.0, grad=0.1), "dpm_corridor_min": 0, "dpm_corridor_p05": 0, "dpm_corridor_median": 0, "dpm_corridor_var": 0,
                   "img_grad_mean": 5.0, "img_edge_frac": 0.1, "img_hline": 0.5, "img_vline": 1.0, "img_contrast": 30.0, "img_brightness": 120.0}, S)
     assert hi > 0.5 > lo
 

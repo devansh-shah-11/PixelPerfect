@@ -92,7 +92,7 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
             crashed, collision_source = True, "scenery"
             break
         est = stack.perceive_obs(obs, state, sim)
-        feats = temporal.update(est.features)
+        feats = temporal.update(est.features, state.position)  # change per metre flown: same scale as the bank
         if use_image:
             t0 = time.perf_counter()
             feats = {**feats, **image_features(obs.rgb)}
