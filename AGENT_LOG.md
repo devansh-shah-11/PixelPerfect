@@ -436,3 +436,4 @@
 - HPC (psp8502): /scratch/psp8502/airsim has Blocks and ProjectAirSim but no envs/; CityEnviron download submitted as a CPU job (hpc/capability/download_envs.sh).
 - Outcome: success (code).
 - Follow-ups: val replay run (same config with `--set split=val --set out=results/replay/airsim_da2_surrogate_val`), then this script.
+- Correction (assistant): the entry for c5a0771 and its PROGRESS.md line say "pytest 160 passed"; the measured count was 154 passed before the fork_all test was added (155 after). Full suite at ec5c206: 156 passed, 1 failed (pre-existing test_quantized_judge_refuses_cpu).
