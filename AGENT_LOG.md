@@ -437,3 +437,10 @@
 - Outcome: success (code).
 - Follow-ups: val replay run (same config with `--set split=val --set out=results/replay/airsim_da2_surrogate_val`), then this script.
 - Correction (assistant): the entry for c5a0771 and its PROGRESS.md line say "pytest 160 passed"; the measured count was 154 passed before the fork_all test was added (155 after). Full suite at ec5c206: 156 passed, 1 failed (pre-existing test_quantized_judge_refuses_cpu).
+
+## 2026-11-22 15:08  |  hpc  |  GPU queue: A100 backlog, two-A100 partition refused, L4 still fails to boot
+- Member: PP
+- Action: HPC (psp8502): AirSim replay job 39887 (train seeds, c12m85-a100-1) pending on Priority behind 14 or more jobs, one waiting on Resources. CityEnviron download (CPU job 39884, 2 min 39 s) put CityEnviron.sh in /scratch/psp8502/airsim/envs/CityEnviron. Val replay on `c24m170-a100-2`: sbatch refused ("partition 'c24m170-a100-2' is invalid for this job"). Val replay on `g2-standard-12` (job 39905): CANCELLED after 12 min 10 s with no log written, same as jobs 15186 and 15418 in October.
+- Mistakes (assistant): said the two-A100 partition cost the same per GPU without knowing the billing (corrected in chat); suggested that partition without checking that the course account may use it; read the October L4 failure as fixed when PP said the val job "seems to be completed" (it had been cancelled).
+- Decisions: GPU work stays on c12m85-a100-1 and waits in line; L4 and the two-A100 partition are not options for this account as of today.
+- Outcome: no AirSim replay result yet.
