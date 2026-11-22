@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import json
+import os
 import time
 from pathlib import Path
 from typing import Any
@@ -128,7 +129,8 @@ def run(cfg: dict[str, Any]) -> int:
     out.mkdir(parents=True, exist_ok=True)
     rows_path, done_path = out / "replay_labels.jsonl", out / "done_seeds.txt"
     done = {int(s) for s in done_path.read_text().split()} if done_path.exists() else set()
-    backend_kw = dict(cfg.get("backend_kw", {}))
+    # Strings may name environment variables, e.g. "${PP_SIM_CONFIGS}" set by hpc/airsim_job.sbatch (as in eval.sweep).
+    backend_kw = {k: (os.path.expandvars(v) if isinstance(v, str) else v) for k, v in cfg.get("backend_kw", {}).items()}
     if frozen_starts and cfg.get("backend") == "airsim":
         backend_kw["starts"] = frozen_starts
     sim = make_sim(cfg.get("backend", "raycast"), **backend_kw)

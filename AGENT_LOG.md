@@ -418,3 +418,11 @@
 - Mistake (assistant): gave PP `GateModel(...).feature_names`; the attribute is `names`.
 - Outcome: success (code), no results yet.
 - Follow-ups: run the raycast replay smoke on HPC; an AirSim replay config with the da2 stack and the real 8B judge (cached answers, M6.2) once M4.7 sets the difficulty; train gate-L3 vs gate-L1 on the same flight frames (M6.3).
+
+## 2026-11-22 13:49  |  eval  |  Raycast replay smoke on HPC (job 39876); AirSim replay config
+- Member: PP
+- Action: HPC (psp8502, CPU partition n2c48m24, node b-10-124, commit c5a0771): `eval.replay` with configs/replay/raycast_smoke.yaml, 5 min wall. The CPU partition works for batch jobs. Laptop: eval/replay.py expands environment variables in backend_kw (needed for `${PP_SIM_CONFIGS}`, as eval.sweep does); configs/replay/airsim_da2_surrogate.yaml (train seeds, first 20, da2, surrogate at the 8B's measured 0.80 / 0.14, every 2nd frame, horizon 3 s).
+- Evidence (plumbing only: blind stand-in, surrogate VLM that "sees" anything within 15 m): 775 frames from 10 train flights; 6 flights crash (37 to 44 frames each), 4 reach the goal. Outcomes: SAVED 142, NO_EFFECT_CRASH 37, SAFE_NOT_FORKED 596; SAVED + NO_EFFECT_CRASH = L2 positives 179, as it must. L1 positive 92, L3 142.
+- Interpretation [assistant, for the team]: with this surrogate, asking anywhere in the last 3 s saves most crashing flights, so L3 here mostly reflects the surrogate's 15 m range, not a property of the gate problem. Real labels need da2 on Project AirSim and real or measured VLM answers.
+- Outcome: success (plumbing).
+- Follow-ups: AirSim replay job; L1 vs L3 disagreement by seconds-before-crash.
