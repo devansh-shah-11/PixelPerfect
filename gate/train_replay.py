@@ -28,6 +28,7 @@ from gate.features import DEPTH_KEYS, IMAGE_KEYS, TEMPORAL_KEYS, matrix
 from gate.train import auroc, auroc_ci, make_model
 
 QUERY_RATES = (0.02, 0.05, 0.10, 0.20)
+FAMILY_RATES = (0.05, 0.10)
 LABELS = ("l1", "l3")
 
 
@@ -136,6 +137,39 @@ def compare(train: list[dict], val: list[dict], names: list[str], kind: str, out
     out["at_rate"] = {name: [at_rate(val, s, q) for q in QUERY_RATES] for name, s in scores.items()}
     if "gate_l3" in scores and "gate_l1" in scores:  # the headline difference, with its flight-level uncertainty
         out["l3_minus_l1"] = [paired_diff(val, scores["gate_l3"], scores["gate_l1"], q) for q in QUERY_RATES]
+    out["by_family"] = by_family(val, {k: v for k, v in scores.items() if k.startswith("gate_")}, FAMILY_RATES)
+    # Val scores per frame, so later analysis (per family, per flight, plots) needs no retraining.
+    out["val_scores"] = {"seed": [r["seed"] for r in val], "k": [r["k"] for r in val],
+                         **{name: [float(x) for x in s] for name, s in scores.items()}}
+    return out
+
+
+def flight_family(rows: Sequence[dict[str, Any]]) -> dict[int, str]:
+    """Obstacle family per flight: the families its frames saw (one obstacle per flight in these configs)."""
+    fams: dict[int, set] = {}
+    for r in rows:
+        fams.setdefault(r["seed"], set())
+        if r.get("obstacle_family"):
+            fams[r["seed"]].add(r["obstacle_family"])
+    return {sd: ",".join(sorted(f)) or "none" for sd, f in fams.items()}
+
+
+def by_family(rows: Sequence[dict[str, Any]], scores: dict[str, np.ndarray], rates: Sequence[float]) -> list[dict[str, Any]]:
+    """Savable val flights saved by each gate, split by obstacle family. Asks are chosen over all val frames
+    at the given rate (the same asks as the main table), then counted per family."""
+    fam = flight_family(rows)
+    l3 = np.array([r["l3"] for r in rows], dtype=bool)
+    seeds = np.array([r["seed"] for r in rows])
+    out = []
+    for rate in rates:
+        asks = {name: ask_mask(s, rate) for name, s in scores.items()}
+        for f in sorted(set(fam.values())):
+            in_f = np.isin(seeds, [sd for sd, x in fam.items() if x == f])
+            savable = np.unique(seeds[in_f & l3])
+            row = {"query_rate": rate, "family": f, "flights": int(len({sd for sd, x in fam.items() if x == f})), "savable": int(savable.size)}
+            for name, a in asks.items():
+                row[name] = int(np.unique(seeds[in_f & l3 & a]).size)
+            out.append(row)
     return out
 
 
@@ -155,6 +189,12 @@ def report(meta: dict[str, Any], res: dict[str, Any]) -> str:
         for d in res["l3_minus_l1"]:
             L.append(f"| {d['query_rate']:.2f} | {d['d_l3_recall']:+.3f} [{d['d_l3_recall_ci'][0]:+.3f}, {d['d_l3_recall_ci'][1]:+.3f}] | "
                      f"{d['d_flights_saved']:+.3f} [{d['d_flights_saved_ci'][0]:+.3f}, {d['d_flights_saved_ci'][1]:+.3f}] | {d['p_a_better']:.2f} |")
+    if res.get("by_family"):
+        gates = [k for k in res["by_family"][0] if k.startswith("gate_")]
+        L += ["", "Savable val flights saved, by obstacle family:", "",
+              "| query rate | family | flights | savable | " + " | ".join(gates) + " |", "|---|---|---|---|" + "---|" * len(gates)]
+        for r in res["by_family"]:
+            L.append(f"| {r['query_rate']:.2f} | {r['family']} | {r['flights']} | {r['savable']} | " + " | ".join(str(r[g]) for g in gates) + " |")
     return "\n".join(L)
 
 

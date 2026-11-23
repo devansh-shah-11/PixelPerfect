@@ -473,3 +473,10 @@
 - Mistake (code, found now): `echo "[$(date -Is)] exit code: $?"` printed the exit code of `date`, not of the command, so every job logged 0 and Slurm marked failed runs COMPLETED. Fixed in hpc/airsim_job.sbatch, hpc/m4_checks.sbatch and hpc/cpu_job.sbatch: save rc first, print it, exit with it.
 - Correction (assistant): run-time estimate of up to 6 min per flight was far too high; actual about 1.5 min per flight (train 20 in 31 min including sim start). Job 39930's 2 h was mostly the hang.
 - Follow-ups: resubmit the val extension; if GetImages timeouts recur, add a retry around observe.
+
+## 2026-11-23 (session PP)  |  gate  |  full AirSim replay labels in; per-family table and saved val scores in the gate report
+- Member: PP
+- Evidence (HPC psp8502, surrogate VLM): train replay 100 flights, 2961 frames, 62 crash, 724 L3 frames; val 60 flights, 1999 frames, 28 crash, 346 L3 frames; no repeated (seed, k) in either file. Thin or transparent families (ball, glass, pole, wires) crash in 60/61 train and 26/28 val flights; boxes and walls in 2/26 and 2/27. Val has no ball_20cm_red flights (seed draw), so val says nothing about balls.
+- Action (laptop): gate/train_replay.py writes a per-family table (savable val flights saved by each gate at query rates 0.05 and 0.10, same asks as the main table) and the val scores per frame into replay_gate_results.json. Test extended.
+- HPC: gate training job 40621 submitted on the code before this change; rerun after `git pull` to get the new tables (CPU, minutes).
+- Sanity: pytest 157 passed, 1 failed (pre-existing).

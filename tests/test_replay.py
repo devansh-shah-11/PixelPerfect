@@ -103,6 +103,9 @@ def test_train_replay_compares_gates_at_equal_query_rates(tmp_path):
     assert {"random"} <= set(res["at_rate"]) and all(len(v) == 4 for v in res["at_rate"].values())
     if "l3_minus_l1" in res:
         assert len(res["l3_minus_l1"]) == 4
+    assert len(res["val_scores"]["seed"]) == len(res["val_scores"]["random"])
+    for r in res["by_family"]:
+        assert all(r[g] <= r["savable"] <= r["flights"] for g in r if g.startswith("gate_"))
     with pytest.raises(SystemExit):  # val flights passed as train are refused
         train_replay_main(["--train", str(paths["val"]), "--val", str(paths["val"]), "--out", str(tmp_path / "o2")])
 

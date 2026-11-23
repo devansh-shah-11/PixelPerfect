@@ -141,3 +141,6 @@
 ## 2026-11-23 04:10  |  hpc  |  job scripts exit with the command's exit code
 - Advances: M6.3. Train replay labels in (20 flights, 183 L3 positive frames, surrogate VLM); val at 41 of 60 flights.
 - Sanity check: bash -n on the three scripts ok; rc capture checked locally.
+## 2026-11-23  |  gate  |  per-family flights-saved table and saved val scores in the replay gate report
+- Advances: M6.3. Replay labels complete for this config: train 100 flights, val 60 (surrogate VLM).
+- Sanity check: pytest 157 passed, 1 failed (pre-existing laptop ImportError).
