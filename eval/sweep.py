@@ -103,6 +103,16 @@ def run(cfg: dict[str, Any]) -> list[EpisodeResult]:
     names = [p["name"] for p in cfg["policies"]]
     if len(set(names)) != len(names):
         raise SystemExit("policy names must be unique")
+    try:
+        _fly(cfg, seeds, scen_cfg, sim, stack, judge, judge_name, loop, results_path, done, out)
+    finally:
+        if hasattr(sim, "close"):  # an open Project AirSim client can keep the job alive past the last flight (job 39930)
+            sim.close()
+    return read_results(results_path)
+
+
+def _fly(cfg: dict[str, Any], seeds: list[int], scen_cfg: ScenarioConfig, sim: Any, stack: Any, judge: Any, judge_name: str,
+         loop: LoopConfig, results_path: Path, done: set, out: Path) -> None:
     with open(results_path, "a") as f:
         for spec in cfg["policies"]:
             spec = dict(spec)
@@ -119,7 +129,6 @@ def run(cfg: dict[str, Any]) -> list[EpisodeResult]:
                     (out / "flights" / f"{result.episode_id}.jsonl").write_text("".join(r.to_json() + "\n" for r in records))
                 f.write(result.to_json() + "\n")
                 f.flush()
-    return read_results(results_path)
 
 
 def _log_run(cfg_path: str, cfg: dict[str, Any], n: int, wall: float, outcome: str) -> None:
@@ -155,7 +164,7 @@ def main(argv: list[str] | None = None) -> None:
     extra = f"backend {cfg.get('backend', 'raycast')}, fast stack {cfg.get('stack', 'true-depth')}, delay {cfg.get('delay_s', 1.0)} s, split {cfg.get('split', 'val')}"
     (Path(cfg["out"]) / "table.md").write_text(extra + "\n\n" + text + "\n")
     (Path(cfg["out"]) / "table.json").write_text(json.dumps(table, indent=1, default=float))
-    print("\n" + extra + "\n\n" + text)
+    print("\n" + extra + "\n\n" + text, flush=True)
 
 
 if __name__ == "__main__":

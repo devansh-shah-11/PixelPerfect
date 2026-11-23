@@ -142,16 +142,22 @@ def run(cfg: dict[str, Any]) -> int:
     todo = [s for s in seeds if s not in done]
     print(f"[{time.strftime('%H:%M:%S')}] {len(todo)} flights to replay, {len(seeds) - len(todo)} done", flush=True)
     n = 0
-    for seed in todo:
-        scenario = generate(seed, cfg.get("split", "val"), scen_cfg)
-        rows = replay_flight(scenario, sim, stack, judge, loop, float(cfg.get("horizon_s", 3.0)), int(cfg.get("every", 1)), judge_name,
-                             bool(cfg.get("fork_all", False)))
-        with open(rows_path, "a") as f:  # one write per flight, then mark it done
-            f.write("".join(json.dumps(r) + "\n" for r in rows))
-        with open(done_path, "a") as f:
-            f.write(f"{seed}\n")
-        n += len(rows)
-        print(f"  seed {seed}: {len(rows)} frames, {sum(r['l3'] for r in rows)} L3 positive", flush=True)
+    try:
+        for seed in todo:
+            scenario = generate(seed, cfg.get("split", "val"), scen_cfg)
+            rows = replay_flight(scenario, sim, stack, judge, loop, float(cfg.get("horizon_s", 3.0)), int(cfg.get("every", 1)), judge_name,
+                                 bool(cfg.get("fork_all", False)))
+            with open(rows_path, "a") as f:  # one write per flight, then mark it done
+                f.write("".join(json.dumps(r) + "\n" for r in rows))
+            with open(done_path, "a") as f:
+                f.write(f"{seed}\n")
+            n += len(rows)
+            print(f"  seed {seed}: {len(rows)} frames, {sum(r['l3'] for r in rows)} L3 positive", flush=True)
+    finally:
+        # Job 39930 finished all 20 flights, then hung until its 2 h limit without printing the summary:
+        # the Project AirSim client was never disconnected [UNVERIFIED as the cause]. Close it explicitly.
+        if hasattr(sim, "close"):
+            sim.close()
     return n
 
 
@@ -178,7 +184,7 @@ def main(argv: list[str] | None = None) -> None:
     finally:
         if not a.no_log:
             _log_run(a.config, cfg, n, time.time() - start, outcome)
-    print(summarize(Path(cfg["out"]) / "replay_labels.jsonl"))
+    print(summarize(Path(cfg["out"]) / "replay_labels.jsonl"), flush=True)
 
 
 if __name__ == "__main__":

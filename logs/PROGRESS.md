@@ -130,3 +130,7 @@
 - Unblocked: replay labels on the raycast backend now (CPU job); on Project AirSim after M4.7.
 - Still blocked: real replay labels need the da2 stack on AirSim and cached VLM answers (M6.2); L3 definition (save-only positives) needs one teammate's agreement.
 - Sanity check: pytest 160 passed, 1 failed (pre-existing, laptop ImportError); bash -n hpc/cpu_job.sbatch ok.
+## 2026-11-22 23:55  |  eval  |  close the simulator after replay and sweep runs (job 39930 hung to its time limit)
+- Advances: M6.3 (first AirSim replay labels: val, 20 flights, 827 frames, surrogate VLM).
+- Unblocked: train replay resubmission. Still blocked: gate.train_replay needs the train replay labels.
+- Sanity check: pytest 156 passed, 1 failed (pre-existing laptop ImportError).

@@ -444,3 +444,13 @@
 - Mistakes (assistant): said the two-A100 partition cost the same per GPU without knowing the billing (corrected in chat); suggested that partition without checking that the course account may use it; read the October L4 failure as fixed when PP said the val job "seems to be completed" (it had been cancelled).
 - Decisions: GPU work stays on c12m85-a100-1 and waits in line; L4 and the two-A100 partition are not options for this account as of today.
 - Outcome: no AirSim replay result yet.
+
+## 2026-11-22 23:55  |  eval, hpc  |  first AirSim replay labels (val); job hung after the last flight; close the simulator
+- Member: PP
+- Request: "both jobs seems finished".
+- Evidence: HPC (psp8502) sacct: 39930 (val replay, c12m85-a100-1) TIMEOUT at 02:00:04 with all 20 val seeds in done_seeds.txt and 827 rows in results/replay/airsim_da2_surrogate_val/replay_labels.jsonl. Log ends at "seed 101019: 42 frames, 0 L3 positive" plus Slurm munge teardown errors: no replay summary line, no "exit code" line from hpc/airsim_job.sbatch. 39887 (train replay): CANCELLED+ with elapsed 0, never started, no output.
+- Diagnosis [UNVERIFIED]: Python finished the flights and then did not exit. Likely cause: neither eval.replay nor eval.sweep called sim.close(), so the Project AirSim client stayed connected; the summary print was not flushed, so it was lost when Slurm killed the job.
+- Action (laptop): eval/replay.py and eval/sweep.py close the simulator in a `finally` after the last flight; summary/table prints flush. No change to labels or results.
+- Mistake (assistant): gave `<train id>`/`<val id>` placeholders in shell commands; PP ran them literally.
+- Sanity: pytest 156 passed, 1 failed (pre-existing test_quantized_judge_refuses_cpu).
+- Follow-ups: resubmit the train replay with this fix and check that its log ends with the summary and "exit code"; if it hangs again, the cause is elsewhere.
