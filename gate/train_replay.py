@@ -140,7 +140,7 @@ def compare(train: list[dict], val: list[dict], names: list[str], kind: str, out
     # Score cut that asks on the top `rate` share of val replay frames: the starting tau for the closed-loop sweep
     # (val is the tuning split; the cooldown and the asks themselves change the rate in flight, so the sweep reports calls/flight).
     out["tau_at_rate"] = {name: {str(q): float(np.sort(s)[::-1][max(int(round(q * s.size)) - 1, 0)]) for q in QUERY_RATES}
-                          for name, s in scores.items() if name.startswith("gate_")}
+                          for name, s in scores.items() if name != "random"}
     out["by_family"] = by_family(val, {k: v for k, v in scores.items() if k.startswith("gate_")}, FAMILY_RATES)
     # Val scores per frame, so later analysis (per family, per flight, plots) needs no retraining.
     out["val_scores"] = {"seed": [r["seed"] for r in val], "k": [r["k"] for r in val],
@@ -149,7 +149,8 @@ def compare(train: list[dict], val: list[dict], names: list[str], kind: str, out
 
 
 def flight_family(rows: Sequence[dict[str, Any]]) -> dict[int, str]:
-    """Obstacle family per flight: the families its frames saw (one obstacle per flight in these configs)."""
+    """Family each flight's frames saw in the corridor. NOT the scenario's family: a flight whose obstacle never
+    entered the corridor is "none" here, so use ``EpisodeResult.obstacle_family`` for per-family crash rates."""
     fams: dict[int, set] = {}
     for r in rows:
         fams.setdefault(r["seed"], set())
@@ -195,12 +196,12 @@ def report(meta: dict[str, Any], res: dict[str, Any]) -> str:
                      f"{d['d_flights_saved']:+.3f} [{d['d_flights_saved_ci'][0]:+.3f}, {d['d_flights_saved_ci'][1]:+.3f}] | {d['p_a_better']:.2f} |")
     if res.get("tau_at_rate"):
         L += ["", "Score cut for each query rate on val frames (tau for the closed-loop sweep):", "",
-              "| gate | " + " | ".join(f"{q:.2f}" for q in QUERY_RATES) + " |", "|---|" + "---|" * len(QUERY_RATES)]
+              "| policy (ask above the cut; threshold(-x) scores are -x) | " + " | ".join(f"{q:.2f}" for q in QUERY_RATES) + " |", "|---|" + "---|" * len(QUERY_RATES)]
         for g, taus in res["tau_at_rate"].items():
             L.append(f"| {g} | " + " | ".join(f"{taus[str(q)]:.4f}" for q in QUERY_RATES) + " |")
     if res.get("by_family"):
         gates = [k for k in res["by_family"][0] if k.startswith("gate_")]
-        L += ["", "Savable val flights saved, by obstacle family:", "",
+        L += ["", "Savable val flights saved, by obstacle family seen in the corridor (none: obstacle never entered it):", "",
               "| query rate | family | flights | savable | " + " | ".join(gates) + " |", "|---|---|---|---|" + "---|" * len(gates)]
         for r in res["by_family"]:
             L.append(f"| {r['query_rate']:.2f} | {r['family']} | {r['flights']} | {r['savable']} | " + " | ".join(str(r[g]) for g in gates) + " |")

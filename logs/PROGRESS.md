@@ -160,3 +160,7 @@
 - Advances: M5 / M6.3. Partial closed-loop result logged (surrogate VLM): no gate-L3 gain over gate-L1 in flight so far.
 - Blocked: trusting replay labels fully until the never-ask mismatch (29 vs 28 crashes) is explained.
 - Sanity check: see the commit; the pre-existing laptop ImportError remains.
+## 2026-11-23  |  gate, eval  |  paired closed-loop comparison logged; threshold baseline cuts; family counts corrected
+- Advances: M5 / M6.3. No gate-L3 vs gate-L1 difference shown in flight on 60 val seeds (surrogate VLM).
+- Next: crash causes from the flight logs, then random at matched calls and the tuned threshold.
+- Sanity check: full pytest at this commit, pre-existing laptop ImportError only.
