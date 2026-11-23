@@ -454,3 +454,14 @@
 - Mistake (assistant): gave `<train id>`/`<val id>` placeholders in shell commands; PP ran them literally.
 - Sanity: pytest 156 passed, 1 failed (pre-existing test_quantized_judge_refuses_cpu).
 - Follow-ups: resubmit the train replay with this fix and check that its log ends with the summary and "exit code"; if it hangs again, the cause is elsewhere.
+
+## 2026-11-23 00:20  |  gate, eval  |  paired flight-level bootstrap for gate-L3 minus gate-L1; val replay extended to 60 flights
+- Member: PP
+- Request: autonomous next step while AirSim jobs queue ("lets not ask ... lets do!!").
+- Evidence (val replay, 20 flights, surrogate VLM): 827 frames; SAVED 59, NO_EFFECT_CRASH 16, SAFE_NOT_FORKED 752, CAUSED 0 (zero by construction: only crashing frames are forked); L1 90, L2 75, L3 59; L1 and L3 agree on 740/827. One seed (101015) holds 12 of the 59 L3 positives.
+- Assumption [UNVERIFIED]: about 5 of 20 val flights crash (75 L2 frames / about 15 forked frames per crash at every=2, horizon 3 s). With that few savable flights, a single "flights saved" number is mostly noise.
+- Action (laptop): gate/train_replay.py adds `paired_diff`: gate-L3 minus gate-L1 at each query rate, 95% bootstrap CI resampling val flights (not frames), same resample for both gates, query rate re-applied per resample. Written to replay_gate_results.json (`l3_minus_l1`) and a second table in the report. Test added.
+- HPC (psp8502): train replay resubmitted as job 40411 (3 h, with the close-simulator fix a3a867a); val extended to 60 flights as job 40412 (6 h; resumes the 20 done). About 4 A100-hours for the extension [estimate from job 39930].
+- Decisions: report the difference with its flight-level CI instead of two point estimates; get more flights rather than tune on 20.
+- Sanity: pytest 157 passed, 1 failed (pre-existing test_quantized_judge_refuses_cpu).
+- Follow-ups: check 40411 ends with summary and "exit code"; then decide on extending train to about 100 flights.

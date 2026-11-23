@@ -101,5 +101,19 @@ def test_train_replay_compares_gates_at_equal_query_rates(tmp_path):
     train_replay_main(["--train", str(paths["train"]), "--val", str(paths["val"]), "--model", "logreg", "--out", str(tmp_path / "out")])
     res = json.loads((tmp_path / "out" / "replay_gate_results.json").read_text())
     assert {"random"} <= set(res["at_rate"]) and all(len(v) == 4 for v in res["at_rate"].values())
+    if "l3_minus_l1" in res:
+        assert len(res["l3_minus_l1"]) == 4
     with pytest.raises(SystemExit):  # val flights passed as train are refused
         train_replay_main(["--train", str(paths["val"]), "--val", str(paths["val"]), "--out", str(tmp_path / "o2")])
+
+
+def test_paired_diff_is_zero_for_identical_gates_and_positive_for_a_better_one():
+    from gate.train_replay import paired_diff
+
+    rows = [{"seed": sd, "l3": int(i == 0)} for sd in range(10) for i in range(5)]
+    good = np.array([1.0 if r["l3"] else 0.0 for r in rows])
+    d = paired_diff(rows, good, good, 0.2, n_boot=200)
+    assert d["d_flights_saved"] == 0.0 and d["d_flights_saved_ci"] == [0.0, 0.0] and d["p_a_better"] == 0.5
+    bad = 1.0 - good
+    d = paired_diff(rows, good, bad, 0.2, n_boot=200)
+    assert d["d_flights_saved"] == 1.0 and d["d_flights_saved_ci"][0] == 1.0 and d["p_a_better"] == 1.0

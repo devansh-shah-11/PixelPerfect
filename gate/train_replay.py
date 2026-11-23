@@ -50,19 +50,58 @@ def ask_mask(scores: np.ndarray, rate: float) -> np.ndarray:
     return mask
 
 
+def _recall_saved(l3: np.ndarray, flight: np.ndarray, ask: np.ndarray) -> tuple[float, float, int]:
+    """(L3 recall, share of savable flights with an ask on a savable frame, number of savable flights)."""
+    savable = np.unique(flight[l3])
+    hit = np.unique(flight[ask & l3])
+    recall = float((ask & l3).sum() / l3.sum()) if l3.any() else float("nan")
+    return recall, (hit.size / savable.size if savable.size else float("nan")), int(savable.size)
+
+
 def at_rate(rows: Sequence[dict[str, Any]], scores: np.ndarray, rate: float) -> dict[str, float]:
     ask = ask_mask(scores, rate)
     l3 = np.array([r["l3"] for r in rows], dtype=bool)
-    seeds = np.array([r["seed"] for r in rows])
-    savable = sorted({s for s, y in zip(seeds, l3) if y})
-    saved = [s for s in savable if (ask & l3 & (seeds == s)).any()]
+    recall, saved, n_savable = _recall_saved(l3, np.array([r["seed"] for r in rows]), ask)
     return {
-        "query_rate": rate, "asks": int(ask.sum()),
-        "l3_recall": float((ask & l3).sum() / l3.sum()) if l3.any() else float("nan"),
-        "flights_saved": len(saved) / len(savable) if savable else float("nan"),
-        "savable_flights": len(savable),
+        "query_rate": rate, "asks": int(ask.sum()), "l3_recall": recall, "flights_saved": saved, "savable_flights": n_savable,
         "wasted": float((ask & ~l3).sum() / ask.sum()) if ask.any() else float("nan"),
     }
+
+
+def paired_diff(rows: Sequence[dict[str, Any]], s_a: np.ndarray, s_b: np.ndarray, rate: float,
+                n_boot: int = 2000, seed: int = 0) -> dict[str, Any]:
+    """Gate a minus gate b at one query rate, with a paired bootstrap over val flights.
+
+    Frames of one flight are strongly correlated, so flights (not frames) are resampled; both gates
+    see the same resample, and each resample re-applies the query rate to the frames it drew. A
+    flight drawn twice counts as two flights. ``p_a_better``: share of resamples where a saves more
+    flights than b (ties count half), a one-sided bootstrap check, not a test corrected for the four rates.
+    """
+    l3 = np.array([r["l3"] for r in rows], dtype=bool)
+    seeds = np.array([r["seed"] for r in rows])
+    uniq = np.unique(seeds)
+    idx_of = {u: np.flatnonzero(seeds == u) for u in uniq}
+    ra, fa, _ = _recall_saved(l3, seeds, ask_mask(s_a, rate))
+    rb, fb, _ = _recall_saved(l3, seeds, ask_mask(s_b, rate))
+    rng = np.random.default_rng(seed)
+    d_rec, d_saved = [], []
+    for _ in range(n_boot):
+        draw = rng.choice(uniq, size=uniq.size, replace=True)
+        idx = np.concatenate([idx_of[u] for u in draw])
+        flight = np.concatenate([np.full(idx_of[u].size, j) for j, u in enumerate(draw)])
+        y = l3[idx]
+        if not y.any():
+            continue
+        a = _recall_saved(y, flight, ask_mask(s_a[idx], rate))
+        b = _recall_saved(y, flight, ask_mask(s_b[idx], rate))
+        d_rec.append(a[0] - b[0])
+        d_saved.append(a[1] - b[1])
+    d_rec_arr, d_saved_arr = np.array(d_rec), np.array(d_saved)
+    ci = lambda v: [float(np.percentile(v, 2.5)), float(np.percentile(v, 97.5))] if v.size else [float("nan")] * 2  # noqa: E731
+    return {"query_rate": rate, "d_l3_recall": ra - rb, "d_l3_recall_ci": ci(d_rec_arr),
+            "d_flights_saved": fa - fb, "d_flights_saved_ci": ci(d_saved_arr),
+            "p_a_better": float((d_saved_arr > 0).mean() + 0.5 * (d_saved_arr == 0).mean()) if d_saved_arr.size else float("nan"),
+            "n_boot": int(d_saved_arr.size)}
 
 
 def compare(train: list[dict], val: list[dict], names: list[str], kind: str, out_dir: Path) -> dict[str, Any]:
@@ -95,6 +134,8 @@ def compare(train: list[dict], val: list[dict], names: list[str], kind: str, out
     if best is not None:
         scores[f"threshold({'-' if sign < 0 else ''}{best})"] = sign * np.array([r["features"][best] for r in val])
     out["at_rate"] = {name: [at_rate(val, s, q) for q in QUERY_RATES] for name, s in scores.items()}
+    if "gate_l3" in scores and "gate_l1" in scores:  # the headline difference, with its flight-level uncertainty
+        out["l3_minus_l1"] = [paired_diff(val, scores["gate_l3"], scores["gate_l1"], q) for q in QUERY_RATES]
     return out
 
 
@@ -108,6 +149,12 @@ def report(meta: dict[str, Any], res: dict[str, Any]) -> str:
     for name, rows in res["at_rate"].items():
         for r in rows:
             L.append(f"| {name} | {r['query_rate']:.2f} | {r['l3_recall']:.3f} | {r['flights_saved']:.3f} ({r['savable_flights']}) | {r['wasted']:.3f} |")
+    if "l3_minus_l1" in res:
+        L += ["", "gate_l3 minus gate_l1, 95% paired bootstrap over val flights:", "",
+              "| query rate | L3 recall difference | flights saved difference | share of resamples gate_l3 saves more |", "|---|---|---|---|"]
+        for d in res["l3_minus_l1"]:
+            L.append(f"| {d['query_rate']:.2f} | {d['d_l3_recall']:+.3f} [{d['d_l3_recall_ci'][0]:+.3f}, {d['d_l3_recall_ci'][1]:+.3f}] | "
+                     f"{d['d_flights_saved']:+.3f} [{d['d_flights_saved_ci'][0]:+.3f}, {d['d_flights_saved_ci'][1]:+.3f}] | {d['p_a_better']:.2f} |")
     return "\n".join(L)
 
 

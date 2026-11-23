@@ -134,3 +134,7 @@
 - Advances: M6.3 (first AirSim replay labels: val, 20 flights, 827 frames, surrogate VLM).
 - Unblocked: train replay resubmission. Still blocked: gate.train_replay needs the train replay labels.
 - Sanity check: pytest 156 passed, 1 failed (pre-existing laptop ImportError).
+## 2026-11-23 00:20  |  gate  |  paired flight-level bootstrap for gate-L3 minus gate-L1 (Headline 1)
+- Advances: M6.3 (evaluation of gate-L3 vs gate-L1). First AirSim val replay labels in: 20 flights, 59 L3 positive frames (surrogate VLM).
+- Running: 40411 (train replay, 20 flights), 40412 (val replay extended to 60 flights).
+- Sanity check: pytest 157 passed, 1 failed (pre-existing laptop ImportError).
