@@ -506,3 +506,12 @@
 - Correction (assistant): the report's corridor_min row asks where corridor_min is HIGH (positive sign, chosen on train). configs/sweeps/airsim_replay_gates.yaml flies the opposite rule (ask below 10 m, untuned, query rate not matched). PLAN_DETAILED.md §4.4 wants the threshold tuned as carefully as the gate, so that row is NOT a fair baseline; a val-tuned one is still to do.
 - Caveats for reading the sweep: the taus were set on the same 60 val flights it flies; the oracle asks on the L1 label, so it is not an upper bound for a gate trained on L3; offline rate is per frame, so compare policies by achieved calls per flight.
 - Sanity: full pytest after the change: 159 passed, 1 failed (pre-existing test_quantized_judge_refuses_cpu).
+
+## 2026-11-23 (session PP)  |  eval  |  closed-loop sweep, partial: no L3-over-L1 gain in flight; never-ask flights differ between runs
+- Member: PP
+- Run: HPC job 41022 (FAILED at 02:40:14 after 432 flights; about 22 s per flight), code 4176cd0, configs/sweeps/airsim_replay_gates.yaml, val seeds first 60, surrogate VLM, development run on an unfrozen scenario. Resumed as job 41336 on 0040a2e.
+- Evidence (crash rate [Wilson 95%], calls per flight, 60 flights each): never 0.483 [0.36, 0.61]; gate_l3_q05 0.217 [0.13, 0.34], 0.58; gate_l1_q05 0.183 [0.11, 0.30], 0.77; random_p05 0.217 [0.13, 0.34], 3.00; gate_l3_q10 0.117 [0.06, 0.22], 1.18; gate_l1_q10 0.083 [0.04, 0.18], 1.20; random_p10 0.067 [0.03, 0.16], 5.63. threshold_cmin10 has 12 flights only and is not a fair baseline.
+- Reading: both gates crash far less than never with about one call per flight or fewer. The offline L3 advantage does NOT show up in flight: gate_l1 has two fewer crashes than gate_l3 at each cut (11 vs 13 and 5 vs 7), a difference too small to rank them. Random has no run at matched calls, so "fewer calls than random" is suggestive, not a matched comparison.
+- Problem: never-ask crashes 29 of these 60 seeds here and 28 of the same seeds in the replay's base flights (same config). The loop is meant to replay a seed exactly (CLAUDE.md rule 3). Cause unknown; simulator rendering is the suspect [UNVERIFIED]. If re-rendering one pose gives different images, replay forks also carry noise in L3.
+- Correction (assistant): estimated 6 to 8 A100-hours for this sweep; 432 flights took 2 h 40 min.
+- Action (laptop): eval/paired.py (paired crash and call differences, exact McNemar, per-obstacle crashes, never-ask repeatability check) with tests.

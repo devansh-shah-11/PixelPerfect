@@ -156,3 +156,7 @@
 - Advances: M5 / M6.3. Closed-loop sweep at 432 of 600 flights (job 41022), resumable.
 - Still blocked: a fair val-tuned threshold baseline; frozen scenario (M4.7); real VLM answers (M6.2).
 - Sanity check: pytest 159 passed, 1 failed (pre-existing laptop ImportError).
+## 2026-11-23  |  eval  |  paired policy comparison and never-ask repeatability check
+- Advances: M5 / M6.3. Partial closed-loop result logged (surrogate VLM): no gate-L3 gain over gate-L1 in flight so far.
+- Blocked: trusting replay labels fully until the never-ask mismatch (29 vs 28 crashes) is explained.
+- Sanity check: see the commit; the pre-existing laptop ImportError remains.
