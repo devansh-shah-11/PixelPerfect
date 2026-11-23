@@ -164,3 +164,6 @@
 - Advances: M5 / M6.3. No gate-L3 vs gate-L1 difference shown in flight on 60 val seeds (surrogate VLM).
 - Next: crash causes from the flight logs, then random at matched calls and the tuned threshold.
 - Sanity check: full pytest at this commit, pre-existing laptop ImportError only.
+## 2026-11-23  |  eval  |  config for matched random and tuned threshold baselines; crash causes logged
+- Advances: M5 / M6.3 (surrogate VLM development run). Waiting: main sweep remainder (job 41336).
+- Sanity check: config parses, settings equal to the main sweep, policies construct.

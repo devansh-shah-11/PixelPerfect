@@ -1,0 +1,31 @@
+# Baselines for configs/sweeps/airsim_replay_gates.yaml (SURROGATE VLM, development run, unfrozen scenario), same 60 val seeds:
+# - random at p 0.01 and 0.02: p 0.05 and 0.10 made 3.00 and 5.63 calls per flight, so these should land near the
+#   gates' 0.6 to 1.2 (job 41022); compare by achieved calls per flight.
+# - the tuned single-feature threshold: feature and direction picked on train frames (corridor_min, ask when HIGH),
+#   cuts that ask on 5% and 10% of val replay frames, the same rule as the gates' taus (job on code 387f632).
+# Judge seeding is per flight (0040a2e); the first 432 flights of the main sweep used one shared stream.
+#   sbatch --time=03:00:00 --export=ALL,PA_ENV=/scratch/dns5508/envs/pa,CMD="python -m eval.sweep --config configs/sweeps/airsim_replay_gates_extra.yaml" hpc/airsim_job.sbatch
+# Resumable per (policy, seed): resubmit the same line if the job stops.
+starts: &starts
+  - [150.0, 150.0, 0.0, 145.0]
+  - [-150.0, 50.0, 180.0, 140.0]
+  - [50.0, -150.0, 90.0, 120.0]
+  - [-50.0, -150.0, 270.0, 120.0]
+  - [150.0, -150.0, 0.0, 80.0]
+backend: airsim
+backend_kw: {configs: "${PP_SIM_CONFIGS}", scene_file: scene_cap_400.jsonc, starts: *starts}
+stack: da2
+judge: surrogate
+judge_kw: {default_tpr: 0.80, default_fpr: 0.14, seed: 0}
+delay_s: 1.0
+split: val
+seeds: {file: configs/seeds.yaml, n: 60}
+scenario: {goal_m: 40.0, first_obstacle_m: [15.0, 25.0], n_obstacles: [1, 1], alt_range_m: [1.8, 2.2]}
+loop: {t_max: 60.0}
+policies:
+  - {name: random_p01, policy: random, p: 0.01, cooldown_s: 1.0}
+  - {name: random_p02, policy: random, p: 0.02, cooldown_s: 1.0}
+  - {name: threshold_far_q05, policy: threshold, feature: corridor_min, tau: 40.6142, below: false, cooldown_s: 1.0}
+  - {name: threshold_far_q10, policy: threshold, feature: corridor_min, tau: 37.9503, below: false, cooldown_s: 1.0}
+out: results/sweeps/replay_gates_surrogate_extra
+flight_logs: true

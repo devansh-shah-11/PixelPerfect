@@ -523,3 +523,10 @@
 - Reading: no closed-loop difference between gate-L3 and gate-L1 is shown in either direction; 60 flights cannot resolve one of this size. Simulator noise exists (so seeds do not replay exactly on Project AirSim) but changed 2 of 60 outcomes. The suggestion that label noise explains the missing L3 gain is not supported by this.
 - Correction (assistant): obstacle counts in the earlier entries used the family seen in the corridor, not the scenario's family, and called unseen obstacles "no obstacle on the path". Every flight has one obstacle. By scenario family, val has 1 ball flight (no crash), and thin or transparent obstacles crash in 26 of 32 val flights (not 26 of 28); "val has no ball flights" was wrong. The train counts have the same flaw (13 "none" flights), so "60 of 61" is not valid either.
 - Action (laptop): gate/train_replay.py also writes score cuts for the single-feature threshold baseline and labels its family table correctly.
+
+## 2026-11-23 (session PP)  |  eval  |  crash causes of the partial sweep; matched random and tuned threshold config
+- Member: PP
+- Run: `python -m eval.crash_causes --sweep results/sweeps/replay_gates_surrogate` (code 387f632, no true-depth reference, so "controller" was not checked; 3 s window). Surrogate VLM, 60 val seeds.
+- Evidence (crashes: did not ask / VLM said no / yes but crashed): gate_l3_q05 13: 10/3/0; gate_l1_q05 11: 7/4/0; gate_l3_q10 7: 3/4/0; gate_l1_q10 5: 0/4/1; random_p05 13: 6/5/2; random_p10 4: 0/4/0. threshold_cmin10 has 12 flights only. Tuned threshold cuts (gate.train_replay, results/gate_replay_thr): corridor_min above 40.6142 m (5%) and 37.9503 m (10%).
+- Reading: at the 5% cut most gate crashes are missed asks. At the 10% cut, 4 crashes per gate are the surrogate answering "no" (its set recall is 0.80), which no gate can remove; gate-L3 missed 3 and gate-L1 0. Counts too small to rank the gates.
+- Action (laptop): configs/sweeps/airsim_replay_gates_extra.yaml: random 0.01 and 0.02, the val-tuned corridor_min threshold (ask when high) at both cuts; all other settings checked equal to the main config. 240 flights, about 1.5 A100-hours at 22 s per flight. Not run yet.
