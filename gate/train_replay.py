@@ -137,6 +137,10 @@ def compare(train: list[dict], val: list[dict], names: list[str], kind: str, out
     out["at_rate"] = {name: [at_rate(val, s, q) for q in QUERY_RATES] for name, s in scores.items()}
     if "gate_l3" in scores and "gate_l1" in scores:  # the headline difference, with its flight-level uncertainty
         out["l3_minus_l1"] = [paired_diff(val, scores["gate_l3"], scores["gate_l1"], q) for q in QUERY_RATES]
+    # Score cut that asks on the top `rate` share of val replay frames: the starting tau for the closed-loop sweep
+    # (val is the tuning split; the cooldown and the asks themselves change the rate in flight, so the sweep reports calls/flight).
+    out["tau_at_rate"] = {name: {str(q): float(np.sort(s)[::-1][max(int(round(q * s.size)) - 1, 0)]) for q in QUERY_RATES}
+                          for name, s in scores.items() if name.startswith("gate_")}
     out["by_family"] = by_family(val, {k: v for k, v in scores.items() if k.startswith("gate_")}, FAMILY_RATES)
     # Val scores per frame, so later analysis (per family, per flight, plots) needs no retraining.
     out["val_scores"] = {"seed": [r["seed"] for r in val], "k": [r["k"] for r in val],
@@ -189,6 +193,11 @@ def report(meta: dict[str, Any], res: dict[str, Any]) -> str:
         for d in res["l3_minus_l1"]:
             L.append(f"| {d['query_rate']:.2f} | {d['d_l3_recall']:+.3f} [{d['d_l3_recall_ci'][0]:+.3f}, {d['d_l3_recall_ci'][1]:+.3f}] | "
                      f"{d['d_flights_saved']:+.3f} [{d['d_flights_saved_ci'][0]:+.3f}, {d['d_flights_saved_ci'][1]:+.3f}] | {d['p_a_better']:.2f} |")
+    if res.get("tau_at_rate"):
+        L += ["", "Score cut for each query rate on val frames (tau for the closed-loop sweep):", "",
+              "| gate | " + " | ".join(f"{q:.2f}" for q in QUERY_RATES) + " |", "|---|" + "---|" * len(QUERY_RATES)]
+        for g, taus in res["tau_at_rate"].items():
+            L.append(f"| {g} | " + " | ".join(f"{taus[str(q)]:.4f}" for q in QUERY_RATES) + " |")
     if res.get("by_family"):
         gates = [k for k in res["by_family"][0] if k.startswith("gate_")]
         L += ["", "Savable val flights saved, by obstacle family:", "",

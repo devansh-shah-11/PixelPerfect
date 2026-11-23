@@ -144,3 +144,7 @@
 ## 2026-11-23  |  gate  |  per-family flights-saved table and saved val scores in the replay gate report
 - Advances: M6.3. Replay labels complete for this config: train 100 flights, val 60 (surrogate VLM).
 - Sanity check: pytest 157 passed, 1 failed (pre-existing laptop ImportError).
+## 2026-11-23  |  gate  |  first Headline 1 result (surrogate VLM); tau per query rate in the replay report
+- Advances: M6.3. gate-L3 val AUROC against L3 0.857 vs gate-L1 0.717; L3 recall higher at 5/10/20% (paired CIs exclude 0); flights saved not significantly different offline.
+- Next: closed-loop sweep on val with both gates (M5), needs the taus from a rerun of gate.train_replay.
+- Sanity check: pytest 157 passed, 1 failed (pre-existing laptop ImportError).

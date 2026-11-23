@@ -104,6 +104,10 @@ def test_train_replay_compares_gates_at_equal_query_rates(tmp_path):
     if "l3_minus_l1" in res:
         assert len(res["l3_minus_l1"]) == 4
     assert len(res["val_scores"]["seed"]) == len(res["val_scores"]["random"])
+    for g, taus in res.get("tau_at_rate", {}).items():
+        s_g = np.array(res["val_scores"][g])
+        n = int(round(0.1 * s_g.size))  # the cut is the n-th highest score (ties can add frames at the cut)
+        assert (s_g > taus["0.1"]).sum() < n <= (s_g >= taus["0.1"]).sum()
     for r in res["by_family"]:
         assert all(r[g] <= r["savable"] <= r["flights"] for g in r if g.startswith("gate_"))
     with pytest.raises(SystemExit):  # val flights passed as train are refused
