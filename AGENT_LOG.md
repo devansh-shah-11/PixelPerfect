@@ -540,3 +540,8 @@
 - Reading: at matched calls the learned gates crash less than random and the tuned threshold in all 8 comparisons; 4 survive Holm. No L3-over-L1 gain in flight. At the 10% cut 4 crashes per gate are "no" answers, which the gate cannot remove under this judge.
 - Caveats: gate and threshold cuts were set on these val seeds (random p was chosen from observed call counts); main sweep's first 432 flights used the old shared judge stream; one wall seed crashed under gate_l1_q05 and one under always while never crashed on none of the 9 wall flights, so asking may cause crashes (or simulator noise), not checked; always completes 0 of 60 missions (mission time 59.6 s, the limit), so `safety retained`, which divides by it, is a poor headline (oracle 1.07).
 - Follow-ups: full rerun on one code version after M4.7; real VLM answers (M6.2). Capture retry never fired (0 "capture failed" lines), still [UNVERIFIED] live.
+
+## 2026-11-23 (session PP)  |  eval  |  config for the real-VLM closed-loop check (not run)
+- Member: PP
+- Action (laptop): configs/sweeps/airsim_replay_gates_qwen.yaml: the surrogate sweep's flights with Qwen3-VL-8B (prompt cross, both images, val cut -4.02, as in airsim_gate_check.yaml); policies never, gate_l3_q10, gate_l1_q10, random_p02, threshold_far_q10, oracle; 60 val seeds; 360 flights. Checked by script: differs from the main config only in judge, judge_kw, policies and out; the judge constructs.
+- Caveats: gates were trained on surrogate replay labels; scenario unfrozen; the qwen judge in the flight env and the weights under the user's HF_HOME are [UNVERIFIED], so a 12-flight smoke run comes first.
