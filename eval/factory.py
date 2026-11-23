@@ -1,6 +1,7 @@
 """Build backends, fast stacks and judges from names (used by eval.run_episode and eval.sweep)."""
 from __future__ import annotations
 
+import dataclasses
 from typing import Any
 
 
@@ -54,3 +55,10 @@ def make_judge(name: str, **kw: Any) -> tuple[Any, str]:
         j = QwenVLJudge(**kw)  # model_id may carry a quantization suffix, e.g. "...-8B-Instruct@4bit"
         return j, _slug_model(j.spec)
     raise ValueError(f"unknown judge {name!r}")
+
+
+def fork_judge(judge: Any, seed: int, k: int) -> Any:
+    """A judge for one fork (or, with ``k = 0``, for one sweep flight). A seeded judge (the surrogate) gets its own seed per (flight, frame),
+    so forks neither share one random draw nor depend on the order they run in."""
+    fields = {f.name for f in dataclasses.fields(judge)} if dataclasses.is_dataclass(judge) else set()
+    return dataclasses.replace(judge, seed=int(seed) * 100_003 + int(k)) if "seed" in fields else judge

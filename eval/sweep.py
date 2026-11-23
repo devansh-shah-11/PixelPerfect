@@ -32,7 +32,7 @@ from typing import Any
 import yaml
 
 from control.rules import RuleController
-from eval.factory import make_judge, make_sim, make_stack
+from eval.factory import fork_judge, make_judge, make_sim, make_stack
 from eval.metrics import EpisodeResult, markdown, read_results, results_table
 from eval.run_episode import LoopConfig, run_episode
 from policies.base import make_policy
@@ -123,7 +123,8 @@ def _fly(cfg: dict[str, Any], seeds: list[int], scen_cfg: ScenarioConfig, sim: A
             print(f"[{time.strftime('%H:%M:%S')}] {name}: {len(todo)} flights to fly, {len(seeds) - len(todo)} done", flush=True)
             for seed in todo:
                 scenario = generate(seed, cfg.get("split", "val"), scen_cfg)
-                records, result = run_episode(scenario, sim, stack, RuleController(d_safe=loop.d_safe), policy, judge, loop, judge_name=judge_name)
+                records, result = run_episode(scenario, sim, stack, RuleController(d_safe=loop.d_safe), policy,
+                                              fork_judge(judge, seed, 0), loop, judge_name=judge_name)  # own seed per flight: resuming cannot change the draws
                 if cfg.get("flight_logs"):
                     (out / "flights").mkdir(exist_ok=True)
                     (out / "flights" / f"{result.episode_id}.jsonl").write_text("".join(r.to_json() + "\n" for r in records))

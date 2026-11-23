@@ -132,12 +132,29 @@ class AirSimBackend:
         wx, wy, wz, wyaw = path_to_world(state.x, state.y, state.z, state.yaw, self.start)
         self._drone.set_pose(ct.make_pose(wx, wy, wz, yaw=wyaw))
         self._world.continue_for_sim_time(ct.STEP_NS)
-        bgr, depth, seg = ct.grab(self._drone)
-        if bgr is None or depth is None or seg is None:
-            raise RuntimeError("Project AirSim returned a missing channel")
+        bgr, depth, seg = self._grab(ct.make_pose(wx, wy, wz, yaw=wyaw))
         rgb = np.ascontiguousarray(bgr[..., :3][..., ::-1])
         seg_rgb = np.ascontiguousarray(seg[..., :3][..., ::-1])
         return Observation(rgb=rgb, depth=depth.astype(np.float32), seg=seg_rgb)
+
+    def _grab(self, pose: Any, retries: int = 3) -> tuple[Any, Any, Any]:
+        """Capture all three channels; on a dropped capture, set the pose again and let the renderer settle.
+
+        Jobs 40412 (GetImages timeout) and 41022 (missing channel) each lost a run to one bad capture. The
+        pose is reset and one frame discarded, so a retry cannot return a stale frame; obstacles are static,
+        so the observation still depends only on the scenario and the state.
+        """
+        error = "missing channel"
+        for attempt in range(retries + 1):
+            try:
+                bgr, depth, seg = self._ct.grab(self._drone) if attempt == 0 else self._ct.settle_grab(self._world, self._drone, pose)
+                if bgr is not None and depth is not None and seg is not None:
+                    return bgr, depth, seg
+                error = "missing channel"
+            except RuntimeError as e:  # projectairsim raises it for a GetImages timeout
+                error = str(e)
+            print(f"capture failed ({error}), attempt {attempt + 1} of {retries + 1}", flush=True)
+        raise RuntimeError(f"Project AirSim capture failed {retries + 1} times: {error}")
 
     def render_depth(self, *_: Any, **__: Any) -> np.ndarray:
         raise NotImplementedError("the blind stand-in is raycast-only; use the real fast stack (stack: da2) on Project AirSim")

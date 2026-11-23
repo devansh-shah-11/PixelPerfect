@@ -26,7 +26,6 @@ Resumable per seed (CLAUDE.md rule 10). Test seeds are refused: labels are train
 from __future__ import annotations
 
 import argparse
-import dataclasses
 import json
 import os
 import time
@@ -36,7 +35,7 @@ from typing import Any
 import yaml
 
 from control.rules import RuleController
-from eval.factory import make_judge, make_sim, make_stack
+from eval.factory import fork_judge, make_judge, make_sim, make_stack
 from eval.run_episode import ForkPoint, LoopConfig, run_episode
 from eval.sweep import _log_run, apply_overrides, resolve_scenario, resolve_seeds
 from gate.features import IMAGE_KEYS
@@ -76,13 +75,6 @@ class AskOnce:
     def should_ask(self, t: float, features: dict[str, Any], drone_state: Any, history: Any) -> bool:
         first, self._asked = not self._asked, True
         return first
-
-
-def fork_judge(judge: Any, seed: int, k: int) -> Any:
-    """A judge for one fork. A seeded judge (the surrogate) gets its own seed per (flight, frame),
-    so forks neither share one random draw nor depend on the order they run in."""
-    fields = {f.name for f in dataclasses.fields(judge)} if dataclasses.is_dataclass(judge) else set()
-    return dataclasses.replace(judge, seed=int(seed) * 100_003 + int(k)) if "seed" in fields else judge
 
 
 def replay_flight(scenario: Scenario, sim: Any, stack: Any, judge: Any, cfg: LoopConfig, horizon_s: float,

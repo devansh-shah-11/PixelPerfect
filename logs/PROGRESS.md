@@ -152,3 +152,7 @@
 - Advances: M5 / M6.3 (Headline 1 in closed loop). Per-family replay table logged.
 - Unblocked: the AirSim sweep (configs/sweeps/airsim_replay_gates.yaml). Still blocked: final table needs frozen scenario (M4.7) and real VLM answers (M6.2).
 - Sanity check: config parses, non-gate policies construct.
+## 2026-11-23  |  sim, eval  |  retry dropped AirSim captures; per-flight judge seed in sweeps
+- Advances: M5 / M6.3. Closed-loop sweep at 432 of 600 flights (job 41022), resumable.
+- Still blocked: a fair val-tuned threshold baseline; frozen scenario (M4.7); real VLM answers (M6.2).
+- Sanity check: pytest 159 passed, 1 failed (pre-existing laptop ImportError).

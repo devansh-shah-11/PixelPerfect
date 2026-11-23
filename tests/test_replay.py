@@ -124,3 +124,39 @@ def test_paired_diff_is_zero_for_identical_gates_and_positive_for_a_better_one()
     bad = 1.0 - good
     d = paired_diff(rows, good, bad, 0.2, n_boot=200)
     assert d["d_flights_saved"] == 1.0 and d["d_flights_saved_ci"][0] == 1.0 and d["p_a_better"] == 1.0
+
+
+def test_airsim_capture_retries_then_raises():
+    from sim.airsim_backend import AirSimBackend
+
+    class FakeCapture:
+        def __init__(self, results):
+            self.results, self.settled = list(results), 0
+
+        def grab(self, _drone):
+            r = self.results.pop(0)
+            if isinstance(r, Exception):
+                raise r
+            return r
+
+        def settle_grab(self, _world, drone, _pose):
+            self.settled += 1
+            return self.grab(drone)
+
+    good = (np.ones(1), np.ones(1), np.ones(1))
+    sim = AirSimBackend(configs="")
+    sim._ct = FakeCapture([RuntimeError("GetImages() Timeout"), (None, np.ones(1), np.ones(1)), good])
+    assert sim._grab(None) == good and sim._ct.settled == 2
+    sim._ct = FakeCapture([(None, None, None)] * 4)
+    with pytest.raises(RuntimeError, match="failed 4 times"):
+        sim._grab(None)
+
+
+def test_sweep_flight_does_not_depend_on_what_was_flown_before(tmp_path):
+    from eval.sweep import run
+
+    base = {"backend": "raycast", "stack": "blind", "judge": "surrogate", "judge_kw": {"default_tpr": 0.5, "default_fpr": 0.5},
+            "split": "val", "policies": [{"name": "always", "policy": "always", "cooldown_s": 1.0}], "loop": {"t_max": 20.0}}
+    both = run({**base, "seeds": [101_000, 101_001], "out": str(tmp_path / "a")})
+    alone = run({**base, "seeds": [101_001], "out": str(tmp_path / "b")})
+    assert both[1].n_calls > 0 and both[1].to_json() == alone[0].to_json()
