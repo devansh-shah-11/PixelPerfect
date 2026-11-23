@@ -44,4 +44,6 @@ sleep 60
 pgrep -fa 'Linux-Shipping' > /dev/null || { echo "SIM NOT RUNNING after 60 s"; tail -20 "$WORK/sim.log"; exit 1; }
 cd "$REPO"
 eval "$CMD"
-echo "[$(date -Is)] exit code: $?"
+rc=$?
+echo "[$(date -Is)] exit code: $rc"
+exit $rc

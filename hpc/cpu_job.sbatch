@@ -23,4 +23,6 @@ conda activate "${PA_ENV:-/scratch/$USER/envs/pa}"
 CMD="${CMD:?set CMD, e.g. --export=ALL,CMD=\"python -m eval.replay --config ...\"}"
 echo "[$(date -Is)] job=${SLURM_JOB_ID:-local} partition=${SLURM_JOB_PARTITION:-none} host=$(hostname) cmd=$CMD"
 eval "$CMD"
-echo "[$(date -Is)] done"
+rc=$?
+echo "[$(date -Is)] exit code: $rc"
+exit $rc

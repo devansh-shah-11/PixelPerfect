@@ -49,4 +49,6 @@ sleep 60
 pgrep -fa 'Linux-Shipping' > /dev/null || { echo "SIM NOT RUNNING after 60 s"; tail -20 "$OUT/sim.log"; exit 1; }
 cd "$REPO"
 python hpc/m4_checks.py --configs $CONFIGS --out "$OUT" --start "$START"
-echo "[$(date -Is)] m4_checks exit code: $?"
+rc=$?
+echo "[$(date -Is)] m4_checks exit code: $rc"
+exit $rc

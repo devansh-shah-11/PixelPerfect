@@ -465,3 +465,11 @@
 - Decisions: report the difference with its flight-level CI instead of two point estimates; get more flights rather than tune on 20.
 - Sanity: pytest 157 passed, 1 failed (pre-existing test_quantized_judge_refuses_cpu).
 - Follow-ups: check 40411 ends with summary and "exit code"; then decide on extending train to about 100 flights.
+
+## 2026-11-23 04:10  |  hpc, eval  |  hang fix confirmed; first train replay labels; val stopped on a simulator timeout; job scripts reported exit code 0 always
+- Member: PP
+- Evidence: HPC (psp8502). 40411 (train replay, 20 flights): COMPLETED in 30:54, log ends with "Disconnected.", the summary and the exit line, so the close-simulator fix (a3a867a) works. Summary: 495 frames from 20 flights; SAVED 183, NO_EFFECT_CRASH 55, SAFE_NOT_FORKED 257, CAUSED 0; L1 138, L2 238, L3 183; L1 and L3 agree on 346/495. 40412 (val to 60 flights): 41 of 60 done after 24:54, then `RuntimeError: GetImages() Timeout waiting for new captured_images` (projectairsim client.py:402); the flight in progress wrote nothing.
+- Surprise: train flights crash far more often than val ones (238 of 495 frames in a crash window vs 75 of 827 in the first 20 val flights). Same config and scenario settings; only the seeds differ. [UNVERIFIED cause; check crash counts by start pose and obstacle family before reading anything into gate results.]
+- Mistake (code, found now): `echo "[$(date -Is)] exit code: $?"` printed the exit code of `date`, not of the command, so every job logged 0 and Slurm marked failed runs COMPLETED. Fixed in hpc/airsim_job.sbatch, hpc/m4_checks.sbatch and hpc/cpu_job.sbatch: save rc first, print it, exit with it.
+- Correction (assistant): run-time estimate of up to 6 min per flight was far too high; actual about 1.5 min per flight (train 20 in 31 min including sim start). Job 39930's 2 h was mostly the hang.
+- Follow-ups: resubmit the val extension; if GetImages timeouts recur, add a retry around observe.

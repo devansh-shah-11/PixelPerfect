@@ -138,3 +138,6 @@
 - Advances: M6.3 (evaluation of gate-L3 vs gate-L1). First AirSim val replay labels in: 20 flights, 59 L3 positive frames (surrogate VLM).
 - Running: 40411 (train replay, 20 flights), 40412 (val replay extended to 60 flights).
 - Sanity check: pytest 157 passed, 1 failed (pre-existing laptop ImportError).
+## 2026-11-23 04:10  |  hpc  |  job scripts exit with the command's exit code
+- Advances: M6.3. Train replay labels in (20 flights, 183 L3 positive frames, surrogate VLM); val at 41 of 60 flights.
+- Sanity check: bash -n on the three scripts ok; rc capture checked locally.
