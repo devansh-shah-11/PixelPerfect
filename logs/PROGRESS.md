@@ -167,3 +167,7 @@
 ## 2026-11-23  |  eval  |  config for matched random and tuned threshold baselines; crash causes logged
 - Advances: M5 / M6.3 (surrogate VLM development run). Waiting: main sweep remainder (job 41336).
 - Sanity check: config parses, settings equal to the main sweep, policies construct.
+## 2026-11-23  |  eval  |  closed-loop gate sweep complete (840 flights, surrogate VLM)
+- Advances: M5 / M6.3. Gates crash less than random and the tuned threshold at similar calls; no gate-L3 vs gate-L1 difference shown.
+- Blocked: frozen scenario (M4.7) and real VLM answers (M6.2) for a reportable table; `safety retained` needs a team decision, since always-ask completes no mission.
+- Sanity check: log-only commit; flight counts 600 and 240, both jobs exit 0.
