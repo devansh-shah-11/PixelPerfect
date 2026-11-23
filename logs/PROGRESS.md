@@ -148,3 +148,7 @@
 - Advances: M6.3. gate-L3 val AUROC against L3 0.857 vs gate-L1 0.717; L3 recall higher at 5/10/20% (paired CIs exclude 0); flights saved not significantly different offline.
 - Next: closed-loop sweep on val with both gates (M5), needs the taus from a rerun of gate.train_replay.
 - Sanity check: pytest 157 passed, 1 failed (pre-existing laptop ImportError).
+## 2026-11-23  |  eval  |  closed-loop sweep config: gate-L3 vs gate-L1 in flight (surrogate VLM)
+- Advances: M5 / M6.3 (Headline 1 in closed loop). Per-family replay table logged.
+- Unblocked: the AirSim sweep (configs/sweeps/airsim_replay_gates.yaml). Still blocked: final table needs frozen scenario (M4.7) and real VLM answers (M6.2).
+- Sanity check: config parses, non-gate policies construct.

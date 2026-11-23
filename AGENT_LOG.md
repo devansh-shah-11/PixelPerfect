@@ -488,3 +488,11 @@
 - Reading: gate-L3 ranks savable frames better and wastes about half as many asks; flight-level gain not shown. The offline "flights saved" saturates (a savable flight has about 12 savable frames, so random at 10% already reaches 0.61), so it is a weak test; the closed-loop sweep (asks cost delay and change the trajectory) is the real one.
 - Caveats: surrogate VLM; val has no ball flights; never-ask crash rate on these val flights is 28/60 = 47%, above the M4.7 target band of 15 to 30% (scenario not frozen yet, DS's M4.7), so these numbers are a first look on an unfrozen scenario. AUROC well below 0.99: no leakage signal; features are the run-time ones recorded by RecordingNever.
 - Action (laptop): report adds the score cut per query rate on val frames (tau for the closed-loop sweep). GatePolicy asks when score > tau, so at the cut it asks on one frame fewer than the offline top-n; negligible for continuous scores.
+
+## 2026-11-23 (session PP)  |  gate, eval  |  per-family replay result; closed-loop sweep config for both gates
+- Member: PP
+- Run: HPC job 41001 (CPU), code 172e077, same command and data as job 40621; identical main numbers (MLP random_state 0).
+- Evidence (results/gate_replay/replay_gate_report.md, surrogate VLM): savable val flights saved, gate_l1 / gate_l3, at 5%: glass 5/8 vs 7/8, wire_3cm 1/4 vs 3/4, pole 6/11 vs 6/11, wire_1cm 1/3 vs 1/3, box_1m_black 2/2 vs 0/2; at 10%: glass 6/8 vs 8/8, wire_3cm 3/4 vs 4/4, pole 9/11 vs 9/11, box_1m_black 2/2 vs 0/2. Counts this small are not significant per family. Score cuts on val frames: gate_l3 0.7599 (5%), 0.6011 (10%); gate_l1 0.4122 (5%), 0.2884 (10%).
+- Note: the earlier bank gate scored AUROC 0.21 on held-out glass; here glass is in training, so 8/8 is not a hold-out result.
+- Action (laptop): configs/sweeps/airsim_replay_gates.yaml: 60 val seeds, da2 stack, surrogate VLM (same rates as the replay labels), never / gate_l3 / gate_l1 at the 5% and 10% cuts / random 0.05 and 0.10 / threshold corridor_min < 10 m / oracle / always; cooldown 1 s except always and oracle. 600 flights, estimated 6 to 8 A100-hours [UNVERIFIED: no fork-free AirSim timing yet].
+- Decisions: taus from val (the tuning split, D14), not from train in-sample scores; development result on an unfrozen scenario, not the final table.

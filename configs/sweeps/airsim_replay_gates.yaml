@@ -1,0 +1,38 @@
+# Closed-loop check of Headline 1 (M5 with the M6.3 gates), SURROGATE VLM: gate-L3 against gate-L1 in flight,
+# where every ask costs 1 s of braking and changes what follows. Same simulator, scenario, starts, fast stack and
+# surrogate rates as configs/replay/airsim_da2_surrogate.yaml, on the same 60 val seeds the gates were scored on.
+# Gates: results/gate_replay/gate_l{1,3}_mlp.pkl from gate.train_replay. Each tau is the gate's score cut that asks on
+# 5% or 10% of val replay frames (results/gate_replay/replay_gate_report.md, job 41001, code 172e077); val is the tuning split (D14).
+# All policies share cooldown 1 s, except the always and oracle references (their defaults).
+# The scenario is not frozen yet (M4.7), so this is a development result, not the final table.
+#   sbatch --time=08:00:00 --export=ALL,PA_ENV=/scratch/dns5508/envs/pa,CMD="python -m eval.sweep --config configs/sweeps/airsim_replay_gates.yaml" hpc/airsim_job.sbatch
+# Resumable per (policy, seed): resubmit the same line if the job stops.
+starts: &starts
+  - [150.0, 150.0, 0.0, 145.0]
+  - [-150.0, 50.0, 180.0, 140.0]
+  - [50.0, -150.0, 90.0, 120.0]
+  - [-50.0, -150.0, 270.0, 120.0]
+  - [150.0, -150.0, 0.0, 80.0]
+backend: airsim
+backend_kw: {configs: "${PP_SIM_CONFIGS}", scene_file: scene_cap_400.jsonc, starts: *starts}
+stack: da2
+judge: surrogate
+judge_kw: {default_tpr: 0.80, default_fpr: 0.14, seed: 0}
+delay_s: 1.0
+split: val
+seeds: {file: configs/seeds.yaml, n: 60}
+scenario: {goal_m: 40.0, first_obstacle_m: [15.0, 25.0], n_obstacles: [1, 1], alt_range_m: [1.8, 2.2]}
+loop: {t_max: 60.0}
+policies:
+  - {name: never, policy: never}
+  - {name: gate_l3_q05, policy: gate, model_path: results/gate_replay/gate_l3_mlp.pkl, tau: 0.7599, cooldown_s: 1.0}
+  - {name: gate_l1_q05, policy: gate, model_path: results/gate_replay/gate_l1_mlp.pkl, tau: 0.4122, cooldown_s: 1.0}
+  - {name: random_p05, policy: random, p: 0.05, cooldown_s: 1.0}
+  - {name: gate_l3_q10, policy: gate, model_path: results/gate_replay/gate_l3_mlp.pkl, tau: 0.6011, cooldown_s: 1.0}
+  - {name: gate_l1_q10, policy: gate, model_path: results/gate_replay/gate_l1_mlp.pkl, tau: 0.2884, cooldown_s: 1.0}
+  - {name: random_p10, policy: random, p: 0.10, cooldown_s: 1.0}
+  - {name: threshold_cmin10, policy: threshold, feature: corridor_min, tau: 10.0, below: true, cooldown_s: 1.0}
+  - {name: oracle, policy: oracle}
+  - {name: always, policy: always}
+out: results/sweeps/replay_gates_surrogate
+flight_logs: true
