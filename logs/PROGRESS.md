@@ -183,3 +183,6 @@
 ## 2026-11-23  |  eval, sim  |  obstacle hits no longer labelled scenery; bare-map scan for start poses
 - Advances: M5.4 and input to M4.7. Next: run the scan on the HPC.
 - Sanity check: full pytest 166 passed, 1 failed (pre-existing laptop ImportError).
+## 2026-11-23  |  eval, sim  |  unplaced-object crashes quantified (13 of 188, start poses 0 and 2)
+- Advances: input to M4.7. Next: bare-map scan result (job 41846), then choose replacement start poses.
+- Sanity check: log-only commit; counts from eval.ask_harm on the HPC.

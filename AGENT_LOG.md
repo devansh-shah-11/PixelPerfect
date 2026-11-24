@@ -572,3 +572,12 @@
 - Correction (assistant): the earlier entry's worry that map crashes could be a large share of every policy's crashes is not supported: scenery is a mostly mislabelled class, and box/wall/glass/other candidates are few.
 - Action (laptop): run_episode labels a guard hit "obstacle" when the known geometry has one within 1 m (outcomes unchanged) and stores `guard_hit`; ask_harm.guard_split; eval/pose_clearance.py (bare-map scan, 5 poses x 8 altitudes x 41 distances x 2 passes) with AirSimBackend.empty_map [UNVERIFIED live].
 - Sanity: full pytest 166 passed, 1 failed (pre-existing laptop ImportError).
+
+## 2026-11-23 (session PP)  |  eval, sim  |  13 of 188 crashes hit something we did not place; poses 0 and 2 only
+- Member: PP
+- Run: `eval.ask_harm` guard_split (914ffe4, HPC CPU), 840 surrogate flights on 60 val seeds.
+- Evidence: 55 scenery crashes: 42 on the placed obstacle (guard fired first), 13 elsewhere. Elsewhere by pose: pose 0 three (101015 always, 101020 gate_l3_q05, 101050 gate_l3_q10; three different obstacle families, all end at x=13.0, altitude 3.9 to 6.0 m), pose 2 ten (nine at x 18.5 to 21.5 m, altitude 4.1 to 9.0 m; 101012 at x 1.5 m, 4.5 m), poses 1, 3, 4 none. By policy: gate_l3_q05 1, gate_l1_q05 1, gate_l3_q10 2, gate_l1_q10 1, random_p05 2, random_p10 1, threshold_cmin10 3, always 2; never, oracle, random_p01, random_p02, threshold_far_q05/q10 0.
+- Reading: three flights ending at the same point with different obstacles point to a fixed map object at pose 0, not bad captures. Only policies that climbed after asking hit it, so these crashes count against asking policies and against no matched baseline; the gates' lead over those baselines is if anything understated. Both `always` crashes are of this kind, which explains its 2 crashes and the oracle's safety retained of 1.07. Excluding a flight is not the same as knowing how it would have ended, so no corrected table is given.
+- Impact on labels: a replay fork that asks, climbs and hits the map counts as "asking did not help", so some L3 positives at poses 0 and 2 may be missing. Not quantified.
+- Correction (assistant): estimated about 9 such crashes; the count is 13 (four on poles, wires and glass were hidden in the total).
+- Follow-ups: bare-map scan (job 41846) to confirm; then drop or re-place the bad poses before M4.7 freezes (DS).
