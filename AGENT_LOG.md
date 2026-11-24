@@ -563,3 +563,12 @@
 - Action (laptop): run_episode stores `extra.scenery_hit` (x, alt, window min/median depth, share of pixels below the radius and at zero) when the guard fires; ask_harm prints crashes by collision source and start pose, and x/alt at the end. Flight outcomes unchanged.
 - Correction (assistant): said a corridor clear by 35 to 80 m suggested a crash-detection bug; that field ignores map scenery, so it does not.
 - Sanity: full pytest 164 passed, 1 failed (pre-existing laptop ImportError).
+
+## 2026-11-23 (session PP)  |  eval, sim  |  scenery crashes: mostly placed obstacles; bare-map scan written
+- Member: PP
+- Run: `python -m eval.ask_harm` (b83ca24, HPC CPU), 840 surrogate flights on 60 val seeds (12 per start pose).
+- Evidence (crashes by scenario family, obstacle / scenery, all 14 policies): box_black 13/2, box_grey 6/4, glass 48/1, pole 38/23, wall 0/2, wire_1cm 14/6, wire_3cm 14/17. 46 of 55 scenery crashes are poles and wires; glass, which depth cannot see, has 1 of 49. Never-ask: obstacle 6/1/5/6/5 and scenery 0/2/1/2/1 by pose 0 to 4. 101017, 101027, 101032, 101037 and 101002 (pose 2) end at x 18.5 to 21.5 m, altitude 4 to 9 m; 101012 (pose 2) at x 1.5, 4.5 m; 101050 (pose 0) at x 13, 3.9 m.
+- Reading: most "scenery" labels are the depth guard firing on the placed obstacle just before the geometric check (camera 0.3 m ahead) [inferred, `guard_split` counts it]. Crash counts are then right and only the label was wrong. The pose 2 crashes at similar positions fit map scenery above flight height, but the drone climbs next to obstacles placed at 15 to 25 m, so the clustering alone does not prove it [UNVERIFIED].
+- Correction (assistant): the earlier entry's worry that map crashes could be a large share of every policy's crashes is not supported: scenery is a mostly mislabelled class, and box/wall/glass/other candidates are few.
+- Action (laptop): run_episode labels a guard hit "obstacle" when the known geometry has one within 1 m (outcomes unchanged) and stores `guard_hit`; ask_harm.guard_split; eval/pose_clearance.py (bare-map scan, 5 poses x 8 altitudes x 41 distances x 2 passes) with AirSimBackend.empty_map [UNVERIFIED live].
+- Sanity: full pytest 166 passed, 1 failed (pre-existing laptop ImportError).

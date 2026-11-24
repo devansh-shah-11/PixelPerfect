@@ -37,3 +37,24 @@ def test_cli_runs_on_real_flight_logs(tmp_path, capsys):
     main(["--sweep", str(tmp_path / "s")])
     out = capsys.readouterr().out
     assert "ask t=" in out and "end t=" in out and "flights per policy" in out
+
+
+def test_guard_split_uses_the_last_logged_frame(tmp_path):
+    from eval.ask_harm import guard_split
+    from interfaces import Action, FrameRecord
+
+    def frame(gt, fam):
+        return FrameRecord(episode_id="e", split="val", seed=1, t=1.0, rgb_path="", depth_gt_path="", seg_gt_path="", depth_est_path="",
+                           pose=(1.0, 0.0, -2.0, 0.0), velocity=(0.0, 0.0, 0.0), corridor_min_gt=gt, corridor_min_est=20.0, action_proposed=Action.CONTINUE,
+                           asked=False, vlm_answer=None, vlm_conf=None, vlm_latency_real_s=None, delay_charged_s=0.0, action_taken=Action.CONTINUE,
+                           collision=False, obstacle_family=fam, gate_score=None)
+
+    results, where = [], {}
+    for seed, recs in ((1, [frame(0.8, "pole_10cm_axis_z")]), (2, [frame(40.0, None)]), (3, [])):
+        r = _r(seed, "g", True, 1)
+        r.extra["collision_source"] = "scenery"
+        results.append(r)
+        where[("g", seed)] = tmp_path / f"{seed}.jsonl"
+        where[("g", seed)].write_text("".join(x.to_json() + "\n" for x in recs))
+    lines = guard_split(results, where)
+    assert lines[0].endswith("1 {'g': 1}") and "elsewhere (map or bad capture): 2" in lines[1] and "no log" in "".join(lines)

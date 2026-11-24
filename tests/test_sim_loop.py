@@ -237,7 +237,7 @@ def test_scenery_guard_counts_unspawned_walls_as_crashes():
     sc = scenario()  # no spawned obstacles at all
     _, res = run_episode(sc, WallSim(CAM), TrueDepthStack(), RuleController(), Never(), None, LoopConfig())
     assert res.crashed and res.extra["collision_source"] == "scenery"
-    assert res.extra["scenery_hit"]["depth_min"] < 0.3 and {"x", "alt", "frac_zero", "frac_below_radius"} <= set(res.extra["scenery_hit"])
+    assert res.extra["guard_hit"]["depth_min"] < 0.3 and {"x", "alt", "frac_zero", "frac_below_radius"} <= set(res.extra["guard_hit"])
     _, ok = fly(scenario(Obstacle("box_1m_grey", 15.0, 0.0, 2.0)), TrueDepthStack(), Never())
     assert not ok.crashed and ok.extra["collision_source"] is None
 

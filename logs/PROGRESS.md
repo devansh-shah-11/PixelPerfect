@@ -180,3 +180,6 @@
 ## 2026-11-23  |  eval, sim  |  scenery crashes traced to start poses; guard now records its trigger
 - Advances: M5.4, and input to M4.7 (start pose 2 suspected). Next: per-pose crash table on the HPC; real-VLM smoke run.
 - Sanity check: full pytest 164 passed, 1 failed (pre-existing laptop ImportError).
+## 2026-11-23  |  eval, sim  |  obstacle hits no longer labelled scenery; bare-map scan for start poses
+- Advances: M5.4 and input to M4.7. Next: run the scan on the HPC.
+- Sanity check: full pytest 166 passed, 1 failed (pre-existing laptop ImportError).

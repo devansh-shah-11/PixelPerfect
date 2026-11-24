@@ -55,6 +55,25 @@ def crash_table(results: Sequence[EpisodeResult]) -> list[str]:
     return out
 
 
+def guard_split(results: Sequence[EpisodeResult], where: dict[tuple[str, int], Path], near_m: float = 1.5) -> list[str]:
+    """Split "scenery" crashes using the last logged frame: a placed obstacle within ``near_m`` ahead means the depth guard
+    fired on that obstacle (the camera is 0.3 m ahead of the drone); anything else is the map or a bad capture."""
+    placed, other = Counter(), []
+    for r in results:
+        if not r.crashed or r.extra.get("collision_source") != "scenery":
+            continue
+        log = where[(r.policy, r.seed)]
+        recs = read_flight(log) if log.exists() else []  # empty when the guard fired on the first frame
+        last = recs[-1] if recs else None
+        if last is not None and last.obstacle_family and last.corridor_min_gt < near_m:
+            placed[r.policy] += 1
+        else:
+            end = "no log" if last is None else f"x={last.pose[0]:.1f} alt={-last.pose[2]:.1f} {getattr(last.action_taken, 'name', last.action_taken)}"
+            other.append(f"  {r.seed} {r.policy} pose {r.extra.get('start_index')} {r.obstacle_family} calls {r.n_calls} {end}")
+    return [f"scenery crashes on the placed obstacle (guard fired first): {sum(placed.values())} {dict(placed)}",
+            f"scenery crashes elsewhere (map or bad capture): {len(other)}", *sorted(other)]
+
+
 def ask_lines(records: Sequence[FrameRecord]) -> list[str]:
     """One line per ask, then the last frames before the crash."""
     out = []
@@ -83,6 +102,7 @@ def main(argv: list[str] | None = None) -> None:
     if not d["base"]:
         raise SystemExit(f"no {a.never!r} flights in the given sweeps")
     print("\n".join(crash_table(results)) + "\n")
+    print("\n".join(guard_split(results, where)) + "\n")
     fc = sum(not d["base"][r.seed].crashed for r in d["flips"])
     print(f"zero-call flights: {len(d['zero'])}; ended unlike {a.never}: {len(d['flips'])} "
           f"(safe seeds that crashed {fc} of {len(d['zero_safe'])}, crash seeds that survived {len(d['flips']) - fc} of {len(d['zero_crash'])})")

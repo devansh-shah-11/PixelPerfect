@@ -127,6 +127,14 @@ class AirSimBackend:
                 pass
         self._world.continue_for_sim_time(3 * ct.STEP_NS)  # let spawns land before the first frame
 
+    def empty_map(self, start: Sequence[float]) -> None:
+        """Remove every spawned obstacle and fly from ``start`` ([x, y, yaw_deg, ...]): the bare map, for pose checks."""
+        self._connect()
+        self._clear()
+        self.scenario, self.boxes = None, []
+        self.start, self.start_index = (float(start[0]), float(start[1]), math.radians(float(start[2]))), None
+        self._world.continue_for_sim_time(3 * self._ct.STEP_NS)
+
     def observe(self, state: KinematicState) -> Observation:
         ct = self._ct
         wx, wy, wz, wyaw = path_to_world(state.x, state.y, state.z, state.yaw, self.start)
