@@ -36,4 +36,4 @@ def test_cli_runs_on_real_flight_logs(tmp_path, capsys):
     p.write_text("".join(json.dumps(r) + "\n" for r in rows))
     main(["--sweep", str(tmp_path / "s")])
     out = capsys.readouterr().out
-    assert "ask t=" in out and "end t=" in out
+    assert "ask t=" in out and "end t=" in out and "flights per policy" in out

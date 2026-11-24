@@ -177,3 +177,6 @@
 ## 2026-11-23  |  eval  |  tool to separate simulator noise from ask-caused crashes
 - Advances: M5.4 (crash analysis). Blocked: real-VLM smoke run (A100 nodes not booting).
 - Sanity check: full pytest 164 passed, 1 failed (pre-existing laptop ImportError).
+## 2026-11-23  |  eval, sim  |  scenery crashes traced to start poses; guard now records its trigger
+- Advances: M5.4, and input to M4.7 (start pose 2 suspected). Next: per-pose crash table on the HPC; real-VLM smoke run.
+- Sanity check: full pytest 164 passed, 1 failed (pre-existing laptop ImportError).

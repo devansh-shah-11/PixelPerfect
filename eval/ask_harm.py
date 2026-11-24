@@ -37,6 +37,24 @@ def split_flights(results: Sequence[EpisodeResult], never: str = "never") -> dic
             "asked_safe_n": len(safe_asked), "asked_safe_crashed": sum(r.crashed for r in safe_asked)}
 
 
+def crash_table(results: Sequence[EpisodeResult]) -> list[str]:
+    """Crashes by collision source and start pose, per policy and in total. A pose whose crashes are mostly "scenery" is suspect."""
+    pose = lambda r: r.extra.get("start_index")  # noqa: E731
+    poses = sorted({pose(r) for r in results}, key=str)
+    out = ["policy             source    " + " ".join(f"pose {p}" for p in poses)]
+    for name in dict.fromkeys(r.policy for r in results):
+        rs = [r for r in results if r.policy == name]
+        for src in sorted({str(r.extra.get("collision_source")) for r in rs if r.crashed}):
+            hits = Counter(pose(r) for r in rs if r.crashed and str(r.extra.get("collision_source")) == src)
+            out.append(f"{name:18s} {src:9s} " + " ".join(f"{hits.get(p, 0):6d}" for p in poses))
+    flown = Counter(pose(r) for r in results if r.policy == results[0].policy)
+    out.append(f"{'flights per policy':18s} {'':9s} " + " ".join(f"{flown.get(p, 0):6d}" for p in poses))
+    fams = Counter((r.obstacle_family, str(r.extra.get("collision_source"))) for r in results if r.crashed)
+    out += ["", "crashes by obstacle in the scenario and collision source (all policies):"]
+    out += [f"  {f or 'none':26s} " + " ".join(f"{src}:{n}" for (g, src), n in sorted(fams.items(), key=str) if g == f) for f in sorted({k[0] for k in fams}, key=str)]
+    return out
+
+
 def ask_lines(records: Sequence[FrameRecord]) -> list[str]:
     """One line per ask, then the last frames before the crash."""
     out = []
@@ -47,7 +65,7 @@ def ask_lines(records: Sequence[FrameRecord]) -> list[str]:
                        f"next 2 s: {', '.join(f'{k} {v}' for k, v in after.most_common())}")
     for r in records[-3:]:
         out.append(f"    end t={r.t:.1f} action={getattr(r.action_taken, 'name', r.action_taken)} corridor gt={r.corridor_min_gt:.1f} est={r.corridor_min_est:.1f} "
-                   f"yaw={r.pose[3]:.2f} y={r.pose[1]:.1f} collision={r.collision}")
+                   f"x={r.pose[0]:.1f} alt={-r.pose[2]:.1f} yaw={r.pose[3]:.2f}")
     return out
 
 
@@ -64,13 +82,14 @@ def main(argv: list[str] | None = None) -> None:
     d = split_flights(results, a.never)
     if not d["base"]:
         raise SystemExit(f"no {a.never!r} flights in the given sweeps")
+    print("\n".join(crash_table(results)) + "\n")
     fc = sum(not d["base"][r.seed].crashed for r in d["flips"])
     print(f"zero-call flights: {len(d['zero'])}; ended unlike {a.never}: {len(d['flips'])} "
           f"(safe seeds that crashed {fc} of {len(d['zero_safe'])}, crash seeds that survived {len(d['flips']) - fc} of {len(d['zero_crash'])})")
     print("  flips: " + ", ".join(f"{r.seed}/{r.policy}" for r in d["flips"]))
     print(f"flights with calls on seeds {a.never} survives (references left out): {d['asked_safe_n']}, crashed {d['asked_safe_crashed']}")
     for r in sorted(d["candidates"], key=lambda r: (r.seed, r.policy)):
-        print(f"\n{r.seed} {r.policy}: {r.obstacle_family}, {r.n_calls} calls, crashed at {r.mission_time_s:.1f} s into {r.extra.get('collision_source')}")
+        print(f"\n{r.seed} {r.policy}: {r.obstacle_family}, pose {r.extra.get('start_index')}, {r.n_calls} calls, crashed at {r.mission_time_s:.1f} s into {r.extra.get('collision_source')}")
         log = where[(r.policy, r.seed)]
         print("\n".join(ask_lines(read_flight(log))[-9:]) if log.exists() else "    no flight log")
 

@@ -109,7 +109,7 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
 
     from perception.depth_utils import corridor_window
 
-    collision_source = None
+    collision_source, scenery = None, None
     for k in range(0 if resume is None else resume.k, int(math.ceil(cfg.t_max / cfg.dt)) + 1):
         if snapshots is not None:
             snapshots.append(ForkPoint(k, state, copy.deepcopy(controller), copy.deepcopy(temporal), avoid_until, distance))
@@ -118,8 +118,13 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
         # buildings, so a ground-truth surface closer than the drone's radius straight ahead also counts as a crash
         # (one step late at most; the camera sits about 0.3 m ahead of the drone origin, job 33776).
         rows, cols = corridor_window(obs.depth.shape)
-        if float(np.min(obs.depth[rows, cols])) < params.radius:
+        window = obs.depth[rows, cols]
+        if float(np.min(window)) < params.radius:
             crashed, collision_source = True, "scenery"
+            # what triggered it: a real surface fills part of the window, a bad capture shows up as zeros (analysis only)
+            scenery = {"x": round(state.x, 2), "alt": round(state.alt, 2), "depth_min": round(float(np.min(window)), 3),
+                       "depth_median": round(float(np.median(window)), 2), "frac_below_radius": round(float(np.mean(window < params.radius)), 4),
+                       "frac_zero": round(float(np.mean(window <= 0.0)), 4), "image_depth_median": round(float(np.median(obs.depth)), 2)}
             break
         est = stack.perceive_obs(obs, state, sim)
         feats = temporal.update(est.features, state.position)  # change per metre flown: same scale as the bank
@@ -190,6 +195,8 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
         extra={"stack": getattr(stack, "name", type(stack).__name__), "backend": getattr(sim, "name", type(sim).__name__),
                "delay_s": cfg.delay_s, "condition": scenario.condition, "collision_source": collision_source,
                "start_index": getattr(sim, "start_index", None)})
+    if scenery is not None:
+        result.extra["scenery_hit"] = scenery
     if image_ms:  # wall-clock cost of the gate's image features per frame (PLAN_DETAILED.md §4.2 budget: under 1 ms)
         result.extra["image_features_ms"] = {"median": round(float(np.median(image_ms)), 3), "p95": round(float(np.percentile(image_ms, 95)), 3)}
     return records, result

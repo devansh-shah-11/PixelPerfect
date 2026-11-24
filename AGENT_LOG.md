@@ -553,3 +553,13 @@
 - Correction (assistant): told the user the second node was booting; it was the 17th attempt. Should have checked `sacct --duplicates` first.
 - Action (laptop): eval/ask_harm.py + tests/test_ask_harm.py: zero-call flights against never-ask (simulator noise) and per-ask detail of crashes on seeds never-ask survives.
 - Sanity: full pytest 164 passed, 1 failed (pre-existing laptop ImportError).
+
+## 2026-11-23 (session PP)  |  eval, sim  |  crashes on never-safe seeds are all "scenery"; start pose 2 suspected
+- Member: PP
+- Run: `python -m eval.ask_harm` (d8adea5, HPC CPU) on results/sweeps/replay_gates_surrogate and _extra. Surrogate VLM, 60 val seeds.
+- Evidence: 233 zero-call flights, 2 ended unlike never-ask (both safe seeds that crashed: 101019 and 101054, random_p01; 2 of 118 safe, 0 of 115 crash seeds). 231 flights with calls on seeds never survives (references left out), 7 crashed. Those 7 plus always/101012 all have collision_source "scenery", none "obstacle". Six of the 8 seeds are start pose 2 (seed % 5; pose 50,-150,90 deg); 5 of those 6 were climbing at the end (101002 was flying on). The scenario corridor distance (spawned boxes and ground only, not map scenery) was 37 to 82 m in seven of them (101012: 13.9 m).
+- Reading: 7 of 231 is 3.0% against 2 of 118 (1.7%) noise; at these counts no harm from asking is shown. Map scenery near pose 2 reached when the drone climbs fits the pattern [UNVERIFIED]; a bad depth capture (zeros) is the other candidate and could explain the poses 0 and 4 cases [UNVERIFIED]. The guard also fires on placed obstacles, because the camera sits 0.3 m ahead of the drone (it can trigger up to 0.3 m before our geometric check), so "scenery" does not by itself mean the map.
+- Impact if pose 2 is at fault: some crashes in every policy of this scenario, replay labels included, would be map crashes rather than depth misses. Not quantified; needs the per-pose table.
+- Action (laptop): run_episode stores `extra.scenery_hit` (x, alt, window min/median depth, share of pixels below the radius and at zero) when the guard fires; ask_harm prints crashes by collision source and start pose, and x/alt at the end. Flight outcomes unchanged.
+- Correction (assistant): said a corridor clear by 35 to 80 m suggested a crash-detection bug; that field ignores map scenery, so it does not.
+- Sanity: full pytest 164 passed, 1 failed (pre-existing laptop ImportError).
