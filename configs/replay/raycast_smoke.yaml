@@ -1,0 +1,13 @@
+# Laptop check of replay labels (M6.1 / M6.3) on the Plan B raycast backend, BLIND stand-in fast stack,
+# SURROGATE VLM judge. Not a result: it shows the forking and the labels work end to end.
+#   python -m eval.replay --config configs/replay/raycast_smoke.yaml
+backend: raycast
+stack: blind
+judge: surrogate
+judge_kw: {default_tpr: 0.8, default_fpr: 0.05, seed: 0}
+delay_s: 1.0
+horizon_s: 3.0
+every: 1
+split: train
+seeds: {file: configs/seeds.yaml, n: 10}
+out: results/replay/raycast_smoke_surrogate

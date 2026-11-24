@@ -1,0 +1,26 @@
+# Replay labels on Project AirSim (M6.3): Depth Anything V2-Small fast stack, SURROGATE VLM judge at the 8B's
+# measured rates on depth's misses (recall 0.80, false alarms 0.14; results/benchmark.md). Train seeds: these
+# labels are training data for gate-L3. Scenario and starts copied from airsim_headroom.yaml (M4.7), which is
+# not tuned yet, so these labels are a first look, not the final set. Real-VLM answers come with M6.2.
+#   sbatch --time=02:00:00 --export=ALL,PA_ENV=/scratch/dns5508/envs/pa,CMD="python -m eval.replay --config configs/replay/airsim_da2_surrogate.yaml" hpc/airsim_job.sbatch
+# Resumable per seed: resubmit the same line if the job runs out of time.
+# Cost: about 0.22 s per step (M4.2); a crashing flight forks about horizon/dt / every frames of (horizon + d)/dt steps.
+starts: &starts
+  - [150.0, 150.0, 0.0, 145.0]
+  - [-150.0, 50.0, 180.0, 140.0]
+  - [50.0, -150.0, 90.0, 120.0]
+  - [-50.0, -150.0, 270.0, 120.0]
+  - [150.0, -150.0, 0.0, 80.0]
+backend: airsim
+backend_kw: {configs: "${PP_SIM_CONFIGS}", scene_file: scene_cap_400.jsonc, starts: *starts}
+stack: da2
+judge: surrogate
+judge_kw: {default_tpr: 0.80, default_fpr: 0.14, seed: 0}
+delay_s: 1.0
+horizon_s: 3.0
+every: 2
+split: train
+seeds: {file: configs/seeds.yaml, n: 20}
+scenario: {goal_m: 40.0, first_obstacle_m: [15.0, 25.0], n_obstacles: [1, 1], alt_range_m: [1.8, 2.2]}
+loop: {t_max: 60.0}
+out: results/replay/airsim_da2_surrogate

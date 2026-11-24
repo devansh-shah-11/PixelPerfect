@@ -1,0 +1,18 @@
+# Project AirSim smoke test (HPC): 5 true-depth flights to check the backend end to end. No freeze needed:
+# the seeds are outside the train/val/test lists. Run with:
+#   sbatch --export=ALL,PA_ENV=/scratch/dns5508/envs/pa,CMD="python -m eval.sweep --config configs/sweeps/airsim_smoke.yaml" hpc/airsim_job.sbatch
+# Start pose: DS's CityEnviron scene scan, best suggestion (x 150, y -150, z -2, all four yaws open, min clearance 24.9 m).
+# Flights are 20 m so they stay inside that clearance; any crash with extra.collision_source == "scenery" means they did not.
+backend: airsim
+backend_kw: {configs: "${PP_SIM_CONFIGS}", scene_file: scene_cap_400.jsonc, start: [150.0, -150.0, 0.0]}
+stack: true-depth
+judge: none
+delay_s: 1.0
+split: smoke
+seeds: [1, 2, 3, 4, 5]
+scenario: {goal_m: 20.0, first_obstacle_m: [9.0, 12.0], n_obstacles: [1, 1], alt_range_m: [1.8, 2.2]}
+loop: {t_max: 30.0}
+policies:
+  - {name: never, policy: never}
+out: results/sweeps/airsim_smoke
+flight_logs: true

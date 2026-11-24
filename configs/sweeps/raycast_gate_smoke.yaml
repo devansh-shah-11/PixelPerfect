@@ -1,0 +1,23 @@
+# Laptop plumbing check for the learned gate in the flight loop (M5.1 / M5.3): Plan B raycast backend, BLIND
+# synthetic stand-in, SURROGATE VLM judge. Not a result: the stand-in imitates Depth Anything V2 and the raycast
+# RGB is not the bank's RGB, so the gate's inputs are off-distribution here; this only shows the wiring works.
+# Images at the bank's 400 x 225, so the image-feature timing (extra.image_features_ms) matches the real size.
+# Needs the gate pickle first (pickles are gitignored; same command on laptop or HPC, about 10 s on CPU):
+#   python -m gate.train --run results/bank_runs/da2_small.jsonl --gt results/bank_runs/bank_gt.jsonl \
+#       --image-features results/bank_runs/image_features.jsonl --models mlp --out results/gate
+#   python -m eval.sweep --config configs/sweeps/raycast_gate_smoke.yaml
+# tau 0.256: the cut at 10% false alarms on the TRAIN frames for mlp/depth+temporal+image (val 0.552 / 0.109).
+backend: raycast
+backend_kw: {width: 400, height: 225}
+stack: blind
+judge: surrogate
+judge_kw: {default_tpr: 0.8, default_fpr: 0.05, seed: 0}
+delay_s: 1.0
+split: val
+seeds: {file: configs/seeds.yaml, n: 10}  # the first 10 val seeds
+policies:
+  - {name: never, policy: never}
+  - {name: gate_mlp, policy: gate, model_path: results/gate/gate_mlp_depth+temporal+image.pkl, tau: 0.256, cooldown_s: 0.5}
+  - {name: oracle, policy: oracle, cooldown_s: 0.5}
+out: results/sweeps/raycast_gate_smoke
+flight_logs: false

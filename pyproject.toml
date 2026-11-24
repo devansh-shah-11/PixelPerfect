@@ -1,0 +1,34 @@
+[project]
+name = "pixelperfect"
+version = "0.1.0"
+description = "Gated fast/slow perception for a simulated drone (NYU CV, Fall 2026)"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "pyyaml>=6.0",
+    "pillow>=10",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "scikit-learn>=1.3"]
+gate = ["scikit-learn>=1.3"]
+perception = ["torch>=2.2", "transformers>=4.45"]
+# Qwen3-VL needs transformers with the qwen3_vl architecture (4.57+); accelerate for device
+# placement; torchvision because AutoProcessor also builds Qwen3VLVideoProcessor (job 33329 failed without it).
+vlm = ["torch>=2.2", "torchvision>=0.17", "transformers>=4.57", "accelerate>=0.30"]
+# Quantized judge variants (D22): model specs ending in @4bit / @8bit. CUDA only, so kept out of ``vlm``
+# and installed on the HPC: pip install -e ".[dev,vlm,quant]". [UNVERIFIED with Qwen3-VL until the A100 job runs.]
+quant = ["bitsandbytes>=0.43"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["interfaces"]
+
+[tool.setuptools.packages.find]
+include = ["sim*", "perception*", "control*", "gate*", "vlm*", "policies*", "eval*", "demo*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

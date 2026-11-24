@@ -1,0 +1,34 @@
+# Flight side of the benchmark table (eval.benchmark --flights): depth only, VLM only, depth + VLM, per VLM variant.
+# One config, one run per system, chosen with --set (each run needs its own out directory):
+#   depth only + depth+VLM (8B):   CMD="python -m eval.sweep --config configs/sweeps/airsim_bench.yaml"
+#   VLM only (8B):                 ... --set stack=clear --set out=results/sweeps/bench_clear_8b
+#   another variant:               ... --set judge_kw.model_id=Qwen/Qwen3-VL-8B-Instruct@4bit --set judge_kw.tau=<its val cut> --set out=results/sweeps/bench_da2_8b-4bit
+# "never" is the system without the VLM (depth only; with stack=clear it is the no-perception floor).
+# "always" asks every 0.5 s: with stack=da2 that is depth + VLM, with stack=clear it is VLM only.
+# judge_kw.tau is the cut on the confidence, tuned on val frames for that model and prompt (results/vlm_eval.report.md);
+# 0.0 is a placeholder and must be replaced before the numbers mean anything.
+# NOT RUNNABLE AS A RESULT until M4.7 passes (start poses checked, difficulty tuned on val). Val seeds only.
+# Start poses [x, y, yaw_deg, clear_m]: the five longest open corridors in DS's CityEnviron scene scan (job 16300,
+# results.json 400px.scene_scan.rows, corridor_min_m at z = -2). A flight uses pose seed % 5 (D24).
+# [UNVERIFIED] until airsim_starts_smoke.yaml flies each with no "scenery" crash: the scan looked straight ahead from one spot.
+starts: &starts
+  - [150.0, 150.0, 0.0, 145.0]
+  - [-150.0, 50.0, 180.0, 140.0]
+  - [50.0, -150.0, 90.0, 120.0]
+  - [-50.0, -150.0, 270.0, 120.0]
+  - [150.0, -150.0, 0.0, 80.0]
+backend: airsim
+backend_kw: {configs: "${PP_SIM_CONFIGS}", scene_file: scene_cap_400.jsonc, starts: *starts}
+stack: da2
+judge: qwen
+judge_kw: {model_id: Qwen/Qwen3-VL-8B-Instruct, prompt_key: cross, tau: 0.0}
+delay_s: 1.0
+split: val
+seeds: {file: configs/seeds.yaml, n: 100}
+scenario: {goal_m: 40.0, first_obstacle_m: [15.0, 25.0], n_obstacles: [1, 1], alt_range_m: [1.8, 2.2]}
+loop: {t_max: 60.0}
+policies:
+  - {name: never, policy: never}
+  - {name: always, policy: always, cooldown_s: 0.5}
+out: results/sweeps/bench_da2_8b
+flight_logs: false

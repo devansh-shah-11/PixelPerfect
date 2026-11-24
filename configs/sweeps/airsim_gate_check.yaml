@@ -1,0 +1,31 @@
+# Gate check on Project AirSim (HPC, A100): does the learned gate react to real renders? NOT A RESULT.
+# On the raycast backend the gate never fired because its flat-shaded RGB is far from the bank's
+# (AGENT_LOG 2026-11-20). This flies 5 val seeds with the real fast stack and the 8B judge and keeps the
+# per-frame flight logs (gate_score, corridor_min_gt / _est, asked, vlm_answer), so we can see whether
+# the score rises near obstacles. Difficulty is not tuned yet (M4.7), so the crash numbers mean nothing.
+# Settings copied from DS's airsim_bench.yaml (start poses, scenario, 8B judge with its val cut).
+# Needs the gate pickle at results/gate/ (gate.train on the committed bank files, val AUROC 0.829).
+#   sbatch --time=00:45:00 --export=ALL,PA_ENV=/scratch/dns5508/envs/pa,HF_HOME=/scratch/$USER/hf,CMD="python -m eval.sweep --config configs/sweeps/airsim_gate_check.yaml" hpc/airsim_job.sbatch
+starts: &starts
+  - [150.0, 150.0, 0.0, 145.0]
+  - [-150.0, 50.0, 180.0, 140.0]
+  - [50.0, -150.0, 90.0, 120.0]
+  - [-50.0, -150.0, 270.0, 120.0]
+  - [150.0, -150.0, 0.0, 80.0]
+backend: airsim
+backend_kw: {configs: "${PP_SIM_CONFIGS}", scene_file: scene_cap_400.jsonc, starts: *starts}
+stack: da2
+judge: qwen
+# 8B, default question, both images; cut -4.02 = its val cut at d_safe 8 m (results/benchmark.md).
+judge_kw: {model_id: Qwen/Qwen3-VL-8B-Instruct, prompt_key: cross, tau: -4.02}
+delay_s: 1.0
+split: val
+seeds: {file: configs/seeds.yaml, n: 5}  # the first 5 val seeds: one per start pose
+scenario: {goal_m: 40.0, first_obstacle_m: [15.0, 25.0], n_obstacles: [1, 1], alt_range_m: [1.8, 2.2]}
+loop: {t_max: 60.0}
+policies:
+  # tau 0.256: the gate's cut at 10% false alarms on train frames (val recall 0.552, FPR 0.109).
+  - {name: gate_mlp, policy: gate, model_path: results/gate/gate_mlp_depth+temporal+image.pkl, tau: 0.256, cooldown_s: 0.5}
+  - {name: never, policy: never}
+out: results/sweeps/gate_check_airsim
+flight_logs: true

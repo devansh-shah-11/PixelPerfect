@@ -1,0 +1,366 @@
+"""Tests for the closed loop: geometry, drone, scenarios and seeds, controller, raycast backend, flight loop, sweep (M4)."""
+from __future__ import annotations
+
+import json
+import math
+from dataclasses import replace
+
+import numpy as np
+import pytest
+import yaml
+
+from control.rules import RuleController
+from eval.run_episode import LoopConfig, run_episode
+from interfaces import Action, Controller, DepthEstimate, DroneState
+from perception.depth_utils import corridor_features
+from perception.frame_bank import OBSTACLE_SEG_RGB
+from perception.stand_ins import BlindStack, TrueDepthStack
+from policies.base import Always, Never, Oracle
+from sim.drone import DroneParams, KinematicState, hold, step
+from sim.geometry import OBB, hits_ground, ray_ground, ray_obb, segment_hits
+from sim.raycast import Camera, RaycastSim, corridor_truth
+from sim.scenario import Obstacle, Scenario, generate, half_extents, load_seed_lists, seed_lists, write_seed_lists
+from vlm.surrogate import SurrogateJudge
+
+CAM = Camera(160, 90)
+
+
+def scenario(*obstacles: Obstacle, alt=2.0, goal=40.0, seed=1, split="val") -> Scenario:
+    return Scenario(seed=seed, split=split, alt_m=alt, speed_mps=5.0, goal_m=goal, condition="clear", obstacles=list(obstacles))
+
+
+# ---- geometry ------------------------------------------------------------------------------
+
+
+def test_ray_box_and_ground():
+    box = OBB(center=(10.0, 0.0, -2.0), half=(0.5, 0.5, 0.5))
+    dirs = np.array([[1.0, 0, 0], [0, 1.0, 0], [-1.0, 0, 0]])
+    t = ray_obb(np.array([0.0, 0, -2.0]), dirs, box)
+    assert t[0] == pytest.approx(9.5) and np.isinf(t[1]) and np.isinf(t[2])
+    rotated = OBB(center=(10.0, 0.0, -2.0), half=(0.5, 0.5, 0.5), yaw=math.pi / 4)
+    assert ray_obb(np.array([0.0, 0, -2.0]), dirs[:1], rotated)[0] == pytest.approx(10 - 0.5 * math.sqrt(2), abs=1e-6)
+    g = ray_ground(np.array([0.0, 0, -2.0]), np.array([[1.0, 0, 1.0]]) / math.sqrt(2))
+    assert g[0] == pytest.approx(2 * math.sqrt(2))
+
+
+def test_swept_collision_catches_thin_wires_and_vertical_moves():
+    wire = OBB(center=(10.0, 0.0, -2.0), half=(0.005, 3.0, 0.005))  # 1 cm wire across the path
+    assert segment_hits(np.array([9.8, 0, -2.0]), np.array([10.3, 0, -2.0]), wire, 0.3)  # passes through within one step
+    assert not segment_hits(np.array([9.8, 0, -3.0]), np.array([10.3, 0, -3.0]), wire, 0.3)  # 1 m above: clear
+    box = OBB(center=(10.0, 0.0, -2.0), half=(0.5, 0.5, 0.5))
+    # Regression: a vertical step parallel to two slabs and far outside them must not collide.
+    assert not segment_hits(np.array([2.0, 0, -2.0]), np.array([2.0, 0, -2.2]), box, 0.3)
+    assert segment_hits(np.array([10.0, 0, -4.0]), np.array([10.0, 0, -2.0]), box, 0.3)
+    assert hits_ground(np.array([0, 0, -0.5]), np.array([0, 0, -0.2]), 0.3) and not hits_ground(np.array([0, 0, -1.0]), np.array([0, 0, -1.0]), 0.3)
+
+
+# ---- drone and controller -------------------------------------------------------------------
+
+
+def test_drone_actions():
+    p = DroneParams(v=5.0, climb_rate=2.0, alt_max=4.0)
+    s = KinematicState(t=0.0, x=0.0, y=0.0, z=-2.0, yaw=0.0, speed=0.0)
+    s1 = step(s, Action.CONTINUE, 0.1, p)
+    assert (s1.x, s1.t, s1.speed) == (pytest.approx(0.5), pytest.approx(0.1), 5.0)
+    s2 = step(s, Action.CLIMB, 0.1, p)
+    assert s2.alt == pytest.approx(2.2) and s2.x == 0.0
+    top = step(replace(s, z=-3.95), Action.CLIMB, 0.1, p)
+    assert top.alt == pytest.approx(4.0)  # capped
+    r = step(s, Action.YAW_RIGHT, 0.1, p)
+    assert r.yaw == pytest.approx(math.radians(4.5)) and r.x == 0.0  # turns in place, NED positive yaw is right
+    assert step(s1, Action.STOP, 0.1, p).x == pytest.approx(0.5)
+    h = hold(s1, 1.0)
+    assert h.t == pytest.approx(1.1) and h.x == s1.x and h.speed == 0.0
+
+
+def est(cm: float, w: int = 40) -> DepthEstimate:
+    d = np.full((20, w), cm, np.float32)
+    return DepthEstimate(depth=d, features=corridor_features(d))
+
+
+def test_controller_hysteresis_and_cap():
+    c = RuleController(d_safe=8.0, hysteresis=2.0, alt_max=10.0)
+    assert isinstance(c, Controller)
+    s = DroneState(t=0, position=(0, 0, -2.0), yaw=0.0, speed=5.0)
+    assert c.act(est(20.0), s) == Action.CONTINUE
+    assert c.act(est(7.0), s) == Action.CLIMB
+    assert c.act(est(9.0), s) == Action.CLIMB  # still blocked until above 10 m
+    assert c.act(est(10.5), s) == Action.CONTINUE
+    top = DroneState(t=0, position=(0, 0, -9.5), yaw=0.0, speed=5.0)
+    d = np.full((20, 40), 5.0, np.float32)
+    d[:, 20:] = 30.0  # more room on the right
+    assert c.act(DepthEstimate(depth=d, features=corridor_features(d)), top) == Action.YAW_RIGHT
+    off = DroneState(t=0, position=(0, 0, -2.0), yaw=-0.5, speed=5.0)
+    assert c.act(est(50.0), off) == Action.YAW_RIGHT  # steer back to the goal bearing
+
+
+# ---- scenarios and seeds ---------------------------------------------------------------------
+
+
+def test_scenarios_are_deterministic_and_respect_holdout():
+    from sim.scenario import ScenarioConfig
+
+    assert generate(5, "val").to_json() == generate(5, "val").to_json()
+    assert generate(5, "val").to_json() != generate(6, "val").to_json()
+    cfg = ScenarioConfig(holdout_family="wire_1cm_axis_z")
+    train = [o.family for s in range(300) for o in generate(s, "train", cfg).obstacles]
+    val = [o.family for s in range(300) for o in generate(s, "val", cfg).obstacles]
+    assert "wire_1cm_axis_z" not in train and "wire_1cm_axis_z" in val
+    assert half_extents("wire_1cm_axis_z") == (0.005, 3.0, 0.005)  # horizontal bar across the path
+    assert half_extents("glass_pane_alpha20") == (0.025, 1.25, 1.5)  # facing the camera
+    sc = generate(5, "val")
+    assert Scenario.from_dict(json.loads(sc.to_json())).to_json() == sc.to_json()
+
+
+def test_seed_lists_freeze(tmp_path):
+    lists = seed_lists(10, 5, 5)
+    path = tmp_path / "seeds.yaml"
+    write_seed_lists(path, lists)
+    assert load_seed_lists(path) == lists
+    with pytest.raises(FileExistsError):
+        write_seed_lists(path, lists)
+    d = yaml.safe_load(path.read_text())
+    d["val"][0] = d["train"][0]  # tamper
+    path.write_text(yaml.safe_dump(d))
+    with pytest.raises(ValueError):
+        load_seed_lists(path)
+
+
+# ---- raycast backend -------------------------------------------------------------------------
+
+
+def test_raycast_depth_seg_and_glass():
+    sim = RaycastSim(CAM)
+    sim.reset(scenario(Obstacle("box_1m_grey", 10.0, 0.0, 2.0), Obstacle("glass_pane_alpha20", 5.0, 0.0, 2.0)))
+    s = KinematicState(t=0, x=0, y=0, z=-2.0, yaw=0.0, speed=0)
+    obs = sim.observe(s)
+    h, w = obs.depth.shape
+    assert obs.depth[h // 2, w // 2] == pytest.approx(9.5, abs=0.05)  # sees the box *through* the glass, like Project AirSim
+    assert (obs.seg[h // 2, w // 2] == OBSTACLE_SEG_RGB).all()
+    assert obs.depth[0, w // 2] > 1000  # sky saturated
+    d, fam = corridor_truth(s, sim.boxes, CAM)
+    assert d == pytest.approx(4.975, abs=0.05) and fam == "glass_pane_alpha20"  # labels use the true geometry
+    plain = RaycastSim(CAM)
+    plain.reset(scenario(Obstacle("box_1m_grey", 10.0, 0.0, 2.0)))
+    assert not np.array_equal(obs.rgb, plain.observe(s).rgb)  # the pane tints the image
+
+
+# ---- flight loop -----------------------------------------------------------------------------
+
+
+def fly(sc, stack, policy, judge=None, delay=1.0, **kw):
+    return run_episode(sc, RaycastSim(CAM), stack, RuleController(), policy, judge, LoopConfig(delay_s=delay, **kw))
+
+
+def test_true_depth_climbs_over_and_reaches_goal():
+    recs, res = fly(scenario(Obstacle("box_1m_grey", 15.0, 0.0, 2.0)), TrueDepthStack(), Never())
+    assert not res.crashed and res.reached_goal and res.n_calls == 0
+    assert any(r.action_taken == Action.CLIMB for r in recs)
+
+
+def test_true_depth_avoids_glass_the_camera_cannot_see():
+    _, res = fly(scenario(Obstacle("glass_pane_alpha20", 15.0, 0.0, 2.0)), TrueDepthStack(), Never())
+    assert not res.crashed and res.reached_goal
+
+
+def test_blind_stack_crashes_and_the_asking_loop_saves_it():
+    sc = scenario(Obstacle("pole_10cm_axis_z", 15.0, 0.0, 2.0))
+    _, never = fly(sc, BlindStack(), Never())
+    assert never.crashed and never.obstacle_family == "pole_10cm_axis_z"
+    perfect = SurrogateJudge(default_tpr=1.0, default_fpr=0.0)
+    _, timed_out = fly(sc, BlindStack(), Always(cooldown_s=0.0), perfect)
+    assert not timed_out.crashed and not timed_out.reached_goal  # 1 s per frame: safe, but out of mission time (t_max 60 s)
+    recs, always = fly(sc, BlindStack(), Always(cooldown_s=0.0), perfect, t_max=300.0)
+    assert not always.crashed and always.reached_goal
+    assert always.n_calls == len(recs) and always.delay_charged_s == pytest.approx(always.n_calls * 1.0)
+    assert always.mission_time_s > never.mission_time_s  # asking costs time (brake and hold)
+    _, oracle = fly(sc, BlindStack(), Oracle(), perfect)
+    assert not oracle.crashed and 0 < oracle.n_calls < always.n_calls / 4  # asks only when the fast stack is wrong
+
+
+def test_flights_replay_exactly_and_delay_must_be_positive():
+    sc = generate(100_501, "val")
+    judge = lambda: SurrogateJudge(default_tpr=0.7, default_fpr=0.1, seed=3)  # noqa: E731
+    a, ra = fly(sc, BlindStack(), Always(cooldown_s=0.5), judge())
+    b, rb = fly(sc, BlindStack(), Always(cooldown_s=0.5), judge())
+    strip = lambda rs: [{**json.loads(r.to_json()), "vlm_latency_real_s": None} for r in rs]  # noqa: E731
+    assert strip(a) == strip(b) and ra.to_json() == rb.to_json()
+    with pytest.raises(ValueError):
+        LoopConfig(delay_s=0.0)
+
+
+def test_sweep_resumes_and_reports(tmp_path):
+    from eval.sweep import main as sweep_main
+
+    cfg = {"backend": "raycast", "backend_kw": {"width": 120, "height": 68}, "stack": "blind", "judge": "surrogate",
+           "judge_kw": {"default_tpr": 0.9, "default_fpr": 0.05}, "delay_s": 1.0, "split": "val", "seeds": list(range(100_500, 100_504)),
+           "policies": [{"name": "never", "policy": "never"}, {"name": "always", "policy": "always", "cooldown_s": 0.5},
+                        {"name": "random5", "policy": "random", "p": 0.05, "cooldown_s": 0.5}],
+           "out": str(tmp_path / "sweep"), "flight_logs": True}
+    path = tmp_path / "cfg.yaml"
+    path.write_text(yaml.safe_dump(cfg))
+    sweep_main(["--config", str(path), "--no-log"])
+    lines = (tmp_path / "sweep" / "results.jsonl").read_text().splitlines()
+    assert len(lines) == 12
+    sweep_main(["--config", str(path), "--no-log"])  # resume: nothing new
+    assert len((tmp_path / "sweep" / "results.jsonl").read_text().splitlines()) == 12
+    table = (tmp_path / "sweep" / "table.md").read_text()
+    assert "surrogate VLM" in table and "| random5 |" in table and "raycast" in table
+    assert len(list((tmp_path / "sweep" / "flights").glob("*.jsonl"))) == 12
+
+
+def test_airsim_path_to_world_transform():
+    from sim.airsim_backend import path_to_world
+
+    assert path_to_world(10.0, 0.0, -2.0, 0.0, (5.0, 5.0, 0.0)) == pytest.approx((15.0, 5.0, -2.0, 0.0))
+    x, y, z, yaw = path_to_world(10.0, 1.0, -2.0, 0.1, (0.0, 0.0, math.pi / 2))  # path heading east
+    assert (x, y, z, yaw) == pytest.approx((-1.0, 10.0, -2.0, math.pi / 2 + 0.1))
+
+
+def test_scenario_cli_freezes_seeds(tmp_path, capsys):
+    from sim.scenario import main as scenario_main
+
+    scenario_main(["--write-seeds", str(tmp_path / "seeds.yaml"), "--n", "5", "3", "3", "--show", "100500"])
+    assert "checksum" in capsys.readouterr().out and len(load_seed_lists(tmp_path / "seeds.yaml")["test"]) == 3
+
+
+def test_scenery_guard_counts_unspawned_walls_as_crashes():
+    from sim.raycast import Observation
+
+    class WallSim(RaycastSim):
+        """Raycast backend with an invisible-to-the-scenario wall: depth says 0.1 m everywhere."""
+
+        def observe(self, state):
+            obs = super().observe(state)
+            return Observation(rgb=obs.rgb, depth=np.full_like(obs.depth, 0.1), seg=obs.seg)
+
+    sc = scenario()  # no spawned obstacles at all
+    _, res = run_episode(sc, WallSim(CAM), TrueDepthStack(), RuleController(), Never(), None, LoopConfig())
+    assert res.crashed and res.extra["collision_source"] == "scenery"
+    assert res.extra["guard_hit"]["depth_min"] < 0.3 and {"x", "alt", "frac_zero", "frac_below_radius"} <= set(res.extra["guard_hit"])
+    _, ok = fly(scenario(Obstacle("box_1m_grey", 15.0, 0.0, 2.0)), TrueDepthStack(), Never())
+    assert not ok.crashed and ok.extra["collision_source"] is None
+
+
+def test_airsim_configs_parse_and_expand(monkeypatch, tmp_path):
+    import eval.sweep as sw
+    from sim.airsim_backend import pick_start
+    from sim.scenario import ScenarioConfig, generate
+
+    cfg = yaml.safe_load(open("configs/sweeps/airsim_smoke.yaml"))  # the 20 m smoke test that already ran: one start pose
+    scs = [generate(s, "smoke", ScenarioConfig(**cfg["scenario"])) for s in range(1, 41)]
+    assert all(len(s.obstacles) == 1 and s.obstacles[0].along_m <= 12.0 and s.goal_m == 20.0 for s in scs)
+    for name in ("airsim_starts_smoke", "airsim_true_depth", "airsim_bench"):  # 40 m flights from several start poses (D24)
+        cfg = yaml.safe_load(open(f"configs/sweeps/{name}.yaml"))
+        starts = cfg["backend_kw"]["starts"]
+        assert len(starts) == 5 and len({(x, y, yaw) for x, y, yaw, _ in starts}) == 5
+        scs = [generate(s, "val", ScenarioConfig(**cfg["scenario"])) for s in range(1, 41)]
+        assert all(len(s.obstacles) == 1 and 15.0 <= s.obstacles[0].along_m <= 25.0 and s.goal_m == 40.0 for s in scs)  # room for a 2 s delay at 5 m/s
+        assert {pick_start(starts, s.seed, s.goal_m)[0] for s in scs} == set(range(5))  # every pose is used, and every flight fits
+    assert yaml.safe_load(open("configs/sweeps/airsim_starts_smoke.yaml"))["seeds"] == list(range(1, 11))  # two flights per pose
+    seen = {}
+    monkeypatch.setenv("PP_SIM_CONFIGS", "/scratch/x/sim_config")
+    monkeypatch.setattr(sw, "make_sim", lambda name, **kw: seen.update(kw) or (_ for _ in ()).throw(SystemExit("stop")))
+    cfg = yaml.safe_load(open("configs/sweeps/airsim_smoke.yaml"))
+    cfg["out"] = str(tmp_path / "o")
+    with pytest.raises(SystemExit):
+        sw.run(cfg)
+    assert seen["configs"] == "/scratch/x/sim_config" and seen["start"] == [150.0, -150.0, 0.0]
+
+
+# ---- frozen seeds, start poses, frozen scenario settings (D24) --------------------------------
+
+
+def test_frozen_seed_file_is_intact_and_disjoint():
+    lists = load_seed_lists("configs/seeds.yaml")  # raises if the checksum fails or a seed is in two splits
+    assert {k: len(v) for k, v in lists.items()} == {"train": 1000, "val": 500, "test": 500}
+    assert lists == seed_lists()  # the defaults regenerate the frozen file exactly
+
+
+def test_start_pose_follows_the_seed_and_must_fit_the_flight():
+    from sim.airsim_backend import AirSimBackend, pick_start
+
+    starts = [[150.0, 150.0, 0.0, 145.0], [-150.0, 50.0, 180.0, 140.0], [50.0, -150.0, 90.0, 30.0]]
+    assert 101_002 % 3 == 1 and pick_start(starts, 101_002, 40.0) == (1, (-150.0, 50.0, math.pi))
+    assert pick_start(starts, 101_002, 40.0) == pick_start(starts, 101_002, 40.0)  # same seed, same pose: every policy flies it from one spot
+    assert {pick_start(starts, s, 20.0)[0] for s in range(101_000, 101_006)} == {0, 1, 2}
+    with pytest.raises(ValueError):
+        pick_start(starts, 2, 40.0)  # pose 2 has 30 m clear: a 40 m flight (+5 m margin) does not fit
+    sim = AirSimBackend(configs="unused", starts=starts)
+    with pytest.raises(ValueError):  # refused before the simulator is touched
+        sim.reset(scenario(seed=2, goal=40.0))
+    assert sim._world is None
+
+
+def test_scenario_settings_freeze_once_and_detect_edits(tmp_path, capsys):
+    from sim.scenario import ScenarioConfig, load_scenario_config, write_scenario_config
+    from sim.scenario import main as scenario_main
+
+    path = tmp_path / "scenario.yaml"
+    starts = [[150.0, 150.0, 0.0, 145.0]]
+    write_scenario_config(path, {"goal_m": 40.0, "n_obstacles": [1, 1]}, starts)
+    frozen = load_scenario_config(path)
+    assert frozen["starts"] == starts and frozen["scenario"]["goal_m"] == 40.0
+    assert frozen["scenario"]["speed_mps"] == 5.0  # defaults are written out too, so a later code default cannot change them
+    assert generate(7, "val", ScenarioConfig(**frozen["scenario"])).to_json() == generate(7, "val", ScenarioConfig(goal_m=40.0, n_obstacles=(1, 1))).to_json()
+    with pytest.raises(FileExistsError):
+        write_scenario_config(path, {"goal_m": 50.0})
+    d = yaml.safe_load(path.read_text())
+    d["scenario"]["goal_m"] = 60.0  # tamper
+    path.write_text(yaml.safe_dump(d))
+    with pytest.raises(ValueError):
+        load_scenario_config(path)
+    scenario_main(["--freeze-scenario", "configs/sweeps/airsim_true_depth.yaml", "--to", str(tmp_path / "cli.yaml")])
+    assert "checksum" in capsys.readouterr().out and len(load_scenario_config(tmp_path / "cli.yaml")["starts"]) == 5
+
+
+def _sweep_cfg(tmp_path, **over):
+    cfg = {"backend": "raycast", "backend_kw": {"width": 120, "height": 68}, "stack": "true-depth", "judge": "none", "delay_s": 1.0,
+           "split": "val", "seeds": [101_000, 101_001], "policies": [{"name": "never", "policy": "never"}], "out": str(tmp_path / "out")}
+    return {**cfg, **over}
+
+
+def test_test_seeds_fly_only_from_frozen_scenario_settings(tmp_path):
+    import eval.sweep as sw
+    from sim.scenario import write_seed_lists as wsl
+    from sim.scenario import write_scenario_config
+
+    seeds = tmp_path / "seeds.yaml"
+    wsl(seeds, seed_lists(4, 2, 2))
+    base = {"split": "test", "seeds": {"file": str(seeds), "n": 2}}
+    with pytest.raises(SystemExit, match="unfrozen scenario"):  # inline settings, even with the final-run flag
+        sw.run(_sweep_cfg(tmp_path, **base, final_test_run=True, scenario={"goal_m": 30.0}))
+    frozen = tmp_path / "scenario.yaml"
+    write_scenario_config(frozen, {"goal_m": 30.0})
+    with pytest.raises(SystemExit, match="final_test_run"):  # frozen settings, but not declared as the final run
+        sw.run(_sweep_cfg(tmp_path, **base, scenario={"file": str(frozen)}))
+    assert not (tmp_path / "out").exists()  # a refused run leaves nothing behind
+    val = sw.run(_sweep_cfg(tmp_path, scenario={"file": str(frozen)}))  # val seeds may use the frozen file too
+    assert len(val) == 2 and all(r.distance_m >= 30.0 for r in val)
+
+
+def test_sweep_overrides():
+    from eval.sweep import apply_overrides
+
+    cfg = apply_overrides({"stack": "da2", "judge_kw": {"model_id": "a", "tau": 0.0}},
+                          ["stack=clear", "judge_kw.model_id=Qwen/Qwen3-VL-8B-Instruct@4bit", "judge_kw.tau=-3.5", "backend_kw.width=120", "out=results/x"])
+    assert cfg == {"stack": "clear", "judge_kw": {"model_id": "Qwen/Qwen3-VL-8B-Instruct@4bit", "tau": -3.5}, "backend_kw": {"width": 120}, "out": "results/x"}
+    with pytest.raises(SystemExit):
+        apply_overrides({}, ["no-equals-sign"])
+    with pytest.raises(SystemExit):
+        apply_overrides({"stack": "da2"}, ["stack.inner=1"])
+
+
+def test_vlm_only_system_flies_on_the_judge_alone():
+    from perception.stand_ins import ClearStack
+
+    sc = scenario(Obstacle("box_1m_grey", 15.0, 0.0, 2.0))
+    _, floor = fly(sc, ClearStack(), Never())  # no depth model and no VLM: flies straight into the box
+    assert floor.crashed and floor.extra["stack"] == "none (no depth model)"
+    perfect = SurrogateJudge(default_tpr=1.0, default_fpr=0.0)
+    recs, vlm_only = fly(sc, ClearStack(), Always(cooldown_s=0.5), perfect, t_max=300.0)
+    assert not vlm_only.crashed and vlm_only.reached_goal and vlm_only.n_calls > 0
+    from perception.depth_utils import MAX_RANGE_M
+
+    assert all(r.corridor_min_est == pytest.approx(MAX_RANGE_M) for r in recs)  # the "depth" never reports anything: every avoid came from the judge
+    assert vlm_only.extra["start_index"] is None  # the raycast backend has no start poses

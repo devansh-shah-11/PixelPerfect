@@ -1,0 +1,361 @@
+{
+ "frame_bank": {
+  "d_safe": 8.0,
+  "d_neg": 30.0,
+  "max_fpr": 0.1,
+  "score_split": "train",
+  "n_frames": 1773,
+  "n_pos": 657,
+  "n_neg": 1116,
+  "pos_flights": 121,
+  "n_depth_misses": 489,
+  "n_common_stems": 3698,
+  "n_union_stems": 3698,
+  "settings": {
+   "Qwen/Qwen3-VL-2B-Instruct": {
+    "condition": "both_blocked",
+    "val_auroc": 0.6861249246534057,
+    "tau": 0.5004,
+    "tau_tuned": true,
+    "conditions_tried": [
+     "both",
+     "both_blocked",
+     "both_fill",
+     "both_free",
+     "both_hit",
+     "crop",
+     "overlay",
+     "raw"
+    ]
+   },
+   "Qwen/Qwen3-VL-8B-Instruct": {
+    "condition": "both",
+    "val_auroc": 0.8348779385171791,
+    "tau": -4.0213,
+    "tau_tuned": true,
+    "conditions_tried": [
+     "both",
+     "both_blocked",
+     "both_fill",
+     "both_free",
+     "both_hit",
+     "crop",
+     "overlay",
+     "raw"
+    ]
+   }
+  },
+  "systems": [
+   {
+    "system": "depth only",
+    "kind": "depth",
+    "model": null,
+    "median_ms": 14.783564500007174,
+    "p95_ms": 15.37183290000499,
+    "gpu_gb": 0.16,
+    "source": "vlm_latency_35101.json",
+    "recall": 0.2557077625570776,
+    "recall_ci": [
+     0.17629187396351576,
+     0.3328127396472393
+    ],
+    "fpr": 0.0,
+    "precision": 1.0,
+    "auroc": 0.7335941037517116,
+    "by_obstacle": {
+     "ball_20cm_red": {
+      "n": 31,
+      "recall": 0.0
+     },
+     "box_1m_black": {
+      "n": 67,
+      "recall": 0.13432835820895522
+     },
+     "box_1m_grey": {
+      "n": 54,
+      "recall": 0.12962962962962962
+     },
+     "building_block": {
+      "n": 83,
+      "recall": 1.0
+     },
+     "glass_pane_alpha20": {
+      "n": 38,
+      "recall": 0.0
+     },
+     "pole_10cm_axis_z": {
+      "n": 108,
+      "recall": 0.0
+     },
+     "wall_white_featureless": {
+      "n": 69,
+      "recall": 1.0
+     },
+     "wire_1cm_axis_z": {
+      "n": 84,
+      "recall": 0.0
+     },
+     "wire_3cm_axis_z": {
+      "n": 123,
+      "recall": 0.0
+     }
+    }
+   },
+   {
+    "system": "VLM only: Qwen/Qwen3-VL-2B-Instruct",
+    "kind": "vlm",
+    "model": "Qwen/Qwen3-VL-2B-Instruct",
+    "median_ms": 76.42313099999853,
+    "p95_ms": 81.18964954999939,
+    "gpu_gb": 4.37,
+    "source": "vlm_latency_35101.json",
+    "recall": 0.4703196347031963,
+    "recall_ci": [
+     0.4034559068464161,
+     0.5388147458367372
+    ],
+    "fpr": 0.08602150537634409,
+    "precision": 0.762962962962963,
+    "auroc": 0.7575837547666978,
+    "by_obstacle": {
+     "ball_20cm_red": {
+      "n": 31,
+      "recall": 0.1935483870967742
+     },
+     "box_1m_black": {
+      "n": 67,
+      "recall": 0.9402985074626866
+     },
+     "box_1m_grey": {
+      "n": 54,
+      "recall": 0.5555555555555556
+     },
+     "building_block": {
+      "n": 83,
+      "recall": 0.024096385542168676
+     },
+     "glass_pane_alpha20": {
+      "n": 38,
+      "recall": 0.3157894736842105
+     },
+     "pole_10cm_axis_z": {
+      "n": 108,
+      "recall": 0.5462962962962963
+     },
+     "wall_white_featureless": {
+      "n": 69,
+      "recall": 0.8405797101449275
+     },
+     "wire_1cm_axis_z": {
+      "n": 84,
+      "recall": 0.2619047619047619
+     },
+     "wire_3cm_axis_z": {
+      "n": 123,
+      "recall": 0.4634146341463415
+     }
+    },
+    "miss_recall": 0.47648261758691207,
+    "d23_pass": false,
+    "condition": "both_blocked",
+    "val_auroc": 0.6861249246534057,
+    "tau": 0.5004,
+    "tau_tuned": true,
+    "conditions_tried": [
+     "both",
+     "both_blocked",
+     "both_fill",
+     "both_free",
+     "both_hit",
+     "crop",
+     "overlay",
+     "raw"
+    ]
+   },
+   {
+    "system": "VLM only: Qwen/Qwen3-VL-8B-Instruct",
+    "kind": "vlm",
+    "model": "Qwen/Qwen3-VL-8B-Instruct",
+    "median_ms": 91.31003349997968,
+    "p95_ms": 97.83972959998549,
+    "gpu_gb": 17.67,
+    "source": "vlm_latency_35101.json",
+    "recall": 0.6666666666666666,
+    "recall_ci": [
+     0.596513396115699,
+     0.7267662964176839
+    ],
+    "fpr": 0.1442652329749104,
+    "precision": 0.7312186978297162,
+    "auroc": 0.7911443075126976,
+    "by_obstacle": {
+     "ball_20cm_red": {
+      "n": 31,
+      "recall": 0.8387096774193549
+     },
+     "box_1m_black": {
+      "n": 67,
+      "recall": 0.5671641791044776
+     },
+     "box_1m_grey": {
+      "n": 54,
+      "recall": 0.6296296296296297
+     },
+     "building_block": {
+      "n": 83,
+      "recall": 0.10843373493975904
+     },
+     "glass_pane_alpha20": {
+      "n": 38,
+      "recall": 0.868421052631579
+     },
+     "pole_10cm_axis_z": {
+      "n": 108,
+      "recall": 0.8518518518518519
+     },
+     "wall_white_featureless": {
+      "n": 69,
+      "recall": 0.43478260869565216
+     },
+     "wire_1cm_axis_z": {
+      "n": 84,
+      "recall": 0.8690476190476191
+     },
+     "wire_3cm_axis_z": {
+      "n": 123,
+      "recall": 0.8373983739837398
+     }
+    },
+    "miss_recall": 0.7975460122699386,
+    "d23_pass": true,
+    "condition": "both",
+    "val_auroc": 0.8348779385171791,
+    "tau": -4.0213,
+    "tau_tuned": true,
+    "conditions_tried": [
+     "both",
+     "both_blocked",
+     "both_fill",
+     "both_free",
+     "both_hit",
+     "crop",
+     "overlay",
+     "raw"
+    ]
+   },
+   {
+    "system": "depth + VLM: Qwen/Qwen3-VL-2B-Instruct",
+    "kind": "both",
+    "model": "Qwen/Qwen3-VL-2B-Instruct",
+    "median_ms": 91.20669550000571,
+    "p95_ms": 96.56148245000438,
+    "gpu_gb": 4.53,
+    "source": "sum of the two",
+    "recall": 0.6103500761035008,
+    "recall_ci": [
+     0.5468883357041252,
+     0.6735936421418774
+    ],
+    "fpr": 0.08602150537634409,
+    "precision": 0.806841046277666,
+    "auroc": NaN,
+    "by_obstacle": {
+     "ball_20cm_red": {
+      "n": 31,
+      "recall": 0.1935483870967742
+     },
+     "box_1m_black": {
+      "n": 67,
+      "recall": 0.9402985074626866
+     },
+     "box_1m_grey": {
+      "n": 54,
+      "recall": 0.5555555555555556
+     },
+     "building_block": {
+      "n": 83,
+      "recall": 1.0
+     },
+     "glass_pane_alpha20": {
+      "n": 38,
+      "recall": 0.3157894736842105
+     },
+     "pole_10cm_axis_z": {
+      "n": 108,
+      "recall": 0.5462962962962963
+     },
+     "wall_white_featureless": {
+      "n": 69,
+      "recall": 1.0
+     },
+     "wire_1cm_axis_z": {
+      "n": 84,
+      "recall": 0.2619047619047619
+     },
+     "wire_3cm_axis_z": {
+      "n": 123,
+      "recall": 0.4634146341463415
+     }
+    }
+   },
+   {
+    "system": "depth + VLM: Qwen/Qwen3-VL-8B-Instruct",
+    "kind": "both",
+    "model": "Qwen/Qwen3-VL-8B-Instruct",
+    "median_ms": 106.09359799998686,
+    "p95_ms": 113.21156249999048,
+    "gpu_gb": 17.83,
+    "source": "sum of the two",
+    "recall": 0.8493150684931506,
+    "recall_ci": [
+     0.8100884186288488,
+     0.8863722191705575
+    ],
+    "fpr": 0.1442652329749104,
+    "precision": 0.7760778859527121,
+    "auroc": NaN,
+    "by_obstacle": {
+     "ball_20cm_red": {
+      "n": 31,
+      "recall": 0.8387096774193549
+     },
+     "box_1m_black": {
+      "n": 67,
+      "recall": 0.6268656716417911
+     },
+     "box_1m_grey": {
+      "n": 54,
+      "recall": 0.6851851851851852
+     },
+     "building_block": {
+      "n": 83,
+      "recall": 1.0
+     },
+     "glass_pane_alpha20": {
+      "n": 38,
+      "recall": 0.868421052631579
+     },
+     "pole_10cm_axis_z": {
+      "n": 108,
+      "recall": 0.8518518518518519
+     },
+     "wall_white_featureless": {
+      "n": 69,
+      "recall": 1.0
+     },
+     "wire_1cm_axis_z": {
+      "n": 84,
+      "recall": 0.8690476190476191
+     },
+     "wire_3cm_axis_z": {
+      "n": 123,
+      "recall": 0.8373983739837398
+     }
+    }
+   }
+  ],
+  "pick": "Qwen/Qwen3-VL-8B-Instruct",
+  "pick_text": "Qwen/Qwen3-VL-8B-Instruct (both, cut -4.02): the smallest-memory variant that passes the M2 gate (D23), recall on depth's misses 0.80, false alarms 0.14"
+ },
+ "flights": null
+}

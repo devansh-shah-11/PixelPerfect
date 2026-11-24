@@ -1,0 +1,95 @@
+name, memory.total [MiB]
+NVIDIA A100-SXM4-40GB, 40960 MiB
+ENV=Neighborhood launcher=/scratch/dns5508/airsim/envs/Neighborhood/AirSimNH.sh
+wrote scene_cap_400.jsonc and robot_cap_400.jsonc (400x225)
+wrote scene_cap_1280.jsonc and robot_cap_1280.jsonc (1280x720)
+wrote scene_cap_400n.jsonc and robot_cap_400n.jsonc (400x225, depth noise on)
+6896 /scratch/dns5508/airsim/envs/Neighborhood/AirSimNH/Binaries/Linux/AirSimNH-Linux-Shipping AirSimNH -RenderOffScreen -nosound
+17:08:12:388 [INFO] Connecting to simulation server at 127.0.0.1
+17:08:12:401 [INFO] Connection opened.
+17:08:12:406 [INFO] Loading scene config: scene_cap_400.jsonc
+17:08:13:157 [INFO] Getting the list of available topic info from the sim server...
+17:08:13:168 [INFO] Successfully received topic info list.
+17:08:15:168 [INFO] World object updated for the loaded scene '/Sim/SceneManualStepDrone'. Note: Any previous Drone object instances may no longer be valid.
+17:08:15:169 [INFO] Trajectory 'null_trajectory' imported successfully.
+17:08:15:169 [INFO] Initalizing Drone 'Drone1'...
+17:08:15:170 [INFO] -------------------------------------------------
+17:08:15:170 [INFO] The following topics can be subscribed to for robot 'Drone1':
+17:08:15:170 [INFO]     sensors["Chase"]["scene_camera"]
+17:08:15:170 [INFO]     sensors["Chase"]["scene_camera_info"]
+17:08:15:170 [INFO]     sensors["DownCamera"]["scene_camera"]
+17:08:15:170 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+17:08:15:170 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+17:08:15:170 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+17:08:15:170 [INFO]     sensors["GPS"]["gps"]
+17:08:15:170 [INFO]     sensors["FrontCam"]["scene_camera"]
+17:08:15:170 [INFO]     sensors["FrontCam"]["scene_camera_info"]
+17:08:15:170 [INFO]     sensors["FrontCam"]["depth_camera"]
+17:08:15:170 [INFO]     sensors["FrontCam"]["depth_camera_info"]
+17:08:15:170 [INFO]     sensors["FrontCam"]["segmentation_camera"]
+17:08:15:170 [INFO]     sensors["FrontCam"]["segmentation_camera_info"]
+17:08:15:170 [INFO]     robot_info["actual_pose"]
+17:08:15:170 [INFO]     robot_info["collision_info"]
+17:08:15:170 [INFO]     robot_info["rotor_info"]
+17:08:15:170 [INFO] -------------------------------------------------
+17:08:15:170 [INFO] Drone 'Drone1' initialized for World scene '/Sim/SceneManualStepDrone'
+[load_scene] {"ok": true, "seconds": 2.8, "clock_type": "steppable", "paused": true, "sim_time_ns": 0}
+[set_pose] {"ok": true, "seconds": 0.3, "set_pose_returned": "True", "pose_after": "{'frame_id': 'DEFAULT_ID', 'rotation': {'w': 1.0, 'x': 0.0, 'y': 0.0, 'z': 0.0}, 'translation': {'x': 0.0, 'y': 0.0, 'z': -1.5}}"}
+[images_while_paused_concurrent_step] {"ok": true, "seconds": 0.6, "concurrent_step_seconds": 0.504, "channels_missing": [], "rgb_shape": [225, 400, 3], "seg_unique_colors": 30, "depth": {"finite_frac": 1.0, "min_m": 1.02, "max_finite_m": 16416.0}}
+[loop_timing] {"ok": true, "seconds": 12.7, "iterations_ok": 60, "iterations_failed": 0, "errors": [], "sim_dt_ms": 100.0, "median_ms": {"set_pose": 0.8, "continue_for_sim_time": 59.1, "get_images_rgb_depth_seg": 148.2, "total": 208.1}, "sim_speed_vs_realtime": 0.48}
+[channel_timing] {"ok": true, "seconds": 6.2, "median_get_images_ms": {"rgb": 74.4, "depth": 64.5, "seg": 75.2, "rgb+depth": 116.5, "all3": 147.0}}
+[world_step_api] {"ok": true, "seconds": 0.0, "sim_time_advanced_ns": 5000000, "result_keys": ["robots", "sim_time_ns"]}
+[render_repeatability] {"ok": true, "seconds": 1.8, "successive_same_pose": [{"rgb_changed_gt0": 66714, "rgb_changed_gt30": 491, "rgb_max_abs_diff": 132, "depth_max_abs_diff_m": 16406.625}, {"rgb_changed_gt0": 66779, "rgb_changed_gt30": 430, "rgb_max_abs_diff": 129, "depth_max_abs_diff_m": 16406.5859375}], "after_moving_away_and_back": {"rgb_changed_gt0": 79592, "rgb_changed_gt30": 2330}}
+[assets_and_scene_objects] {"ok": true, "seconds": 0.0, "asset_count": 307, "assets": ["Sphere", "Cylinder", "SM_MediaPlateScreen", "Cube", "SM_SkySphere", "Fence_01", "Curtain_01", "Curtain_02", "Curtain_03", "Driveway_8th_01", "Driveway_Half_01", "driveway_16th_Curve_02", "Driveway_16th_01", "driveway_16th_Curve_01", "Driveway_01", "Driveway_Quart_01", "Floor_Basic_01", "Floor_Half_Basic_01", "Car_01", "Staircase_Extra_Banister_01", "Staircase_02", "Banister_01", "House_Base_Quart_01", "Outdoor_Steps_01", "Porch_Banister_Quart_01", "Garden_Tressel_01", "Porch_Banister_8th_01", "Porch_Pillar_01", "Outer_Door_01", "Inne
+[depth_range_probe] {"ok": true, "seconds": 5.0, "how": "gltf_glb", "baseline_depth": {"finite_frac": 1.0, "min_m": 1.02, "max_finite_m": 16416.0}}
+[scene_scan] {"ok": true, "seconds": 62.8, "extent_m": 60.0, "n_poses": 128, "suggested_start_poses": [{"x": -60.0, "y": -20.0, "z": -2.0, "min_clear_m": 8.2, "open_yaws_deg": []}, {"x": 60.0, "y": -60.0, "z": -2.0, "min_clear_m": 5.6, "open_yaws_deg": []}, {"x": -60.0, "y": 20.0, "z": -2.0, "min_clear_m": 3.9, "open_yaws_deg": []}, {"x": -60.0, "y": 60.0, "z": -2.0, "min_clear_m": 3.6, "open_yaws_deg": []}, {"x": -20.0, "y": -20.0, "z": -2.0, "min_clear_m": 3.5, "open_yaws_deg": []}], "start_used_for_later_sections": [-60.0, -20.0, -2.0, 0.0]}
+[obstacle_baseline] {"ok": true, "seconds": 0.6, "start_pose": [-60.0, -20.0, -2.0, 0.0], "baseline_depth": {"finite_frac": 1.0, "min_m": 2.04, "max_finite_m": 16480.0}}
+[obstacle_pole_10cm_axis_z] {"ok": true, "seconds": 2.6, "how": "gltf_glb", "spawn_attempts_failed": [], "spawned_name": "pole_10cm_axis_z", "seg_id_set": true, "destroyed": true, "after_destroy_rgb_changed_vs_empty": 749}
+[obstacle_pole_10cm_axis_y] {"ok": true, "seconds": 2.6, "how": "gltf_glb", "spawn_attempts_failed": [], "spawned_name": "pole_10cm_axis_y", "seg_id_set": true, "destroyed": true, "after_destroy_rgb_changed_vs_empty": 829}
+[obstacle_pole_10cm_asset] {"ok": true, "seconds": 2.6, "how": "asset:Cylinder", "spawn_attempts_failed": [], "spawned_name": "pole_10cm_asset", "seg_id_set": true, "destroyed": true, "after_destroy_rgb_changed_vs_empty": 197}
+[obstacle_wire_3cm_axis_z] {"ok": true, "seconds": 2.6, "how": "gltf_glb", "spawn_attempts_failed": [], "spawned_name": "wire_3cm_axis_z", "seg_id_set": true, "destroyed": true, "after_destroy_rgb_changed_vs_empty": 740}
+[obstacle_wire_3cm_axis_y] {"ok": true, "seconds": 2.6, "how": "gltf_glb", "spawn_attempts_failed": [], "spawned_name": "wire_3cm_axis_y", "seg_id_set": true, "destroyed": true, "after_destroy_rgb_changed_vs_empty": 812}
+[obstacle_wire_1cm_axis_z] {"ok": true, "seconds": 2.6, "how": "gltf_glb", "spawn_attempts_failed": [], "spawned_name": "wire_1cm_axis_z", "seg_id_set": true, "destroyed": true, "after_destroy_rgb_changed_vs_empty": 135}
+[obstacle_wire_1cm_axis_y] {"ok": true, "seconds": 2.7, "how": "gltf_glb", "spawn_attempts_failed": [], "spawned_name": "wire_1cm_axis_y", "seg_id_set": true, "destroyed": true, "after_destroy_rgb_changed_vs_empty": 762}
+[obstacle_wire_3mm_axis_y] {"ok": true, "seconds": 2.7, "how": "gltf_glb", "spawn_attempts_failed": [], "spawned_name": "wire_3mm_axis_y", "seg_id_set": true, "destroyed": true, "after_destroy_rgb_changed_vs_empty": 829}
+[obstacle_box_1m_grey] {"ok": true, "seconds": 2.6, "how": "gltf_glb", "spawn_attempts_failed": [], "spawned_name": "box_1m_grey", "seg_id_set": true, "destroyed": true, "after_destroy_rgb_changed_vs_empty": 163}
+[obstacle_box_1m_black] {"ok": true, "seconds": 2.6, "how": "gltf_glb", "spawn_attempts_failed": [], "spawned_name": "box_1m_black", "seg_id_set": true, "destroyed": true, "after_destroy_rgb_changed_vs_empty": 822}
+[obstacle_box_1m_white] {"ok": true, "seconds": 2.6, "how": "gltf_glb", "spawn_attempts_failed": [], "spawned_name": "box_1m_white", "seg_id_set": true, "destroyed": true, "after_destroy_rgb_changed_vs_empty": 904}
+[obstacle_wall_white_featureless] {"ok": true, "seconds": 2.6, "how": "gltf_glb", "spawn_attempts_failed": [], "spawned_name": "wall_white_featureless", "seg_id_set": true, "destroyed": true, "after_destroy_rgb_changed_vs_empty": 233}
+[obstacle_glass_pane_alpha20] {"ok": true, "seconds": 2.6, "how": "gltf_glb", "spawn_attempts_failed": [], "spawned_name": "glass_pane_alpha20", "seg_id_set": true, "destroyed": true, "after_destroy_rgb_changed_vs_empty": 919}
+[obstacle_glass_pane_alpha50] {"ok": true, "seconds": 2.6, "how": "gltf_glb", "spawn_attempts_failed": [], "spawned_name": "glass_pane_alpha50", "seg_id_set": true, "destroyed": true, "after_destroy_rgb_changed_vs_empty": 974}
+[obstacle_building_block] {"ok": true, "seconds": 2.6, "how": "gltf_glb", "spawn_attempts_failed": [], "spawned_name": "building_block", "seg_id_set": true, "destroyed": true, "after_destroy_rgb_changed_vs_empty": 364}
+[obstacle_ball_20cm_red] {"ok": true, "seconds": 2.6, "how": "gltf_glb", "spawn_attempts_failed": [], "spawned_name": "ball_20cm_red", "seg_id_set": true, "destroyed": true, "after_destroy_rgb_changed_vs_empty": 1109}
+[obstacle_textured_cube_checker] {"ok": true, "seconds": 2.6, "how": "asset:Cube", "spawn_attempts_failed": [], "spawned_name": "textured_cube_checker", "seg_id_set": true, "texture_ok": true, "destroyed": true, "after_destroy_rgb_changed_vs_empty": 1106}
+[dynamic_obstacle] {"ok": true, "seconds": 4.6, "how": "gltf_glb"}
+[weather_effects] {"ok": true, "seconds": 6.5, "weather_visibly_changes_rgb": true}
+[time_of_day_and_sun] {"ok": true, "seconds": 11.3}
+[video_clear] {"ok": false, "seconds": 1.0, "error": "Timeout: Timed out"}
+[video_rain_fog] {"ok": false, "seconds": 2.0, "error": "Timeout: Timed out"}
+[clean_depth_reference] {"ok": false, "seconds": 1.0, "error": "Timeout: Timed out"}
+17:10:56:472 [INFO] Loading scene config: scene_cap_400n.jsonc
+17:10:58:065 [WARNING] Timed out while trying to unsubscribe from all topics.
+[load_scene] {"ok": false, "seconds": 2.6, "error": "Timeout: Timed out"}
+17:10:59:079 [INFO] Loading scene config: scene_cap_1280.jsonc
+17:11:00:662 [WARNING] Timed out while trying to unsubscribe from all topics.
+[load_scene] {"ok": false, "seconds": 2.6, "error": "Timeout: Timed out"}
+17:11:01:678 [INFO] Loading scene config: scene_cap_400.jsonc
+17:11:03:250 [WARNING] Timed out while trying to unsubscribe from all topics.
+[load_scene] {"ok": false, "seconds": 2.6, "error": "Timeout: Timed out"}
+17:11:04:271 [INFO] Disconnecting from simulation server...
+17:11:05:275 [WARNING] Timed out while trying to unsubscribe from all topics.
+17:11:05:275 [INFO] Disconnected.
+capability_test exit code: 0
+--- sim alive at exit: no
+--- last lines of sim.log:
+Resizing viewport due to setres change, 1024 x 768
+Signal 11 caught.
+Malloc Size=262146 LargeMemoryPoolOffset=262162 
+Failed to find symbol file, expected location:
+"/scratch/dns5508/airsim/envs/Neighborhood/AirSimNH/Binaries/Linux/AirSimNH-Linux-Shipping.sym"
+5.2.1-0+UE5 1009 0
+Disabling core dumps.
+CommonUnixCrashHandler: Signal=11
+Engine crash handling finished; re-raising signal 11 for the default handler. Good bye.
+/scratch/dns5508/airsim/envs/Neighborhood/AirSimNH.sh: line 5:  6896 Segmentation fault      (core dumped) "$UE_PROJECT_ROOT/AirSimNH/Binaries/Linux/AirSimNH-Linux-Shipping" AirSimNH "$@"
+results: /scratch/dns5508/logs/capability_Neighborhood_16299/results.json

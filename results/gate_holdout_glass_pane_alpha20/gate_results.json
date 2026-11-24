@@ -1,0 +1,1010 @@
+{
+ "meta": {
+  "d_safe": 8.0,
+  "train_n": 8415,
+  "train_pos": 1370,
+  "val_n": 1830,
+  "val_pos": 281,
+  "val_pos_flights": 19,
+  "metadata_rows": 668,
+  "holdout": "glass_pane_alpha20",
+  "positives_by_family_train": {
+   "ball_20cm_red": 98,
+   "box_1m_black": 180,
+   "box_1m_grey": 146,
+   "none": 2,
+   "pole_10cm_axis_z": 320,
+   "wall_white_featureless": 5,
+   "wire_1cm_axis_z": 251,
+   "wire_3cm_axis_z": 368
+  }
+ },
+ "results": {
+  "baseline_var": {
+   "features": [
+    "corridor_var"
+   ],
+   "n": 1830,
+   "pos": 281,
+   "pos_flights": 19,
+   "auroc": 0.42512790940774553,
+   "auroc_ci": [
+    0.3122426020693643,
+    0.544267542506345
+   ],
+   "auprc": 0.12331213741959711,
+   "base_rate": 0.153551912568306,
+   "ece": null,
+   "recall_at_cut": 0.014234875444839857,
+   "fpr_at_cut": 0.08844415752098128,
+   "by_family": {
+    "ball_20cm_red": {
+     "pos": 21,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.4011190015063482,
+     "recall_at_cut": 0.0
+    },
+    "box_1m_black": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "box_1m_grey": {
+     "pos": 23,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.3088949392314817,
+     "recall_at_cut": 0.0
+    },
+    "building_block": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "glass_pane_alpha20": {
+     "pos": 36,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.6318054658919733,
+     "recall_at_cut": 0.05555555555555555
+    },
+    "none": {
+     "pos": 2,
+     "pos_flights": 1,
+     "auroc_vs_all_neg": 0.89541639767592,
+     "recall_at_cut": 0.0
+    },
+    "pole_10cm_axis_z": {
+     "pos": 69,
+     "pos_flights": 5,
+     "auroc_vs_all_neg": 0.49318400838315507,
+     "recall_at_cut": 0.028985507246376812
+    },
+    "wall_white_featureless": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "wire_1cm_axis_z": {
+     "pos": 55,
+     "pos_flights": 3,
+     "auroc_vs_all_neg": 0.36959915487998124,
+     "recall_at_cut": 0.0
+    },
+    "wire_3cm_axis_z": {
+     "pos": 75,
+     "pos_flights": 4,
+     "auroc_vs_all_neg": 0.33385840327092753,
+     "recall_at_cut": 0.0
+    }
+   }
+  },
+  "best_single": {
+   "features": [
+    "img_grad_mean"
+   ],
+   "train_auroc": 0.679479363632125,
+   "n": 1830,
+   "pos": 281,
+   "pos_flights": 19,
+   "auroc": 0.6946348120357756,
+   "auroc_ci": [
+    0.5592305244884586,
+    0.8010349804967084
+   ],
+   "auprc": 0.3560372093247343,
+   "base_rate": 0.153551912568306,
+   "ece": null,
+   "recall_at_cut": 0.30604982206405695,
+   "fpr_at_cut": 0.08586184635248548,
+   "by_family": {
+    "ball_20cm_red": {
+     "pos": 21,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.8201912139936671,
+     "recall_at_cut": 0.23809523809523808
+    },
+    "box_1m_black": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "box_1m_grey": {
+     "pos": 23,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.5509866112779633,
+     "recall_at_cut": 0.2608695652173913
+    },
+    "building_block": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "glass_pane_alpha20": {
+     "pos": 36,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.2843411519977046,
+     "recall_at_cut": 0.0
+    },
+    "none": {
+     "pos": 2,
+     "pos_flights": 1,
+     "auroc_vs_all_neg": 0.5806972240154938,
+     "recall_at_cut": 0.0
+    },
+    "pole_10cm_axis_z": {
+     "pos": 69,
+     "pos_flights": 5,
+     "auroc_vs_all_neg": 0.8699581777865103,
+     "recall_at_cut": 0.6231884057971014
+    },
+    "wall_white_featureless": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "wire_1cm_axis_z": {
+     "pos": 55,
+     "pos_flights": 3,
+     "auroc_vs_all_neg": 0.8374435119431891,
+     "recall_at_cut": 0.3090909090909091
+    },
+    "wire_3cm_axis_z": {
+     "pos": 75,
+     "pos_flights": 4,
+     "auroc_vs_all_neg": 0.6374865504626641,
+     "recall_at_cut": 0.2
+    }
+   }
+  },
+  "logreg/depth": {
+   "features": [
+    "corridor_min",
+    "corridor_p05",
+    "corridor_p25",
+    "corridor_median",
+    "corridor_var",
+    "corridor_grad_mean",
+    "corridor_far_frac"
+   ],
+   "n": 1830,
+   "pos": 281,
+   "pos_flights": 19,
+   "auroc": 0.6139169111514948,
+   "auroc_ci": [
+    0.5157453057221001,
+    0.7138875573128441
+   ],
+   "auprc": 0.21084670174511025,
+   "base_rate": 0.153551912568306,
+   "ece": 0.3126900682211118,
+   "recall_at_cut": 0.2704626334519573,
+   "fpr_at_cut": 0.1736604260813428,
+   "by_family": {
+    "ball_20cm_red": {
+     "pos": 21,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.5621445479418365,
+     "recall_at_cut": 0.09523809523809523
+    },
+    "box_1m_black": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "box_1m_grey": {
+     "pos": 23,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.7602380217250961,
+     "recall_at_cut": 0.5652173913043478
+    },
+    "building_block": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "glass_pane_alpha20": {
+     "pos": 36,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.5581199340076035,
+     "recall_at_cut": 0.2222222222222222
+    },
+    "none": {
+     "pos": 2,
+     "pos_flights": 1,
+     "auroc_vs_all_neg": 0.04357650096836668,
+     "recall_at_cut": 0.0
+    },
+    "pole_10cm_axis_z": {
+     "pos": 69,
+     "pos_flights": 5,
+     "auroc_vs_all_neg": 0.718743275231332,
+     "recall_at_cut": 0.43478260869565216
+    },
+    "wall_white_featureless": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "wire_1cm_axis_z": {
+     "pos": 55,
+     "pos_flights": 3,
+     "auroc_vs_all_neg": 0.549820998884911,
+     "recall_at_cut": 0.16363636363636364
+    },
+    "wire_3cm_axis_z": {
+     "pos": 75,
+     "pos_flights": 4,
+     "auroc_vs_all_neg": 0.5760964062836238,
+     "recall_at_cut": 0.18666666666666668
+    }
+   },
+   "path": "results/gate_holdout_glass_pane_alpha20/gate_logreg_depth.pkl"
+  },
+  "gbt/depth": {
+   "features": [
+    "corridor_min",
+    "corridor_p05",
+    "corridor_p25",
+    "corridor_median",
+    "corridor_var",
+    "corridor_grad_mean",
+    "corridor_far_frac"
+   ],
+   "n": 1830,
+   "pos": 281,
+   "pos_flights": 19,
+   "auroc": 0.6136641938663217,
+   "auroc_ci": [
+    0.524643360811853,
+    0.711815401136711
+   ],
+   "auprc": 0.25587889938786795,
+   "base_rate": 0.153551912568306,
+   "ece": 0.1015652375832671,
+   "recall_at_cut": 0.39501779359430605,
+   "fpr_at_cut": 0.23305358295674627,
+   "by_family": {
+    "ball_20cm_red": {
+     "pos": 21,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.6032463340403947,
+     "recall_at_cut": 0.23809523809523808
+    },
+    "box_1m_black": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "box_1m_grey": {
+     "pos": 23,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.8755438291183653,
+     "recall_at_cut": 0.8260869565217391
+    },
+    "building_block": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "glass_pane_alpha20": {
+     "pos": 36,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.4266193242952443,
+     "recall_at_cut": 0.19444444444444445
+    },
+    "none": {
+     "pos": 2,
+     "pos_flights": 1,
+     "auroc_vs_all_neg": 0.41284699806326663,
+     "recall_at_cut": 0.0
+    },
+    "pole_10cm_axis_z": {
+     "pos": 69,
+     "pos_flights": 5,
+     "auroc_vs_all_neg": 0.7244505571617031,
+     "recall_at_cut": 0.5507246376811594
+    },
+    "wall_white_featureless": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "wire_1cm_axis_z": {
+     "pos": 55,
+     "pos_flights": 3,
+     "auroc_vs_all_neg": 0.6660484770232994,
+     "recall_at_cut": 0.4909090909090909
+    },
+    "wire_3cm_axis_z": {
+     "pos": 75,
+     "pos_flights": 4,
+     "auroc_vs_all_neg": 0.49106950720895204,
+     "recall_at_cut": 0.2
+    }
+   },
+   "path": "results/gate_holdout_glass_pane_alpha20/gate_gbt_depth.pkl"
+  },
+  "mlp/depth": {
+   "features": [
+    "corridor_min",
+    "corridor_p05",
+    "corridor_p25",
+    "corridor_median",
+    "corridor_var",
+    "corridor_grad_mean",
+    "corridor_far_frac"
+   ],
+   "n": 1830,
+   "pos": 281,
+   "pos_flights": 19,
+   "auroc": 0.6229412156620389,
+   "auroc_ci": [
+    0.5170027977983606,
+    0.7246245350474422
+   ],
+   "auprc": 0.2644304486911107,
+   "base_rate": 0.153551912568306,
+   "ece": 0.07461565887808122,
+   "recall_at_cut": 0.29537366548042704,
+   "fpr_at_cut": 0.15429309231762428,
+   "by_family": {
+    "ball_20cm_red": {
+     "pos": 21,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.6372160226259646,
+     "recall_at_cut": 0.14285714285714285
+    },
+    "box_1m_black": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "box_1m_grey": {
+     "pos": 23,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.8626322732758863,
+     "recall_at_cut": 0.6956521739130435
+    },
+    "building_block": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "glass_pane_alpha20": {
+     "pos": 36,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.41516031848504414,
+     "recall_at_cut": 0.08333333333333333
+    },
+    "none": {
+     "pos": 2,
+     "pos_flights": 1,
+     "auroc_vs_all_neg": 0.1607488702388638,
+     "recall_at_cut": 0.0
+    },
+    "pole_10cm_axis_z": {
+     "pos": 69,
+     "pos_flights": 5,
+     "auroc_vs_all_neg": 0.7848822522244365,
+     "recall_at_cut": 0.4492753623188406
+    },
+    "wall_white_featureless": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "wire_1cm_axis_z": {
+     "pos": 55,
+     "pos_flights": 3,
+     "auroc_vs_all_neg": 0.6137918891953753,
+     "recall_at_cut": 0.2909090909090909
+    },
+    "wire_3cm_axis_z": {
+     "pos": 75,
+     "pos_flights": 4,
+     "auroc_vs_all_neg": 0.5152227243382828,
+     "recall_at_cut": 0.18666666666666668
+    }
+   },
+   "path": "results/gate_holdout_glass_pane_alpha20/gate_mlp_depth.pkl"
+  },
+  "logreg/depth+temporal": {
+   "features": [
+    "corridor_min",
+    "corridor_p05",
+    "corridor_p25",
+    "corridor_median",
+    "corridor_var",
+    "corridor_grad_mean",
+    "corridor_far_frac",
+    "d_corridor_min",
+    "d_corridor_p05",
+    "d_corridor_median",
+    "d_corridor_var"
+   ],
+   "n": 1830,
+   "pos": 281,
+   "pos_flights": 19,
+   "auroc": 0.6120674801100009,
+   "auroc_ci": [
+    0.52346767093568,
+    0.6992713883020235
+   ],
+   "auprc": 0.21244008484638066,
+   "base_rate": 0.153551912568306,
+   "ece": 0.3064587211232759,
+   "recall_at_cut": 0.25622775800711745,
+   "fpr_at_cut": 0.1672046481601033,
+   "by_family": {
+    "ball_20cm_red": {
+     "pos": 21,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.5658950474960804,
+     "recall_at_cut": 0.047619047619047616
+    },
+    "box_1m_black": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "box_1m_grey": {
+     "pos": 23,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.780222864681281,
+     "recall_at_cut": 0.6521739130434783
+    },
+    "building_block": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "glass_pane_alpha20": {
+     "pos": 36,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.5590524352628936,
+     "recall_at_cut": 0.19444444444444445
+    },
+    "none": {
+     "pos": 2,
+     "pos_flights": 1,
+     "auroc_vs_all_neg": 0.1923821820529374,
+     "recall_at_cut": 0.0
+    },
+    "pole_10cm_axis_z": {
+     "pos": 69,
+     "pos_flights": 5,
+     "auroc_vs_all_neg": 0.714757534079958,
+     "recall_at_cut": 0.4057971014492754
+    },
+    "wall_white_featureless": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "wire_1cm_axis_z": {
+     "pos": 55,
+     "pos_flights": 3,
+     "auroc_vs_all_neg": 0.5561007101355713,
+     "recall_at_cut": 0.14545454545454545
+    },
+    "wire_3cm_axis_z": {
+     "pos": 75,
+     "pos_flights": 4,
+     "auroc_vs_all_neg": 0.5566343877770605,
+     "recall_at_cut": 0.17333333333333334
+    }
+   },
+   "path": "results/gate_holdout_glass_pane_alpha20/gate_logreg_depth+temporal.pkl"
+  },
+  "gbt/depth+temporal": {
+   "features": [
+    "corridor_min",
+    "corridor_p05",
+    "corridor_p25",
+    "corridor_median",
+    "corridor_var",
+    "corridor_grad_mean",
+    "corridor_far_frac",
+    "d_corridor_min",
+    "d_corridor_p05",
+    "d_corridor_median",
+    "d_corridor_var"
+   ],
+   "n": 1830,
+   "pos": 281,
+   "pos_flights": 19,
+   "auroc": 0.634180242562645,
+   "auroc_ci": [
+    0.5421029249215483,
+    0.728800372324315
+   ],
+   "auprc": 0.28213533779105965,
+   "base_rate": 0.153551912568306,
+   "ece": 0.09021084262732461,
+   "recall_at_cut": 0.42704626334519574,
+   "fpr_at_cut": 0.23111684958037443,
+   "by_family": {
+    "ball_20cm_red": {
+     "pos": 21,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.6272864213471057,
+     "recall_at_cut": 0.2857142857142857
+    },
+    "box_1m_black": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "box_1m_grey": {
+     "pos": 23,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.8930867039043422,
+     "recall_at_cut": 0.8695652173913043
+    },
+    "building_block": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "glass_pane_alpha20": {
+     "pos": 36,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.44238218205293733,
+     "recall_at_cut": 0.19444444444444445
+    },
+    "none": {
+     "pos": 2,
+     "pos_flights": 1,
+     "auroc_vs_all_neg": 0.5748870238863784,
+     "recall_at_cut": 0.0
+    },
+    "pole_10cm_axis_z": {
+     "pos": 69,
+     "pos_flights": 5,
+     "auroc_vs_all_neg": 0.7467931624891234,
+     "recall_at_cut": 0.6231884057971014
+    },
+    "wall_white_featureless": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "wire_1cm_axis_z": {
+     "pos": 55,
+     "pos_flights": 3,
+     "auroc_vs_all_neg": 0.6812958506954634,
+     "recall_at_cut": 0.509090909090909
+    },
+    "wire_3cm_axis_z": {
+     "pos": 75,
+     "pos_flights": 4,
+     "auroc_vs_all_neg": 0.5122014202711427,
+     "recall_at_cut": 0.21333333333333335
+    }
+   },
+   "path": "results/gate_holdout_glass_pane_alpha20/gate_gbt_depth+temporal.pkl"
+  },
+  "mlp/depth+temporal": {
+   "features": [
+    "corridor_min",
+    "corridor_p05",
+    "corridor_p25",
+    "corridor_median",
+    "corridor_var",
+    "corridor_grad_mean",
+    "corridor_far_frac",
+    "d_corridor_min",
+    "d_corridor_p05",
+    "d_corridor_median",
+    "d_corridor_var"
+   ],
+   "n": 1830,
+   "pos": 281,
+   "pos_flights": 19,
+   "auroc": 0.6534901405797334,
+   "auroc_ci": [
+    0.5493036141284956,
+    0.7496153112740199
+   ],
+   "auprc": 0.2785525382512138,
+   "base_rate": 0.153551912568306,
+   "ece": 0.06086335141308573,
+   "recall_at_cut": 0.3238434163701068,
+   "fpr_at_cut": 0.14719173660426083,
+   "by_family": {
+    "ball_20cm_red": {
+     "pos": 21,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.6625780073165483,
+     "recall_at_cut": 0.19047619047619047
+    },
+    "box_1m_black": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "box_1m_grey": {
+     "pos": 23,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.9278636988800629,
+     "recall_at_cut": 0.8260869565217391
+    },
+    "building_block": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "glass_pane_alpha20": {
+     "pos": 36,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.40045549099777633,
+     "recall_at_cut": 0.08333333333333333
+    },
+    "none": {
+     "pos": 2,
+     "pos_flights": 1,
+     "auroc_vs_all_neg": 0.1417043253712072,
+     "recall_at_cut": 0.0
+    },
+    "pole_10cm_axis_z": {
+     "pos": 69,
+     "pos_flights": 5,
+     "auroc_vs_all_neg": 0.7815233764654148,
+     "recall_at_cut": 0.5217391304347826
+    },
+    "wall_white_featureless": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "wire_1cm_axis_z": {
+     "pos": 55,
+     "pos_flights": 3,
+     "auroc_vs_all_neg": 0.6875520863900464,
+     "recall_at_cut": 0.2909090909090909
+    },
+    "wire_3cm_axis_z": {
+     "pos": 75,
+     "pos_flights": 4,
+     "auroc_vs_all_neg": 0.5591392296105013,
+     "recall_at_cut": 0.17333333333333334
+    }
+   },
+   "path": "results/gate_holdout_glass_pane_alpha20/gate_mlp_depth+temporal.pkl"
+  },
+  "logreg/depth+temporal+image": {
+   "features": [
+    "corridor_min",
+    "corridor_p05",
+    "corridor_p25",
+    "corridor_median",
+    "corridor_var",
+    "corridor_grad_mean",
+    "corridor_far_frac",
+    "d_corridor_min",
+    "d_corridor_p05",
+    "d_corridor_median",
+    "d_corridor_var",
+    "img_grad_mean",
+    "img_edge_frac",
+    "img_hline",
+    "img_vline",
+    "img_contrast",
+    "img_brightness"
+   ],
+   "n": 1830,
+   "pos": 281,
+   "pos_flights": 19,
+   "auroc": 0.6238211313004142,
+   "auroc_ci": [
+    0.4850357795550894,
+    0.748252713360504
+   ],
+   "auprc": 0.23181229413538465,
+   "base_rate": 0.153551912568306,
+   "ece": 0.30614692684650385,
+   "recall_at_cut": 0.28113879003558717,
+   "fpr_at_cut": 0.16397675919948354,
+   "by_family": {
+    "ball_20cm_red": {
+     "pos": 21,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.6850810046420117,
+     "recall_at_cut": 0.09523809523809523
+    },
+    "box_1m_black": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "box_1m_grey": {
+     "pos": 23,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.853846801583069,
+     "recall_at_cut": 0.8695652173913043
+    },
+    "building_block": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "glass_pane_alpha20": {
+     "pos": 36,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.04458073308944839,
+     "recall_at_cut": 0.0
+    },
+    "none": {
+     "pos": 2,
+     "pos_flights": 1,
+     "auroc_vs_all_neg": 0.2934151065203357,
+     "recall_at_cut": 0.0
+    },
+    "pole_10cm_axis_z": {
+     "pos": 69,
+     "pos_flights": 5,
+     "auroc_vs_all_neg": 0.7513215632338769,
+     "recall_at_cut": 0.42028985507246375
+    },
+    "wall_white_featureless": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "wire_1cm_axis_z": {
+     "pos": 55,
+     "pos_flights": 3,
+     "auroc_vs_all_neg": 0.6573977346088385,
+     "recall_at_cut": 0.10909090909090909
+    },
+    "wire_3cm_axis_z": {
+     "pos": 75,
+     "pos_flights": 4,
+     "auroc_vs_all_neg": 0.6810501398751884,
+     "recall_at_cut": 0.29333333333333333
+    }
+   },
+   "path": "results/gate_holdout_glass_pane_alpha20/gate_logreg_depth+temporal+image.pkl"
+  },
+  "gbt/depth+temporal+image": {
+   "features": [
+    "corridor_min",
+    "corridor_p05",
+    "corridor_p25",
+    "corridor_median",
+    "corridor_var",
+    "corridor_grad_mean",
+    "corridor_far_frac",
+    "d_corridor_min",
+    "d_corridor_p05",
+    "d_corridor_median",
+    "d_corridor_var",
+    "img_grad_mean",
+    "img_edge_frac",
+    "img_hline",
+    "img_vline",
+    "img_contrast",
+    "img_brightness"
+   ],
+   "n": 1830,
+   "pos": 281,
+   "pos_flights": 19,
+   "auroc": 0.7135794187042955,
+   "auroc_ci": [
+    0.5979059335889582,
+    0.8097870465028109
+   ],
+   "auprc": 0.4028921857735721,
+   "base_rate": 0.153551912568306,
+   "ece": 0.08022131391018755,
+   "recall_at_cut": 0.5195729537366548,
+   "fpr_at_cut": 0.22853453841187862,
+   "by_family": {
+    "ball_20cm_red": {
+     "pos": 21,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.6990992652709889,
+     "recall_at_cut": 0.3333333333333333
+    },
+    "box_1m_black": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "box_1m_grey": {
+     "pos": 23,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.9722962921379853,
+     "recall_at_cut": 1.0
+    },
+    "building_block": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "glass_pane_alpha20": {
+     "pos": 36,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.21526432824044187,
+     "recall_at_cut": 0.0
+    },
+    "none": {
+     "pos": 2,
+     "pos_flights": 1,
+     "auroc_vs_all_neg": 0.7859909619109102,
+     "recall_at_cut": 0.5
+    },
+    "pole_10cm_axis_z": {
+     "pos": 69,
+     "pos_flights": 5,
+     "auroc_vs_all_neg": 0.8423386757234682,
+     "recall_at_cut": 0.7246376811594203
+    },
+    "wall_white_featureless": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "wire_1cm_axis_z": {
+     "pos": 55,
+     "pos_flights": 3,
+     "auroc_vs_all_neg": 0.7678854392863431,
+     "recall_at_cut": 0.5636363636363636
+    },
+    "wire_3cm_axis_z": {
+     "pos": 75,
+     "pos_flights": 4,
+     "auroc_vs_all_neg": 0.7172713578652894,
+     "recall_at_cut": 0.4533333333333333
+    }
+   },
+   "path": "results/gate_holdout_glass_pane_alpha20/gate_gbt_depth+temporal+image.pkl"
+  },
+  "mlp/depth+temporal+image": {
+   "features": [
+    "corridor_min",
+    "corridor_p05",
+    "corridor_p25",
+    "corridor_median",
+    "corridor_var",
+    "corridor_grad_mean",
+    "corridor_far_frac",
+    "d_corridor_min",
+    "d_corridor_p05",
+    "d_corridor_median",
+    "d_corridor_var",
+    "img_grad_mean",
+    "img_edge_frac",
+    "img_hline",
+    "img_vline",
+    "img_contrast",
+    "img_brightness"
+   ],
+   "n": 1830,
+   "pos": 281,
+   "pos_flights": 19,
+   "auroc": 0.7057589674431213,
+   "auroc_ci": [
+    0.5569633053604693,
+    0.825241507186867
+   ],
+   "auprc": 0.4307288877120529,
+   "base_rate": 0.153551912568306,
+   "ece": 0.032057860334094995,
+   "recall_at_cut": 0.4412811387900356,
+   "fpr_at_cut": 0.10974822466107166,
+   "by_family": {
+    "ball_20cm_red": {
+     "pos": 21,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.6603953395431768,
+     "recall_at_cut": 0.14285714285714285
+    },
+    "box_1m_black": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "box_1m_grey": {
+     "pos": 23,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.970836724955792,
+     "recall_at_cut": 0.9130434782608695
+    },
+    "building_block": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "glass_pane_alpha20": {
+     "pos": 36,
+     "pos_flights": 2,
+     "auroc_vs_all_neg": 0.043504770102575134,
+     "recall_at_cut": 0.0
+    },
+    "none": {
+     "pos": 2,
+     "pos_flights": 1,
+     "auroc_vs_all_neg": 0.12459651387992249,
+     "recall_at_cut": 0.0
+    },
+    "pole_10cm_axis_z": {
+     "pos": 69,
+     "pos_flights": 5,
+     "auroc_vs_all_neg": 0.8532480047903742,
+     "recall_at_cut": 0.6521739130434783
+    },
+    "wall_white_featureless": {
+     "pos": 0,
+     "pos_flights": 0,
+     "auroc_vs_all_neg": NaN,
+     "recall_at_cut": NaN
+    },
+    "wire_1cm_axis_z": {
+     "pos": 55,
+     "pos_flights": 3,
+     "auroc_vs_all_neg": 0.8419625564880568,
+     "recall_at_cut": 0.41818181818181815
+    },
+    "wire_3cm_axis_z": {
+     "pos": 75,
+     "pos_flights": 4,
+     "auroc_vs_all_neg": 0.7349774047772756,
+     "recall_at_cut": 0.4266666666666667
+    }
+   },
+   "path": "results/gate_holdout_glass_pane_alpha20/gate_mlp_depth+temporal+image.pkl"
+  }
+ }
+}

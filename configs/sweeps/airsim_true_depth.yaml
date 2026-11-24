@@ -1,0 +1,28 @@
+# M4 gate on Project AirSim (HPC): true-depth flights must crash almost never, and replay exactly.
+# Needs: configs/seeds.yaml (frozen 2026-11-17, D24), hpc/m4_checks.sbatch passed (job 33776), and
+# airsim_starts_smoke.yaml passing first (it checks the start poses). Run with hpc/airsim_job.sbatch.
+# 40 m flights with the obstacle at 15 to 25 m, so a 2 s delay at 5 m/s (10 m) still leaves room to react.
+# These scenario settings are still tunable on val (M4.7); freeze them afterwards with
+#   python -m sim.scenario --freeze-scenario configs/sweeps/airsim_true_depth.yaml --to configs/scenario.yaml
+# Start poses [x, y, yaw_deg, clear_m]: the five longest open corridors in DS's CityEnviron scene scan (job 16300,
+# results.json 400px.scene_scan.rows, corridor_min_m at z = -2). A flight uses pose seed % 5 (D24).
+# [UNVERIFIED] until airsim_starts_smoke.yaml flies each with no "scenery" crash: the scan looked straight ahead from one spot.
+starts: &starts
+  - [150.0, 150.0, 0.0, 145.0]
+  - [-150.0, 50.0, 180.0, 140.0]
+  - [50.0, -150.0, 90.0, 120.0]
+  - [-50.0, -150.0, 270.0, 120.0]
+  - [150.0, -150.0, 0.0, 80.0]
+backend: airsim
+backend_kw: {configs: "${PP_SIM_CONFIGS}", scene_file: scene_cap_400.jsonc, starts: *starts}
+stack: true-depth
+judge: none
+delay_s: 1.0
+split: val
+seeds: {file: configs/seeds.yaml, n: 100}
+scenario: {goal_m: 40.0, first_obstacle_m: [15.0, 25.0], n_obstacles: [1, 1], alt_range_m: [1.8, 2.2]}
+loop: {t_max: 40.0}
+policies:
+  - {name: never, policy: never}
+out: results/sweeps/airsim_true_depth
+flight_logs: true
