@@ -1,0 +1,79 @@
+"""Crashes on seeds that never-ask flies safely: simulator noise or harm from asking? CPU only, reads sweep outputs.
+
+    python -m eval.ask_harm --sweep results/sweeps/replay_gates_surrogate --sweep results/sweeps/replay_gates_surrogate_extra
+
+1. Noise check: a flight with no calls should end exactly like never-ask on its seed, so any zero-call flight that
+   ends differently is simulator noise. Reported per policy kind; a short flight has fewer chances to ask, so
+   zero-call flights lean towards early crashes and the rate is a rough guide, not an unbiased estimate.
+2. Every crash after at least one call on a seed never-ask survives, with each ask and what the drone did next.
+   A crash is ``asked_and_harmed`` only as a candidate: noise and harm cannot be told apart from one flight.
+
+``always`` and ``oracle`` are references and are left out of the totals. Ground truth is printed for analysis only.
+"""
+from __future__ import annotations
+
+import argparse
+from collections import Counter
+from pathlib import Path
+from typing import Any, Sequence
+
+from eval.crash_causes import read_flight
+from eval.metrics import EpisodeResult, read_results
+from interfaces import FrameRecord
+
+REFERENCES = ("always", "oracle")
+
+
+def split_flights(results: Sequence[EpisodeResult], never: str = "never") -> dict[str, Any]:
+    base = {r.seed: r for r in results if r.policy == never}
+    others = [r for r in results if r.policy != never and r.seed in base]
+    zero = [r for r in others if r.n_calls == 0]
+    flips = [r for r in zero if r.crashed != base[r.seed].crashed]
+    new = [r for r in others if r.crashed and not base[r.seed].crashed]
+    ranked = lambda rs: [r for r in rs if r.policy not in REFERENCES]  # noqa: E731
+    safe_asked = [r for r in ranked(others) if r.n_calls > 0 and not base[r.seed].crashed]
+    return {"base": base, "zero": zero, "flips": flips, "zero_safe": [r for r in zero if not base[r.seed].crashed],
+            "zero_crash": [r for r in zero if base[r.seed].crashed], "candidates": [r for r in new if r.n_calls > 0],
+            "asked_safe_n": len(safe_asked), "asked_safe_crashed": sum(r.crashed for r in safe_asked)}
+
+
+def ask_lines(records: Sequence[FrameRecord]) -> list[str]:
+    """One line per ask, then the last frames before the crash."""
+    out = []
+    for i, r in enumerate(records):
+        if r.asked:
+            after = Counter(str(getattr(x.action_taken, "name", x.action_taken)) for x in records[i:i + 20])
+            out.append(f"    ask t={r.t:.1f} vlm={'yes' if r.vlm_answer else 'no'} score={r.gate_score} corridor gt={r.corridor_min_gt:.1f} est={r.corridor_min_est:.1f} "
+                       f"next 2 s: {', '.join(f'{k} {v}' for k, v in after.most_common())}")
+    for r in records[-3:]:
+        out.append(f"    end t={r.t:.1f} action={getattr(r.action_taken, 'name', r.action_taken)} corridor gt={r.corridor_min_gt:.1f} est={r.corridor_min_est:.1f} "
+                   f"yaw={r.pose[3]:.2f} y={r.pose[1]:.1f} collision={r.collision}")
+    return out
+
+
+def main(argv: list[str] | None = None) -> None:
+    p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    p.add_argument("--sweep", type=Path, action="append", required=True, help="sweep output dir (has results.jsonl); repeatable")
+    p.add_argument("--never", default="never")
+    a = p.parse_args(argv)
+    results, where = [], {}
+    for sweep in a.sweep:
+        for r in read_results(sweep / "results.jsonl"):
+            results.append(r)
+            where[(r.policy, r.seed)] = sweep / "flights" / f"{r.episode_id}.jsonl"
+    d = split_flights(results, a.never)
+    if not d["base"]:
+        raise SystemExit(f"no {a.never!r} flights in the given sweeps")
+    fc = sum(not d["base"][r.seed].crashed for r in d["flips"])
+    print(f"zero-call flights: {len(d['zero'])}; ended unlike {a.never}: {len(d['flips'])} "
+          f"(safe seeds that crashed {fc} of {len(d['zero_safe'])}, crash seeds that survived {len(d['flips']) - fc} of {len(d['zero_crash'])})")
+    print("  flips: " + ", ".join(f"{r.seed}/{r.policy}" for r in d["flips"]))
+    print(f"flights with calls on seeds {a.never} survives (references left out): {d['asked_safe_n']}, crashed {d['asked_safe_crashed']}")
+    for r in sorted(d["candidates"], key=lambda r: (r.seed, r.policy)):
+        print(f"\n{r.seed} {r.policy}: {r.obstacle_family}, {r.n_calls} calls, crashed at {r.mission_time_s:.1f} s into {r.extra.get('collision_source')}")
+        log = where[(r.policy, r.seed)]
+        print("\n".join(ask_lines(read_flight(log))[-9:]) if log.exists() else "    no flight log")
+
+
+if __name__ == "__main__":
+    main()

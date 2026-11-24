@@ -545,3 +545,11 @@
 - Member: PP
 - Action (laptop): configs/sweeps/airsim_replay_gates_qwen.yaml: the surrogate sweep's flights with Qwen3-VL-8B (prompt cross, both images, val cut -4.02, as in airsim_gate_check.yaml); policies never, gate_l3_q10, gate_l1_q10, random_p02, threshold_far_q10, oracle; 60 val seeds; 360 flights. Checked by script: differs from the main config only in judge, judge_kw, policies and out; the judge constructs.
 - Caveats: gates were trained on surrogate replay labels; scenario unfrozen; the qwen judge in the flight env and the weights under the user's HF_HOME are [UNVERIFIED], so a 12-flight smoke run comes first.
+
+## 2026-11-23 (session PP)  |  eval, hpc  |  possible ask-caused crashes; A100 partition not booting
+- Member: PP
+- Evidence (from results/sweeps/replay_gates_all.jsonl, user's one-off script on the HPC): 10 crashes on seeds never-ask survives: 101002 gate_l1_q05, 101012 always, 101017 gate_l1_q10 and threshold_cmin10, 101019 random_p01 (0 calls), 101027 and 101032 threshold_cmin10, 101037 random_p05, 101050 gate_l3_q10, 101054 random_p01 (0 calls). The two zero-call crashes cannot come from asking (simulator noise); for the other 8, noise and harm are not separated yet.
+- Run: smoke run of configs/sweeps/airsim_replay_gates_qwen.yaml (job 41680) never started: 17 node attempts, 21:56 to 00:50, 2 NODE_FAIL and 15 REQUEUED. `sinfo -p c12m85-a100-1`: 60 nodes powering up, 53 down, 14 running, newest running job about 4 h 38 min old. Cancelled by the user's choice [UNVERIFIED]. Qwen3-VL-8B weights downloaded to /scratch/psp8502/hf (job 41678, exit 0, 17 GB).
+- Correction (assistant): told the user the second node was booting; it was the 17th attempt. Should have checked `sacct --duplicates` first.
+- Action (laptop): eval/ask_harm.py + tests/test_ask_harm.py: zero-call flights against never-ask (simulator noise) and per-ask detail of crashes on seeds never-ask survives.
+- Sanity: full pytest 164 passed, 1 failed (pre-existing laptop ImportError).

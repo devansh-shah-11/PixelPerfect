@@ -174,3 +174,6 @@
 ## 2026-11-23  |  eval  |  real-VLM closed-loop config, with a smoke run first
 - Advances: M5 / M6.3 toward real VLM answers (complements M6.2, which caches them for replay). Not run yet.
 - Sanity check: config parses, judge constructs, other settings equal to the surrogate sweep.
+## 2026-11-23  |  eval  |  tool to separate simulator noise from ask-caused crashes
+- Advances: M5.4 (crash analysis). Blocked: real-VLM smoke run (A100 nodes not booting).
+- Sanity check: full pytest 164 passed, 1 failed (pre-existing laptop ImportError).
