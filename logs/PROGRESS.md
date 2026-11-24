@@ -186,3 +186,7 @@
 ## 2026-11-23  |  eval, sim  |  unplaced-object crashes quantified (13 of 188, start poses 0 and 2)
 - Advances: input to M4.7. Next: bare-map scan result (job 41846), then choose replacement start poses.
 - Sanity check: log-only commit; counts from eval.ask_harm on the HPC.
+## 2026-11-23  |  sim, vlm  |  start poses scanned; real VLM runs in flight but its cutoff needs retuning
+- Advances: M4.7 (poses 0, 2, 3 blocked; 1, 4 clear), M5.2 (Qwen answers in the flight job). Blocked: M4.7 freeze, then the M6.3 rerun.
+- Report: first draft of the gate section (report/sections/gate.tex).
+- Sanity check: docs-only change; scan 3,280 captures and smoke runs exit 0.

@@ -65,7 +65,7 @@ The CityEnviron bank (411 episodes, 19,267 frames) is the data everything runs o
 | M1.2 | Depth clipping and sky mask as one function in `perception/` [W-S2] | B | Unit test on 3 saturated frames (65504 m sky) | DONE |
 | M1.3 | Depth Anything V2-Small (metric) over the kept frames, resumable JSONL, corridor minimum per frame [W-B1, D7] | B | JSONL for every kept frame | DONE: job 32117, 19,267 rows in `da2_small.jsonl` |
 | M1.4 | Scale check against ground-truth distance; frozen global scale and shift fit on **train episodes only** if needed [W-B2] | B | Plot plus a frozen parameter file | DONE (median scale 0.790). Whether to freeze a scale correction is still a team decision; scaling moved val false stops 10 to 24 |
-| M1.5 | **Merge the frame-bank work into `main`** | B | PR merged; `main` runs | TODO, and it blocks M3 |
+| M1.5 | **Merge the frame-bank work into `main`** | B | PR merged; `main` runs | DONE (PR #3 merged 2026-11-23) |
 | M1.6 | L1 label function in `gate/labels.py`, false stops logged separately, unit tests, eyeball 20 positive and 20 negative [W-B3, §4.3] | B | Tests pass plus an eyeball note | DONE, but see M1.8 |
 | M1.7 | Ground-truth corridor distance from the segmentation mask | B | Agrees with `gt_along_m` on a sample | DONE (code and track check); not yet computed on the real bank, see M1.8 |
 | M1.8 | **Clean the L1 labels:** run `gate.bank_gt` and the analysis with `--gt` on the real bank, so labels come from the segmentation mask rather than raw corridor depth | B | Label rates recomputed; rain no longer noisy | READY TO RUN (SB): `gate.bank_gt` now also labels glass from metadata (see-through to depth and segmentation, job 33462). Rerun it over the bank on a CPU node, then `analyze_bank --gt` (commands in AGENT_LOG, 2026-11-15) |
@@ -154,7 +154,7 @@ Both headlines live here (`PLAN_DETAILED.md` D16). Test seeds are opened **once*
 |---|---|---|---|---|
 | M6.1 | Flight forking: replay from frame t [A-14, H8] | A | Two forks from one frame diverge only by the injected answer | TODO |
 | M6.2 | Cached VLM answers for fork frames [C-13, H9] | C | Cache file on scratch | TODO |
-| M6.3 | **Headline 1:** L3 replay labels, gate-L3 against gate-L1 at equal query rates [E4] | B | Figure plus table | TODO |
+| M6.3 | **Headline 1:** L3 replay labels, gate-L3 against gate-L1 at equal query rates [E4] | B | Figure plus table | DOING (PP): L3 labels, gate-L3 and gate-L1, and a closed-loop sweep done with the SURROGATE VLM on an unfrozen scenario (development only: gates beat matched random and threshold, no L3-over-L1 gain in flight). Rerun needed after M4.7 and real VLM answers |
 | M6.4 | **Headline 2:** delay sweep, top 3 policies by `d` in {0.25, 1, 3} s [E5] | A + C | Figure showing when asking stops being worth it | TODO |
 | M6.5 | Extra asking policies: fixed interval, scene change, anomaly in the AESOP style [C-12] | C | Each passes a smoke test | TODO |
 | M6.6 | Slow-system comparison: VLM judge against the VLM choosing the action directly [C-19, E7, D18] | C | Table plus figure | TODO |

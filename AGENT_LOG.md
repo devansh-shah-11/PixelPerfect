@@ -581,3 +581,12 @@
 - Impact on labels: a replay fork that asks, climbs and hits the map counts as "asking did not help", so some L3 positives at poses 0 and 2 may be missing. Not quantified.
 - Correction (assistant): estimated about 9 such crashes; the count is 13 (four on poles, wires and glass were hidden in the total).
 - Follow-ups: bare-map scan (job 41846) to confirm; then drop or re-place the bad poses before M4.7 freezes (DS).
+
+## 2026-11-23 (session PP)  |  sim, vlm, docs  |  start poses scanned; real Qwen3-VL in flight; gate section drafted
+- Member: PP
+- Runs: A100 jobs 41843 and 41890 (real VLM, 12 and 30 flights), 42050 (pose scan, 3,280 captures), all exit 0; 41680 and 41846 never booted. Configs airsim_replay_gates_qwen.yaml and airsim_replay_gates.yaml, val seeds 101000 to 101004; exact commit per job not recorded.
+- VLM: 8B answers in about 0.15 s. At cut -4.02, 12 of 13 asks with nothing within 30 m got "yes" (bank val: 10%), 6 of 7 under 15 m. The cut does not transfer; likely new scenes and a prompt without a distance [UNVERIFIED].
+- Poses: 1 and 4 clear from 2 to 12 m up; 0, 2, 3 obstructed (x about 13.7, trees at 17 to 23 and 35 to 40, x about 18 to 19).
+- Docs: report/sections/gate.tex (development numbers, not compiled); TASKS.md M1.5 and M6.3.
+- Corrections (assistant): `--no-requeue` did not stop retries; pose 0 objects are posts, not overhead; scan's "bad capture" column unreliable; held-out glass AUROC for the MLP is 0.044, 0.215 was gradient boosting (wrong in earlier entries).
+- Follow-ups: DS new poses and freeze (M4.7); SB retune the cut, replay answers (M6.2); PP one rerun after both.
