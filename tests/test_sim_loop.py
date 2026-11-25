@@ -105,6 +105,84 @@ def test_controller_hysteresis_and_cap():
     assert c.act(est(50.0), off) == Action.YAW_RIGHT  # steer back to the goal bearing
 
 
+def banded(centre: float, left: float, right: float, up: float, h: int = 40, w: int = 80) -> DepthEstimate:
+    """A depth estimate with set values in the corridor, the side bands and the upper band (control.rules.free_space)."""
+    d = np.full((h, w), centre, np.float32)
+    d[int(0.35 * h): int(0.65 * h), : int(0.4 * w)] = left
+    d[int(0.35 * h): int(0.65 * h), int(0.6 * w):] = right
+    d[: int(0.3 * h), int(0.4 * w): int(0.6 * w)] = up
+    return DepthEstimate(depth=d, features=corridor_features(d))
+
+
+def pos(x=0.0, y=0.0, alt=2.0, yaw=0.0) -> DroneState:
+    return DroneState(t=0, position=(x, y, -alt), yaw=yaw, speed=5.0)
+
+
+def test_choose_mode_picks_the_freer_side_keeps_it_and_rescores_when_it_closes():
+    c = RuleController(avoid_mode="choose", goal_bias_m=0.0)
+    assert c.act(banded(5.0, left=12.0, right=40.0, up=90.0), pos()) == Action.YAW_RIGHT  # sky reads far, but a free side wins
+    assert c.phase == "avoid"
+    assert c.act(banded(5.0, left=30.0, right=20.0, up=90.0), pos()) == Action.YAW_RIGHT  # kept while it stays free
+    assert c.act(banded(5.0, left=30.0, right=6.0, up=90.0), pos()) == Action.YAW_LEFT  # re-scored once it reads blocked
+    c2 = RuleController(avoid_mode="choose")
+    assert c2.act(banded(5.0, left=6.0, right=7.0, up=90.0), pos()) == Action.CLIMB  # both sides blocked: go over
+    assert c2.act(banded(5.0, left=6.0, right=7.0, up=90.0), pos(alt=24.5)) == Action.YAW_RIGHT  # at the cap: better side
+
+
+def test_choose_mode_prefers_the_side_towards_the_goal_and_follows_the_vlm():
+    c = RuleController(avoid_mode="choose", goal_bias_m=5.0)
+    c.set_mission((50.0, -10.0), cruise_alt=2.0, land_alt=1.0)  # goal ahead and to the left
+    assert c.act(banded(5.0, left=20.0, right=22.0, up=90.0), pos()) == Action.YAW_LEFT  # 20 + 5 beats 22
+    c.reset()
+    assert c.avoid_action(banded(50.0, left=10.0, right=40.0, up=90.0), pos(), direction="left") == Action.YAW_LEFT
+    assert c.avoid_action(banded(50.0, left=10.0, right=40.0, up=90.0), pos(), direction=None) == Action.YAW_LEFT  # VLM's side held
+    c.reset()
+    assert c.avoid_action(banded(50.0, left=40.0, right=40.0, up=90.0), pos(), direction="over") == Action.CLIMB
+    with pytest.raises(ValueError):
+        c.avoid_action(banded(50.0, left=40.0, right=40.0, up=90.0), pos(), direction="down")
+    with pytest.raises(ValueError):
+        RuleController(avoid_mode="random")
+
+
+def test_mission_steers_to_the_goal_bypasses_returns_to_cruise_and_lands():
+    c = RuleController(avoid_mode="choose")
+    c.set_mission((40.0, 40.0), cruise_alt=2.0, land_alt=1.0)
+    clear = banded(60.0, left=60.0, right=60.0, up=90.0)
+    assert c.act(clear, pos()) == Action.YAW_RIGHT  # goal bearing +45 deg, positive yaw turns right (NED)
+    assert c.act(clear, pos(yaw=math.radians(45))) == Action.CONTINUE
+    c.reset()
+    c.set_mission((60.0, 0.0), cruise_alt=2.0, land_alt=1.0)
+    assert c.act(banded(5.0, left=6.0, right=7.0, up=90.0), pos(x=10.0)) == Action.CLIMB  # obstacle estimated 5 m ahead: over
+    assert c.act(clear, pos(x=10.0, alt=6.0)) == Action.CONTINUE and c.phase == "bypass"  # hold the heading until past it
+    assert c.act(clear, pos(x=16.0, alt=6.0)) == Action.CONTINUE and c.phase == "bypass"  # 6 m ahead < 5 + 1.5
+    assert c.act(clear, pos(x=16.6, alt=6.0)) == Action.DESCEND and c.phase == "return"  # past the obstacle: back down
+    assert c.act(clear, pos(x=22.5, alt=2.1)) == Action.CONTINUE and c.phase == "cruise"
+    assert c.act(clear, pos(x=58.5, alt=2.0)) == Action.DESCEND and c.phase == "landing"  # within 2 m of the goal
+    assert c.act(banded(1.0, left=1.0, right=1.0, up=1.0), pos(x=58.5, alt=1.1)) == Action.STOP  # landed; obstacles ignored
+
+
+def test_bypass_ends_past_the_vlm_range_or_after_a_sideways_detour_and_restarts_on_a_new_obstacle():
+    c = RuleController(avoid_mode="choose", d_judge=15.0)
+    c.set_mission((60.0, 0.0), cruise_alt=2.0, land_alt=1.0)
+    clear = banded(60.0, left=60.0, right=60.0, up=90.0)
+    assert c.avoid_action(clear, pos(x=5.0), direction="left") == Action.YAW_LEFT  # VLM only: depth saw nothing
+    assert c.act(clear, pos(x=15.0, y=-3.0, yaw=-0.3)) == Action.CONTINUE and c.phase == "bypass"  # 10 m < 15 + 1.5
+    assert c.act(banded(5.0, left=6.0, right=40.0, up=90.0), pos(x=17.0, y=-3.5, yaw=-0.3)) == Action.YAW_RIGHT  # new obstacle
+    assert c.phase == "avoid"
+    c.reset()
+    c.set_mission((60.0, 0.0), cruise_alt=2.0, land_alt=1.0)
+    c.act(banded(5.0, left=6.0, right=40.0, up=90.0), pos(x=10.0))  # obstacle 5 m ahead, turns right
+    assert c.act(clear, pos(x=10.5, y=12.0, yaw=1.5)) == Action.CONTINUE  # sideways: only 0.5 m further along, 12 m flown
+    assert c.act(clear, pos(x=10.5, y=13.5, yaw=1.5)) == Action.YAW_LEFT and c.phase == "cruise"  # 13.5 m >= 2 x 6.5: turn back to the goal
+
+
+def test_line_courses_keep_the_original_controller():
+    old, new = RuleController(), RuleController()
+    seq = [(est(20.0), pos()), (est(7.0), pos()), (est(9.0), pos(alt=3.0)), (est(12.0), pos(alt=4.0)), (est(50.0), pos(alt=4.0, yaw=-0.5))]
+    assert [new.act(e, s) for e, s in seq] == [Action.CONTINUE, Action.CLIMB, Action.CLIMB, Action.CONTINUE, Action.YAW_RIGHT]
+    assert new.config()["avoid_mode"] == "climb_first" and new.goal is None
+
+
 # ---- scenarios and seeds ---------------------------------------------------------------------
 
 

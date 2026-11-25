@@ -200,3 +200,8 @@
 - Advances: M5 / M6.3 scoring protocol (closed-loop problems 3 and 4 from the Nov 23 sweep). D24 text updated for `skip`.
 - Unblocked: Parva can tune cuts on val 0-59 and score on `{skip: 60, n: 100}` after the scenario freeze. Still blocked: the freeze itself (M4.7: new start poses, difficulty retune, wall decision).
 - Sanity check: tests/test_policies_metrics.py and tests/test_sim_loop.py, 39 passed.
+
+## 2026-11-25  |  sim  |  DESCEND action and cone courses (65a4a3b)
+- Advances: M4.7 (plan v7 step 2, chunk 1 of 5: action set and course generator). Line layout unchanged and still the default.
+- Still blocked: controller, judge direction, flight loop outcomes (chunks 2 to 5), then the raycast smoke, the A100 pose scan and the headroom run, then the freeze.
+- Sanity check: full pytest 170 passed, 1 skipped (laptop). Note: the commit also carried an earlier v2 draft of PLAN_SCENARIO_FREEZE.md that was already staged; v7 follows in the next commit.

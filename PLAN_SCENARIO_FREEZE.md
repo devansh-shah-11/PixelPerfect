@@ -1,55 +1,59 @@
-# Plan v2: scenario freeze (M4.7)
+# Plan v7: a realistic course before the scenario freeze (M4.7)
 
-Draft for review (DS, 2026-11-24, revised after reading Parva's PR #4 files). Not a decision record. `PLAN_DETAILED.md` stays unchanged; any deviation goes in `AGENT_LOG.md` plus a Decision-log row.
 
-Task: new start poses, difficulty retune to never-ask crashes of 15 to 30%, then freeze the scenario (`TASKS.md` M4.7). Also Problem 2: the never-ask noise floor.
+Draft for review (DS). Not a decision record: `PLAN_DETAILED.md` stays unchanged; deviations go in `AGENT_LOG.md` plus Decision-log rows.
+Goal point with landing, a random goal inside a scanned cone, 1 to 5 obstacles, situation-based avoidance with the VLM saying where to go, return to cruise altitude, and map-scenery crashes logged properly. Then retune difficulty and freeze. Repo copy `PLAN_SCENARIO_FREEZE.md` (still v2) is refreshed to this in step 1.
 
-## What Parva's files settled
-(Read locally on `sim/scenario-freeze`, after merging `B/M6.3-results`.)
-- **Map-object crashes are not in never-ask.** `results/sweeps/ask_harm.txt`: 55 "scenery" crashes = 42 on the placed obstacle (guard fired first) + 13 elsewhere. Never-ask has 6 of the 42 and none of the 13.
-- **The 13 map-object crashes are all at pose 0 (x = 13 m, altitude 3.9 to 6 m) and pose 2 (x = 18.5 to 21.5 m, altitude 4 to 9 m; one at x = 1.5 m).** Eight end while climbing, five while continuing (after climbing to 4 to 9 m). Only policies that ask, and so climb, hit them. Pose 0's objects are posts, not overhead (Parva's correction).
-- **Pose scan** (job 42050, 3,280 captures, `results/pose_clearance/report.md`): poses 1 and 4 are clear at 2 to 12 m; 0, 2 and 3 are obstructed. Parva says the "bad capture" column is unreliable, so judge poses by "map hits" and "depth under 2 m". The scan probes only straight along each pose's heading.
-- **Never-ask at 48% (29/60) comes from placed thin and transparent obstacles:** pole 11/12, glass 8/8, wire_3cm 4/5, wire_1cm 3/6, boxes 3/19, wall 0/9. Never-ask crashes by pose are 6/3/6/8/6 of 12, too few to read as pose difficulty.
-- **The crash-cause table shows "controller" 0 everywhere,** but that run had no true-depth reference, so the controller was never checked.
-- **Job commits were not recorded** (Parva's log), so old numbers can't be tied to a commit. One clean rerun on one code version after the freeze replaces them.
-- **Owners** (Parva's log): DS poses and freeze; SB retunes the real-VLM cut and replay answers (M6.2); PP reruns both sweeps once after the freeze.
+## Context
+Until now every flight was a straight 40 m line with exactly one placed obstacle (`n_obstacles: [1, 1]` in every AirSim config), success meant "x >= 40 m", and the controller avoided only by climbing in place and never came back down. Parva's sweep and DS's jobs 42952/42953 showed never-ask crashes come from depth-blind obstacles in the path, while map objects hit only drones that had climbed. DS wants a course closer to a real mission before freezing: reach and land at a destination, several obstacles, go around them, come back down, and know the cause of every crash.
 
-## New risk: scene richness against the real VLM
-Parva's real-Qwen runs (12 and 30 flights, jobs 41843, 41890): with cut -4.02, 12 of 13 asks with nothing within 30 m got "yes" (bank val rate 10%), and 6 of 7 asks under 15 m. The cut does not transfer to flight scenes (his guess: new scenes, prompt without distance) [UNVERIFIED].
-- Rich scenes (trees, buildings beside the path) make the real VLM say "yes" to far scenery, and a "yes" makes the controller climb. The surrogate (flat fpr 0.14) hides this.
-- Pick poses by corridor clearance only; do not tune scenery to flatter the VLM. Record richness as a covariate.
-- The 30-flight real-Qwen check (never 1/5, gates 0/5, random 1/5, oracle 0/5, wide CIs) shows the pipeline runs and nothing more.
-- Retuning the VLM cut is SB's job (M6.2); ask that it use frames from the frozen poses.
+## Decisions (DS, 2026-11-24/25)
+- Never-ask band 35 to 40% (deviation from `PLAN_DETAILED.md` 15 to 30%, inside the 10 to 80% kill switch). Wall share small.
+- No spawned trees; map trees and buildings stay. L1 labels already see them (ground-truth depth, `gate/labels.py:107`), L3 replay counts map crashes. Map-scenery crashes are logged and reported as their own cause.
+- **Mission:** reach the goal (x, y) and land: descend to 1 m above the ground at the goal. Landing ends the flight and is not a crash. The landing spot must be free of obstacles.
+- **Course:** goal random inside a cone from each verified start pose: 50 to 60 m ahead, up to 10 m to either side. 1 to 5 obstacles at random positions between start and goal, in the path or beside it.
+- **Avoidance:** decided by the situation, never hard-coded; the VLM, when asked, says where to go (left, right or over). Return to cruise altitude afterwards (new DESCEND action).
+- **Time limits:** max flight 120 s (was 60 s); "lost" when the distance to the goal has not shrunk for 30 s.
+- Every course is random but reproducible from `(split, seed)` (`sim.scenario.generate`); tune on val only, test seeds untouched.
 
-## Steps (laptop unless stated)
-1. **Log first.** `AGENT_LOG.md` entry (DS) with the corrections and this risk. Done on 2026-11-24 (see the entry "Problem 1: map-object crashes, pose scan, surrogate caveats").
-2. **Poses.**
-   - Keep poses 1 and 4. Need 3 to 5 in total (D24), so at least one more.
-   - Shortlist from `capability_CityEnviron_16300/results.json` (128 candidates; local, gitignored): open at 2 m, nothing in the corridor, buildings and trees beside the path allowed. Earlier shortlist: A (50, -50, 270), B (-50, 50, 270), C (-50, -50, 90); spares D (150, 150, 270), E (50, 50, 180). The seg-colour richness proxy is [UNVERIFIED].
-   - Verify each candidate with `eval.pose_clearance` on the A100 (altitudes 2 to 12 m, x 0 to 40 m, 2 passes). Accept only with no map hits and no "depth under 2 m" points. Ask before submitting; a few minutes of A100.
-   - Put the chosen `starts` in a new sweep config copied from `configs/sweeps/airsim_replay_gates.yaml`. Do not edit Parva's configs.
-3. **Difficulty retune from never-ask only** (does not depend on the VLM).
-   - Regenerate val scenarios from seeds with `sim/scenario.py`, add an in-path flag, and tabulate never-ask crashes by family and in-path from `results/sweeps/replay_gates_surrogate/results.jsonl`.
-   - Predict the rate for candidate `p_in_path` (now 0.8) and family weights. Target about 25%. Keep every family; the retune comes from obstacle placement, not from emptying the map.
-   - Tune on val seeds 0 to 59 and check on a later block via `seeds.skip`. No test seeds.
-   - Wall: 0/9 crashes. Keep a small share as the controller sanity check (D6), or drop it: team call.
-   - **Result (laptop, 2026-11-24, old poses, surrogate-independent):** regenerating the 60 val scenarios with the sweep's settings reproduces the logged family on 60/60 flights. An obstacle counts as in-path when its lateral offset is under 1 m. In-path flights: 53, never-ask crashed 29 (0.55, Wilson 0.41 to 0.67). Off-path flights: 7, crashed 0. Thin or transparent obstacles in the path crash every time (pole 11/11, glass 8/8, wire_3cm 4/4, wire_1cm 3/3); boxes 3/18; wall 0/9; ball has no in-path flight.
-   - **So the difficulty knob is `p_in_path`.** Predicted never-ask rate = p_in_path x 0.55: 0.8 gives 0.44 (observed 0.48), 0.5 gives 0.27, 0.45 gives 0.25 (range 0.19 to 0.30), 0.4 gives 0.22. Recommended start: `p_in_path` 0.45, all families kept. About half the flights then carry an off-path obstacle in view that the gate and VLM should ignore, which fits the goal of a scene the model has to read rather than an empty map. The prediction assumes the old poses; the headroom run (step 4) is the real test.
-4. **Headroom run on the A100 (ask first).**
-   - Never-ask only, at least 100 val seeds (M4.7), about 22 s per flight, so about 40 minutes per pass. Run the same seeds twice for the noise floor (earlier repeat: 58/60 agree).
-   - Resumable JSONL and one `logs/runs.jsonl` line per run.
-   - A100 nodes have failed to boot before (jobs 41680 and 41846, 17 attempts), so use `--requeue` and expect delays. About 1.5 A100-hours of the 300.
-5. **Freeze** only if never-ask is 15 to 30%: `python -m sim.scenario --freeze-scenario <sweep>.yaml --to configs/scenario.yaml`. A Decision-log row is needed. `PLAN_DETAILED.md` is not edited unless asked.
-6. **Handoff.**
-   - Parva: hold old-pose reruns until the freeze, then rerun both sweeps on one commit with the new poses and `seeds.skip` (tune val 0 to 59, score a later block).
-   - SB: the real-VLM cut needs retuning on frozen-pose frames.
+## Design
+- **Action set:** add `Action.DESCEND` in `interfaces.py` (down at `climb_rate`, moving at `v_descend`, floor at the landing height). Changes D4's action set: Decision-log row. Modules that switch on actions: `sim/drone.py` (`step`), `control/rules.py`, tests `tests/test_sim_loop.py` and `tests/test_interfaces.py`.
+- **Scenario (`sim/scenario.py`):** `Scenario` gains `goal_xy` (path frame) and `land_alt_m` (1.0). New placement mode in `ScenarioConfig` (old mode stays default so old configs keep their meaning): goal distance U(50, 60) m and lateral U(-10, 10) m; n ~ U{1..5}; obstacle positions uniform along the start-to-goal line in [12 m, goal distance - 8 m] with a minimum gap of 8 m (draws that cannot fit are dropped, the realised count is logged); in-path with `p_in_path` (lateral N(0, 0.3) from the line), else 3 to 8 m beside it; no obstacle within 6 m of the goal (landing spot clear). `pick_start` checks goal distance + 5 m against `clear_m`.
+- **How the drone knows the target:** the goal (x, y) is part of the mission, given at takeoff like a GPS waypoint; the drone knows its own position and heading each step (`DroneState`, like GPS plus IMU). Both are legitimate run-time inputs (CLAUDE.md rule 5 bans ground truth about obstacles, not the mission or own state).
+- **Controller (`control/rules.py`), run-time inputs only** (estimated depth, own pose, mission goal, VLM answer):
+  - Steer toward the bearing from the drone's position to the goal every step (replaces the fixed `goal_bearing = 0`); turn when off by more than 10 degrees.
+  - Depth says blocked (no ask): score left, right and over from the fast stack's depth estimate (free distance in each band, a bonus for the side toward the goal), pick the highest. Kept while it stays free, re-scored when the chosen side becomes blocked.
+  - VLM asked and answers "left", "right" or "over": the controller follows that direction for the avoidance episode (`vlm_avoid_s`, re-checked as above). This is what lets a depth-blind obstacle (wire, glass) be avoided on the correct side. "No": fly on.
+  - Return to cruise: after avoiding, hold altitude until the drone has flown `d_safe` (8 m) past the avoidance start with the estimate clear, then DESCEND toward cruise altitude while moving forward.
+  - Landing: within 2 m of the goal horizontally, STOP forward motion and DESCEND to `land_alt_m`.
+- **VLM answer with a direction (`vlm/`):**
+  - Real judge (Qwen3-VL): one question about the drawn path, answer one of no / left / right / over. Changes the prompt (D9 allows one prompt round, chosen on val) and the parsing; the confidence cut for "yes vs no" is kept and retuned by SB on new frames.
+  - Surrogate judge (`vlm/surrogate.py`): keeps the measured yes/no rates; given a "yes", returns the correct side with probability `p_dir` and another side otherwise. The correct side is computed by the evaluation loop from the obstacle geometry (as `set_truth` does today). `p_dir` is not measured yet: start at 0.8 [UNVERIFIED], then replace it with the rate measured from the real VLM on val frames. Everything labelled "surrogate VLM".
+  - Policies and the gate do not change: the gate still decides when to ask; the slow system stays swappable (D18). Decision-log row: the judge's answer changes from yes/no to no/left/right/over.
+- **Flight loop (`eval/run_episode.py`):** `t_max` 120 s. Success = within 2 m of the goal horizontally and at or below `land_alt_m` + 0.1 m. Ground contact stays a crash. Four outcomes, reported separately: landed, crashed, lost (distance to goal not reduced for 30 s, or the drone leaves the scanned cone), timeout (120 s). New result fields: `outcome`, `landed`, `goal_dist_m`, the VLM direction per ask; crashes tagged with the phase (cruise, avoid, return, landing).
+- **Scenery crash logging:** when the depth guard fires with no placed obstacle within 1 m, record `scenery` with x, y, altitude, heading, phase, pose index and the segmentation colour of the nearest window pixel (extends `guard_hit`, `eval/run_episode.py:128`). `eval/crash_causes.py` and `eval/ask_harm.py` report map scenery as its own cause, per pose and per phase.
+- **Poles:** use the vertical `pole_10cm_axis_y` instead of the horizontal `pole_10cm_axis_z` bar (`sim/scenario.py:43,47-48`; `gate/labels.py:27-29` confirms the old one renders as a bar); keep the horizontal wires (like power lines). Add its `HALF_WIDTH_M` entry. Pole VLM accuracy in `results/benchmark.md` was measured on bars: note it.
 
-## Open decisions
-- Number of poses: 3 (fastest) or 5 (more variety, more verification).
-- Wall share in the catalog: keep small or drop.
+## Steps
+1. **Log (laptop).** `AGENT_LOG.md` (DS, 2026-11-25): pose scan and precheck results, the decisions above, the corrected answer on map-object labels, the horizontal-pole finding, that all replay labels and gates become void, and draft Decision-log rows (band, mission with landing, course, DESCEND action, avoidance rule, VLM direction answer, 120 s limit, pole orientation) as text for a teammate. Refresh `PLAN_SCENARIO_FREEZE.md`. `PLAN_DETAILED.md` is not edited.
+2. **Code + unit tests (laptop).** Scenario, action, controller, judge (direction), loop and logging changes above, each with tests: deterministic course per seed, obstacle count and spacing, landing spot clear, goal-bearing steering, side scoring and re-scoring, VLM direction followed, climb fallback, return to cruise, landing success not a crash, lost after 30 s, timeout at 120 s, scenery logging. `.venv/bin/python -m pytest`.
+3. **Laptop smoke on the Plan B raycast backend** (`sim/raycast.py`, no GPU): never-ask, oracle and always (surrogate VLM with direction) on 20 val seeds; check tracks from logged poses, landings, going around vertical posts, over horizontal wires, no flip-flop.
+4. **Wider pose scan (A100, ask first).** Poses: old 1, old 4, B, D, and the two untested 65 m candidates (-150, -150, 90) and (-150, 150, 0). `eval/pose_clearance.py` gains a lateral offset: x 0 to 66 m in 2 m steps, y -12, -6, 0, 6, 12 m, altitudes 1, 2, 4, 6, 10 m, 2 passes: about 10,000 captures, about 40 minutes. Keep 5 poses with zero map hits in the cone and at the landing area (x 50 to 60, y -10 to 10, 1 to 10 m).
+5. **Retune difficulty.** Predict never-ask per `p_in_path` with P(no crash) = product over obstacles, using the per-family in-path rates (precheck: depth-blind families about 1.0, black box about 0.5, grey box about 0.1, wall 0) and the 1-to-5 count distribution; then a never-ask headroom run on the A100 (ask first): 5 poses, at least 100 val seeds (skip 60), twice for the noise floor. Never-ask flights end at a crash or landing, about 15 to 25 s each, so about 1 hour per pass. One adjustment of `p_in_path` and one re-run if outside 35 to 40%.
+6. **Freeze:** `python -m sim.scenario --freeze-scenario <sweep>.yaml --to configs/scenario.yaml` (it must carry the new fields).
+7. **Pose-shortcut check (laptop, CPU)** on the new replay labels: leave-one-pose-out gate check and per-pose tables.
+8. **Handoffs.** Parva: old labels and gates void; one rerun on one commit after the freeze. SB: direction prompt and the real-VLM cut on new frames, and the measured `p_dir` for the surrogate. Commits from the laptop; results copied with `scp`; `logs/runs.jsonl` not committed from the HPC.
+
+## Risks
+- Scope: a controller, judge and scenario rework, several days of work plus about 3 to 4 A100-hours for scan and headroom, and it blocks Parva's and SB's reruns until the freeze.
+- Compute after the freeze: 120 s flights make slow policies (always-ask, stuck flights) up to twice as long as before; the sweeps will cost more A100 time. Budget it before Parva's rerun.
+- Surrogate direction accuracy `p_dir` is a guess until measured; results using it are development-only.
+- Horizontal wires span 6 m: going sideways may not clear them; "over" must be available and chosen when both sides read blocked.
+- Descending blind: the camera looks forward only, so return-to-cruise and landing rely on the course design; crashes in those phases are tagged by phase, not hidden.
+- More map exposure when going around: more scenery crashes, counted and reported.
+- A100 nodes have failed to boot before; `--requeue` and extra wall time.
 
 ## Verification
-- Poses: the `eval.pose_clearance` report shows zero map hits and zero "depth under 2 m" points at every altitude from 2 to 12 m on each chosen pose.
-- Difficulty: never-ask crash rate with Wilson 95% CI over at least 100 val seeds is in 15 to 30%; report the two-pass agreement.
-- Tests: `.venv/bin/python -m pytest` on the laptop after any code change (known failure: `test_quantized_judge_refuses_cpu`).
-- No HPC job, push or commit without approval.
+- Laptop: full pytest passes (known failure `test_quantized_judge_refuses_cpu`); raycast smoke shows landings and sensible tracks for 20 seeds.
+- HPC: pose scan shows zero map hits in the cone and landing area for the 5 chosen poses; never-ask crash rate with Wilson 95% CI over at least 100 val seeds in 35 to 40%; two-pass agreement, per-family, per-cause, per-phase and per-outcome tables saved.
+- No HPC job, push or commit without DS approval.
