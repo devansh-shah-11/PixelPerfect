@@ -1,11 +1,0 @@
-[2026-11-23T21:55:08+00:00] job=41678 partition=n2c48m24 host=b-10-59 cmd=hf download Qwen/Qwen3-VL-8B-Instruct && hf download depth-anything/Depth-Anything-V2-Metric-Outdoor-Small-hf
-[90mHint: The `hf-cli` skill is not installed. Run `hf skills add -g` to teach your AI agents how to use the `hf` CLI.[0m
-Fetching 16 files:   0%|          | 0/16 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Fetching 16 files:   6%|▋         | 1/16 [00:00<00:06,  2.45it/s]Fetching 16 files:  44%|████▍     | 7/16 [00:00<00:00, 14.44it/s]Fetching 16 files:  69%|██████▉   | 11/16 [00:00<00:00, 19.33it/s]Fetching 16 files:  75%|███████▌  | 12/16 [00:19<00:00, 19.33it/s]Fetching 16 files:  81%|████████▏ | 13/16 [00:32<00:11,  3.99s/it]Fetching 16 files:  88%|████████▊ | 14/16 [00:56<00:13,  6.96s/it]Fetching 16 files: 100%|██████████| 16/16 [00:56<00:00,  3.53s/it]
-[32m✓ Downloaded[0m
-  path: /scratch/psp8502/hf/hub/models--Qwen--Qwen3-VL-8B-Instruct/snapshots/0c351dd01ed87e9c1b53cbc748cba10e6187ff3b
-Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Fetching 5 files:  80%|████████  | 4/5 [00:00<00:00, 19.41it/s]Fetching 5 files: 100%|██████████| 5/5 [00:00<00:00, 23.55it/s]
-[32m✓ Downloaded[0m
-  path: /scratch/psp8502/hf/hub/models--depth-anything--Depth-Anything-V2-Metric-Outdoor-Small-hf/snapshots/fd2c22027eaf20374204f14099b8341e1925ad39
-[2026-11-23T21:56:10+00:00] exit code: 0
