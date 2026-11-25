@@ -72,13 +72,14 @@ def _wrap(a: float) -> float:
 class RuleController:
     def __init__(self, d_safe: float = 8.0, hysteresis: float = 2.0, alt_max: float = 25.0, alt_margin: float = 1.0,
                  heading_tol: float = math.radians(10.0), avoid_mode: str = "climb_first", goal_bias_m: float = 5.0,
-                 past_margin_m: float = 1.5, d_judge: float = 15.0, land_radius_m: float = 2.0, alt_tol_m: float = 0.2,
-                 fence_margin_m: float = 3.0) -> None:
+                 past_margin_m: float = 2.0, d_judge: float = 15.0, land_radius_m: float = 2.0, alt_tol_m: float = 0.2,
+                 fence_margin_m: float = 3.0, max_side_switches: int = 1) -> None:
         if avoid_mode not in ("climb_first", "choose"):
             raise ValueError(f"avoid_mode must be 'climb_first' or 'choose', got {avoid_mode!r}")
         self.d_safe, self.hysteresis, self.alt_max, self.alt_margin, self.heading_tol = d_safe, hysteresis, alt_max, alt_margin, heading_tol
         self.avoid_mode, self.goal_bias_m, self.past_margin_m, self.d_judge = avoid_mode, goal_bias_m, past_margin_m, d_judge
         self.land_radius_m, self.alt_tol_m, self.fence_margin_m = land_radius_m, alt_tol_m, fence_margin_m
+        self.max_side_switches = max_side_switches
         self.goal_bearing = 0.0  # path frame: with no mission the goal lies straight ahead along +x
         self.reset()
 
@@ -90,6 +91,9 @@ class RuleController:
         self.half_width: float | None = None
         self.side: str | None = None  # direction of the current avoidance episode
         self.avoiding = False
+        self.climbed = False  # this avoidance episode went over (at least one CLIMB)
+        self.switches = 0  # left/right changes in this avoidance episode
+        self.bypass_over = False  # the bypass follows an episode that went over: the fence does not cut it short
         self.avoid_start: tuple[float, float, float, float] | None = None  # x, y, heading, obstacle distance
         self.bypass_from: tuple[float, float, float, float] | None = None
         self.landing = False
@@ -145,7 +149,13 @@ class RuleController:
             cmin = float(depth.features["corridor_min"])
             dist = cmin if cmin < self.d_safe + self.hysteresis else self.d_judge
             self.avoid_start = (state.position[0], state.position[1], state.yaw, dist)
+            self.climbed, self.switches = False, 0
         self.avoiding, self.bypass_from, self.phase = True, None, "avoid"
+        action = self._avoid_step(depth, state, direction, can_climb)
+        self.climbed = self.climbed or action == Action.CLIMB
+        return action
+
+    def _avoid_step(self, depth: DepthEstimate, state: DroneState, direction: str | None, can_climb: bool) -> Action:
         if direction is not None and direction not in DIRECTIONS:
             raise ValueError(f"direction must be one of {DIRECTIONS} or None, got {direction!r}")
         if self.avoid_mode == "climb_first" and direction is None:
@@ -159,7 +169,16 @@ class RuleController:
         if direction is not None:
             self.side = "over" if self._outward(direction, state) else direction  # the VLM's answer holds for this episode
         elif self.side is None or (self.side != "over" and (free[self.side] < self.d_safe or self._outward(self.side, state))):
-            self.side = self._choose(free, state, can_climb)
+            new = self._choose(free, state, can_climb)
+            if self.side in ("left", "right") and new in ("left", "right") and new != self.side:
+                # Turning in place moves the obstacle from one side band to the other, so the scores flip with every
+                # turn (Job B1 seed 101068: 7 s of left/right in place). Both sides tried: go over, or at the
+                # height cap keep the current side.
+                if self.switches >= self.max_side_switches:
+                    new = "over" if can_climb else self.side
+                else:
+                    self.switches += 1
+            self.side = new
         if self.side == "over" and not can_climb:
             self.side = self._choose(free, state, can_climb=False)
         return {"left": Action.YAW_LEFT, "right": Action.YAW_RIGHT, "over": Action.CLIMB}[self.side]
@@ -175,12 +194,16 @@ class RuleController:
         if self.avoiding:  # the avoidance episode just ended
             self.avoiding, self.side = False, None
             self.bypass_from = self.avoid_start if self.goal is not None else None
+            self.bypass_over = self.climbed
         if self.bypass_from is not None:
             x0, y0, h0, dist = self.bypass_from
             dx, dy = x - x0, y - y0
             ahead, flown = dx * math.cos(h0) + dy * math.sin(h0), math.hypot(dx, dy)
             need = dist + self.past_margin_m
-            near_edge = self.half_width is not None and abs(self._cross_track(drone_state)) >= self.half_width - self.fence_margin_m
+            # The fence cuts only a sideways bypass short. After going over, ending the hold would descend in front of
+            # the obstacle, see it again and climb again, in a loop (Job B1 seeds 101071, 101077: outcome "lost").
+            near_edge = (not self.bypass_over and self.half_width is not None
+                         and abs(self._cross_track(drone_state)) >= self.half_width - self.fence_margin_m)
             if ahead < need and flown < 2 * need and not near_edge:
                 self.phase = "bypass"
                 return Action.CONTINUE
@@ -198,4 +221,4 @@ class RuleController:
     def config(self) -> dict[str, Any]:
         return {"d_safe": self.d_safe, "hysteresis": self.hysteresis, "alt_max": self.alt_max, "avoid_mode": self.avoid_mode,
                 "goal_bias_m": self.goal_bias_m, "past_margin_m": self.past_margin_m, "d_judge": self.d_judge,
-                "land_radius_m": self.land_radius_m, "fence_margin_m": self.fence_margin_m}
+                "land_radius_m": self.land_radius_m, "fence_margin_m": self.fence_margin_m, "max_side_switches": self.max_side_switches}

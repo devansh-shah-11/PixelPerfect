@@ -154,8 +154,8 @@ def test_mission_steers_to_the_goal_bypasses_returns_to_cruise_and_lands():
     c.set_mission((60.0, 0.0), cruise_alt=2.0, land_alt=1.0)
     assert c.act(banded(5.0, left=6.0, right=7.0, up=90.0), pos(x=10.0)) == Action.CLIMB  # obstacle estimated 5 m ahead: over
     assert c.act(clear, pos(x=10.0, alt=6.0)) == Action.CONTINUE and c.phase == "bypass"  # hold the heading until past it
-    assert c.act(clear, pos(x=16.0, alt=6.0)) == Action.CONTINUE and c.phase == "bypass"  # 6 m ahead < 5 + 1.5
-    assert c.act(clear, pos(x=16.6, alt=6.0)) == Action.DESCEND and c.phase == "return"  # past the obstacle: back down
+    assert c.act(clear, pos(x=16.5, alt=6.0)) == Action.CONTINUE and c.phase == "bypass"  # 6.5 m ahead < 5 + 2
+    assert c.act(clear, pos(x=17.1, alt=6.0)) == Action.DESCEND and c.phase == "return"  # past the obstacle: back down
     assert c.act(clear, pos(x=22.5, alt=2.1)) == Action.CONTINUE and c.phase == "cruise"
     assert c.act(clear, pos(x=58.5, alt=2.0)) == Action.DESCEND and c.phase == "landing"  # within 2 m of the goal
     assert c.act(banded(1.0, left=1.0, right=1.0, up=1.0), pos(x=58.5, alt=1.1)) == Action.DESCEND  # down to the landing height
@@ -167,14 +167,14 @@ def test_bypass_ends_past_the_vlm_range_or_after_a_sideways_detour_and_restarts_
     c.set_mission((60.0, 0.0), cruise_alt=2.0, land_alt=1.0)
     clear = banded(60.0, left=60.0, right=60.0, up=90.0)
     assert c.avoid_action(clear, pos(x=5.0), direction="left") == Action.YAW_LEFT  # VLM only: depth saw nothing
-    assert c.act(clear, pos(x=15.0, y=-3.0, yaw=-0.3)) == Action.CONTINUE and c.phase == "bypass"  # 10 m < 15 + 1.5
+    assert c.act(clear, pos(x=15.0, y=-3.0, yaw=-0.3)) == Action.CONTINUE and c.phase == "bypass"  # 10 m < 15 + 2
     assert c.act(banded(5.0, left=6.0, right=40.0, up=90.0), pos(x=17.0, y=-3.5, yaw=-0.3)) == Action.YAW_RIGHT  # new obstacle
     assert c.phase == "avoid"
     c.reset()
     c.set_mission((60.0, 0.0), cruise_alt=2.0, land_alt=1.0)
     c.act(banded(5.0, left=6.0, right=40.0, up=90.0), pos(x=10.0))  # obstacle 5 m ahead, turns right
     assert c.act(clear, pos(x=10.5, y=12.0, yaw=1.5)) == Action.CONTINUE  # sideways: only 0.5 m further along, 12 m flown
-    assert c.act(clear, pos(x=10.5, y=13.5, yaw=1.5)) == Action.YAW_LEFT and c.phase == "cruise"  # 13.5 m >= 2 x 6.5: turn back to the goal
+    assert c.act(clear, pos(x=10.5, y=14.0, yaw=1.5)) == Action.YAW_LEFT and c.phase == "cruise"  # 14 m >= 2 x 7: turn back to the goal
 
 
 def test_soft_geofence_blocks_the_outward_side_overrides_the_vlm_and_cuts_the_hold():
@@ -193,6 +193,37 @@ def test_soft_geofence_blocks_the_outward_side_overrides_the_vlm_and_cuts_the_ho
     c.act(banded(5.0, left=6.0, right=40.0, up=90.0), pos(x=10.0))  # avoids to the right, obstacle 5 m ahead
     clear = banded(60.0, left=60.0, right=60.0, up=90.0)
     assert c.act(clear, pos(x=11.0, y=12.5, yaw=1.2)) == Action.YAW_LEFT and c.phase == "cruise"  # near the edge: hold ends
+
+
+def test_side_choice_does_not_flip_back_and_forth():
+    """Job B1 seed 101068: turning in place moved the obstacle between the side bands, so the choice flipped every turn."""
+    c = RuleController(avoid_mode="choose", goal_bias_m=0.0)
+    right_free, left_free = banded(5.0, left=6.0, right=30.0, up=90.0), banded(5.0, left=30.0, right=6.0, up=90.0)
+    assert c.act(right_free, pos()) == Action.YAW_RIGHT
+    assert c.act(left_free, pos()) == Action.YAW_LEFT  # right closed: one switch allowed
+    assert c.act(right_free, pos()) == Action.CLIMB  # left closed too: both sides tried, go over
+    assert c.act(left_free, pos(alt=5.0)) == Action.CLIMB  # over is kept
+    c.reset()
+    assert c.act(right_free, pos(alt=24.5)) == Action.YAW_RIGHT  # at the height cap
+    assert c.act(left_free, pos(alt=24.5)) == Action.YAW_LEFT
+    assert c.act(right_free, pos(alt=24.5)) == Action.YAW_LEFT  # cannot climb: keeps the side instead of flipping
+    c.reset()
+    assert c.act(right_free, pos()) == Action.YAW_RIGHT  # a new avoidance episode gets its switch back
+
+
+def test_fence_does_not_cut_the_hold_after_going_over():
+    """Job B1 seeds 101071, 101077: near the edge the drone climbed over, the fence ended the hold at once, it descended
+    in front of the obstacle, saw it again and climbed again, until it was marked lost."""
+    c = RuleController(avoid_mode="choose", goal_bias_m=0.0, fence_margin_m=3.0)
+    c.set_mission((55.0, 0.0), cruise_alt=2.0, land_alt=1.0, area_half_width_m=15.0)
+    clear = banded(60.0, left=60.0, right=60.0, up=90.0)
+    assert c.act(banded(5.0, left=6.0, right=6.0, up=90.0), pos(x=20.0, y=13.0)) == Action.CLIMB  # both sides blocked: over
+    assert c.act(clear, pos(x=20.0, y=13.0, alt=5.0)) == Action.CONTINUE and c.phase == "bypass"  # still holds near the edge
+    assert c.act(clear, pos(x=27.1, y=13.0, alt=5.0)) == Action.DESCEND and c.phase == "return"  # past it: back down
+    c.reset()
+    c.set_mission((55.0, 0.0), cruise_alt=2.0, land_alt=1.0, area_half_width_m=15.0)
+    assert c.avoid_action(est(50.0), pos(x=20.0, y=-13.0), direction="left") == Action.CLIMB  # outward VLM side becomes over
+    assert c.act(clear, pos(x=20.0, y=-13.0, alt=4.0)) == Action.CONTINUE and c.phase == "bypass"
 
 
 def test_cone_courses_carry_the_mission_area():
@@ -564,6 +595,16 @@ def test_cone_course_goes_around_a_box_with_true_depth_and_comes_back_down():
     assert r.extra["outcome"] == "landed", r.extra
     names = [p for _, p in r.extra["phases"]]
     assert "avoid" in names and names[-1] == "landing"
+
+
+def test_every_crash_records_phase_action_and_the_obstacle_hit():
+    sc = cone(Obstacle("box_1m_grey", 30.0, 9.0, 2.0), Obstacle("wire_3cm_axis_z", 20.0, 0.0, 2.0))
+    r = fly_cone(sc, BlindStack())
+    c = r.extra["crash"]
+    assert r.extra["outcome"] == "crashed" and c["kind"] == "obstacle"
+    assert c["obstacle"] == 1 and c["family"] == "wire_3cm_axis_z" and c["obstacle_off_line_m"] < 0.5
+    assert c["phase"] == "cruise" and c["action"] == "continue" and 18.0 < c["x"] < 21.0
+    assert "crash" not in fly_cone(cone(), TrueDepthStack()).extra  # landed: no crash record
 
 
 def test_vlm_direction_steers_past_a_wire_depth_cannot_see():

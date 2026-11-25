@@ -136,6 +136,23 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
         gx, gy = scenario.goal_xy
         return (gx * st.y - gy * st.x) / math.hypot(gx, gy)
 
+    def crash_record(st: KinematicState, act: Action | None, kind: str, box_i: int | None) -> dict[str, Any]:
+        """Where and how a flight ended in a crash: every crash gets one (analysis only, never read by the drone)."""
+        rec: dict[str, Any] = {"kind": kind, "x": round(st.x, 2), "y": round(st.y, 2), "alt": round(st.alt, 2), "yaw": round(st.yaw, 3),
+                               "t": round(st.t, 2), "phase": getattr(controller, "phase", None),
+                               "action": act.value if act is not None else None, "start_index": getattr(sim, "start_index", None)}
+        if box_i is not None:
+            b = boxes[box_i]
+            rec.update({"obstacle": box_i, "family": scenario.obstacles[box_i].family,
+                        "obstacle_off_line_m": round(abs(cross_track_xy(b.center[0], b.center[1])), 2) if cone else None})
+        return rec
+
+    def cross_track_xy(x: float, y: float) -> float:
+        gx, gy = scenario.goal_xy
+        return (gx * y - gy * x) / math.hypot(gx, gy)
+
+    crash: dict[str, Any] | None = None
+    last_action: Action | None = None
     best_dist, best_t = (goal_dist(state), state.t) if cone else (0.0, 0.0)
     for k in range(0 if resume is None else resume.k, int(math.ceil(cfg.t_max / cfg.dt)) + 1):
         if snapshots is not None:
@@ -161,6 +178,11 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
                          "depth_min": round(float(np.min(window)), 3), "depth_median": round(float(np.median(window)), 2),
                          "frac_below_radius": round(float(np.mean(window < params.radius)), 4),
                          "frac_zero": round(float(np.mean(window <= 0.0)), 4), "image_depth_median": round(float(np.median(obs.depth)), 2)}
+            near_i = None
+            if collision_source == "obstacle":  # the placed obstacle of that family nearest to the drone
+                cand = [i for i, b in enumerate(boxes) if b.family == fam_near]
+                near_i = min(cand, key=lambda i: float(np.linalg.norm(np.asarray(boxes[i].center) - state.position))) if cand else None
+            crash = crash_record(state, last_action, f"guard_{collision_source}", near_i)
             break
         est = stack.perceive_obs(obs, state, sim)
         feats = temporal.update(est.features, state.position)  # change per metre flown: same scale as the bank
@@ -211,9 +233,12 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
         new = step(state, action, cfg.dt, params)
         p0, p1 = state.position, new.position
         hit_ground = hits_ground(p0, p1, params.radius)
-        collision = hit_ground or any(segment_hits(p0, p1, b, params.radius) for b in boxes)
+        hit_i = next((i for i, b in enumerate(boxes) if segment_hits(p0, p1, b, params.radius)), None)
+        collision = hit_ground or hit_i is not None
         if collision:
             collision_source = "ground" if hit_ground else "obstacle"
+            crash = crash_record(state, action, collision_source, None if hit_ground else hit_i)
+        last_action = action
         distance += float(np.linalg.norm(p1 - p0))
         paths = _save(save, k, obs, est) if save else ("", "", "", "")
         records.append(FrameRecord(
@@ -259,6 +284,8 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
     if guard_hit is not None:
         result.extra["guard_hit"] = guard_hit
         outcome = "crashed"
+    if crash is not None:
+        result.extra["crash"] = crash
     if cone:
         result.extra.update({"outcome": outcome or ("crashed" if crashed else "timeout"), "goal_xy": list(scenario.goal_xy),
                              "goal_dist_m": round(goal_dist(state), 2), "end_alt_m": round(state.alt, 2),

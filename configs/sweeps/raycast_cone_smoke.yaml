@@ -12,8 +12,9 @@ split: val
 seeds: {file: configs/seeds.yaml, n: 20}
 scenario:
   layout: cone
-  n_obstacles: [1, 5]
-  p_in_path: 0.22
+  n_obstacles: [3, 8]
+  min_gap_m: 5.0
+  p_in_path: 0.35
   alt_range_m: [1.8, 2.2]
   families: [pole_10cm_axis_y, wire_3cm_axis_z, wire_1cm_axis_z, box_1m_grey, box_1m_black, wall_white_featureless, glass_pane_alpha20, ball_20cm_red]
 controller: {avoid_mode: choose}

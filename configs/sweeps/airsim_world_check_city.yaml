@@ -1,0 +1,18 @@
+# City poses: Job A region scan (and ground check) of street poses where the map's own trees, posts and buildings
+# stand in or near the flight line (DS decision 2026-11-25: natural obstacles come from the map, not spawned).
+# Keep a pose when the start and landing area are clear (eval.world_check rule) and map objects sit inside the
+# mission area (|y| <= 15 m) at flying height (1 to 6 m). Only backend and backend_kw are read.
+#   sbatch --time=02:00:00 --export=ALL,PA_ENV=/scratch/dns5508/envs/pa,HF_HOME=/scratch/$USER/hf,CMD="python -m eval.world_check --config configs/sweeps/airsim_world_check_city.yaml --out results/world_check_city --parts region ground --stack da2" hpc/airsim_job.sbatch
+# Candidates from the scene scan (job 16300, capability_CityEnviron_16300/results.json, 400px.scene_scan): busy views
+# (19 to 36 segmentation colours) with at least 14 m clear at 2 m and at least 70 m clear at 25 m (a building does not
+# close the course). Poses [x, y, yaw_deg, clear_m]; clear_m is the 25 m reading.
+# Estimate [UNVERIFIED]: about 1 hour, like Job A (job 43339).
+starts: &starts
+  - [50.0, -150.0, 90.0, 120.0]    # 0: old pose 2; earlier sweeps crashed into map trees there at x 18 to 21 m
+  - [50.0, -50.0, 270.0, 94.0]     # 1: 36 colours, 24 m clear at 2 m
+  - [50.0, -50.0, 180.0, 74.0]     # 2: 29 colours, 14.5 m at 2 m
+  - [50.0, -50.0, 90.0, 81.0]      # 3: 21 colours, 16.7 m at 2 m
+  - [-50.0, -150.0, 270.0, 120.0]  # 4: 21 colours, 15.8 m at 2 m
+  - [-50.0, -50.0, 90.0, 80.0]     # 5: 19 colours, 28.5 m at 2 m
+backend: airsim
+backend_kw: {configs: "${PP_SIM_CONFIGS}", scene_file: scene_cap_400.jsonc, starts: *starts}
