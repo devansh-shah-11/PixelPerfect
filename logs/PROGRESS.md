@@ -191,3 +191,8 @@
 - Advances: M0 (M0.5 done). `CLAUDE.md` now says: after a commit, update the AGENT_LOG entry for the same task and day, or add one for a new task.
 - Unblocked: the simulator deviation from D3 is now a recorded decision. D22 to D24 still need teammate approval.
 - Sanity check: docs-only commit, no code run.
+
+## 2026-11-24  |  eval  |  seeds.skip for disjoint tune/score blocks; safety retained against the oracle
+- Advances: M5 / M6.3 scoring protocol (closed-loop problems 3 and 4 from the Nov 23 sweep). D24 text updated for `skip`.
+- Unblocked: Parva can tune cuts on val 0-59 and score on `{skip: 60, n: 100}` after the scenario freeze. Still blocked: the freeze itself (M4.7: new start poses, difficulty retune, wall decision).
+- Sanity check: tests/test_policies_metrics.py and tests/test_sim_loop.py, 39 passed.

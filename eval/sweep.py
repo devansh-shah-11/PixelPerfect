@@ -10,7 +10,8 @@ idle shutdown). At the end the metrics table is printed and written to
 ``<out>/table.md``. Each run appends one line to ``logs/runs.jsonl``.
 
 Config keys (YAML): ``backend``, ``stack``, ``judge`` (+ ``judge_kw``), ``delay_s``, ``split``,
-``seeds`` (a list, or ``{file: configs/seeds.yaml, n: 100}``: always the first n, D24), ``scenario``
+``seeds`` (a list, or ``{file: configs/seeds.yaml, n: 100}``: the first n, D24; optional ``skip: k`` starts after
+the first k, so cuts tuned on ``{n: 60}`` are scored on ``{skip: 60, n: 100}``, never on the seeds they were tuned on), ``scenario``
 (ScenarioConfig fields, or ``{file: configs/scenario.yaml}`` for the frozen settings, which also carry
 the start poses), ``policies`` (list of policy specs, each with a unique ``name``), ``out``,
 ``flight_logs`` (bool). ``--set a.b=value`` overrides a key, so one config serves every model variant.
@@ -49,7 +50,11 @@ def resolve_seeds(cfg: dict[str, Any]) -> list[int]:
     split = cfg.get("split", "val")
     if split == "test" and not cfg.get("final_test_run", False):
         raise SystemExit("refusing to fly test seeds: set final_test_run: true only for the one final run (PLAN_DETAILED.md D14)")
-    return lists[split][: s.get("n")]
+    skip = int(s.get("skip", 0))  # a disjoint slice of the same frozen list, e.g. val 0-59 to tune and val 60-159 to score
+    if skip < 0:
+        raise SystemExit(f"seeds.skip must be >= 0, got {skip}")
+    n = s.get("n")
+    return lists[split][skip: None if n is None else skip + int(n)]
 
 
 def _repo_path(p: str) -> Path:

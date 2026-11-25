@@ -588,3 +588,14 @@
 - Decisions: D22, D23, D24 left OPEN; DS only approved the simulator row. D21 was approved by one teammate, which meets the §0 rule.
 - Evidence: quantized 8B has latency and memory only (job 35101: 8bit 0.354 s, 4bit 0.138 s vs bf16 0.091 s); no accuracy rows exist (`results/vlm_eval.jsonl` holds only 2B and 8B).
 - Outcome: success.
+
+## 2026-11-24  |  eval  |  closed-loop problems 3 and 4: disjoint tune/score seeds, safety retained against the oracle
+- Member: DS
+- Request: solve the four problems Parva's Nov 23 sweep left (never-ask 48%, simulator noise, cuts tuned on scored seeds, always-ask finishing no missions); this entry covers 3 and 4, laptop only.
+- Action: `eval/sweep.py` `resolve_seeds` takes `seeds.skip` (a disjoint slice of the frozen list; `configs/seeds.yaml` untouched; default 0). `eval/metrics.py`: `results_table(reference="oracle")`, `safety_retained` and `paired_bootstrap_safety` take any reference policy; the table header names it. Tests added in `tests/test_sim_loop.py` and `tests/test_policies_metrics.py`. `PLAN_DETAILED.md` D24 reworded for `skip` (edit allowed by DS, 2026-11-24).
+- Decisions & alternatives: val is split in two (tune cuts on val 0-59, score on a later block, e.g. `{skip: 60, n: 100}`), chosen over tuning on train replay frames (no code change, but the gate was fit on those frames). The oracle replaces always-ask as the safety reference because always-ask reached the goal in 0 of 60 flights (it is "safe" by stalling); `reference="always"` keeps the old ratio. Rejected: giving always-ask a cooldown (changes what "always" means).
+- Deviation: D24 said runs use the first n seeds; `skip` is a new way to pick seeds. DS agreed, D24 text updated. No test seeds touched.
+- Assumptions: [UNVERIFIED] the oracle reaches the goal in most flights on the new scenario (in the Nov 23 sweep it crashed 0 of 60 and its ratio was 1.07).
+- Evidence: pytest tests/test_policies_metrics.py tests/test_sim_loop.py, 39 passed. Plan: `~/.claude/plans/` (four problems, Problem 1 and 2 pending).
+- Outcome: success for 3 and 4. Parva's existing configs (`airsim_replay_gates*.yaml`) still need `skip` added for his rerun.
+- Follow-ups: Problem 1 (new start poses, difficulty retune, wall size, freeze) and Problem 2 (never-ask noise floor) need the scene scan `results.json` and the old sweep `results.jsonl` from HPC scratch, then A100 jobs with approval.

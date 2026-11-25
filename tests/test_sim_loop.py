@@ -364,3 +364,18 @@ def test_vlm_only_system_flies_on_the_judge_alone():
 
     assert all(r.corridor_min_est == pytest.approx(MAX_RANGE_M) for r in recs)  # the "depth" never reports anything: every avoid came from the judge
     assert vlm_only.extra["start_index"] is None  # the raycast backend has no start poses
+
+
+def test_resolve_seeds_skip_gives_a_disjoint_slice_of_the_frozen_list(tmp_path):
+    from eval.sweep import resolve_seeds
+
+    path = tmp_path / "seeds.yaml"
+    lists = seed_lists(10, 200, 5)
+    write_seed_lists(path, lists)
+    tune = resolve_seeds({"split": "val", "seeds": {"file": str(path), "n": 60}})
+    score = resolve_seeds({"split": "val", "seeds": {"file": str(path), "skip": 60, "n": 100}})
+    assert tune == lists["val"][:60] and score == lists["val"][60:160]
+    assert not set(tune) & set(score)
+    assert resolve_seeds({"split": "val", "seeds": {"file": str(path), "skip": 190}}) == lists["val"][190:]
+    with pytest.raises(SystemExit):
+        resolve_seeds({"split": "val", "seeds": {"file": str(path), "skip": -1}})

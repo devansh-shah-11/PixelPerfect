@@ -129,12 +129,13 @@ def test_policy_summary_and_paired_safety():
     never = [ep("never", s, bool(rng.random() < 0.3)) for s in seeds]
     always = [ep("always", s, False, calls=120) for s in seeds]
     half = [ep("gate", s, never[s].crashed and s % 2 == 0, calls=6, lat=(0.08, 0.09)) for s in seeds]  # fixes every other crash
-    t = results_table(never + always + half)
+    t = results_table(never + always + half, reference="always")
     assert t["gate"]["calls_per_flight"] == 6 and t["gate"]["query_rate"] == pytest.approx(0.05)
     sr = t["gate"]["safety_retained"]
     assert 0.35 < sr["safety_retained"] < 0.65 and sr["ci_low"] < sr["safety_retained"] < sr["ci_high"]
     assert t["never"]["safety_retained"]["safety_retained"] == 0.0 and t["always"]["safety_retained"]["safety_retained"] == 1.0
     assert t["gate"]["latency_s"]["p50"] == pytest.approx(0.085)
+    assert t["gate"]["safety_retained"]["reference"] == "always"
     s = policy_summary(never)
     assert s["crashes_per_km"] == pytest.approx(sum(r.crashed for r in never) / 18.0)  # 300 x 60 m = 18 km
     md = markdown(t)
@@ -153,3 +154,18 @@ def test_paired_bootstrap_uses_only_common_seeds():
 
 def test_percentiles_empty():
     assert math.isnan(percentiles([])["p95"])
+
+
+def test_safety_retained_defaults_to_the_oracle_not_always_ask():
+    never = [ep("never", s, s < 10) for s in range(40)]  # 10 crashes
+    always = [ep("always", s, False, calls=50) for s in range(40)]
+    for r in always:
+        r.reached_goal = False  # always-ask is "safe" by never finishing
+    oracle = [ep("oracle", s, False, calls=5) for s in range(40)]
+    half = [ep("gate", s, s < 5, calls=1) for s in range(40)]
+    t = results_table(never + always + oracle + half)
+    assert t["gate"]["safety_retained"]["reference"] == "oracle"
+    assert t["gate"]["safety_retained"]["safety_retained"] == pytest.approx(0.5)
+    assert t["always"]["success_rate"] == 0.0 and t["oracle"]["success_rate"] == 1.0
+    assert "oracle = 1" in markdown(t)
+    assert "safety_retained" not in results_table(never + half)["gate"]  # no reference flown: no column

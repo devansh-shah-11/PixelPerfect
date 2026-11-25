@@ -8,8 +8,11 @@ Input is one summary per flight (``EpisodeResult``), written by
 - mission time and average speed (a drone that never moves is "safe")
 - VLM calls per flight and query rate (calls per frame)
 - real VLM latency p50 / p95 / p99 (pooled over calls) and simulated delay charged per flight
-- safety retained (the headline): ``(crash_never - crash_policy) / (crash_never - crash_always)``,
-  with a paired bootstrap over seeds, because every policy flies the same seeds (D15)
+- safety retained (the headline): ``(crash_never - crash_policy) / (crash_never - crash_reference)``,
+  with a paired bootstrap over seeds, because every policy flies the same seeds (D15). The reference is the
+  oracle by default: always-ask is "safe" partly by never finishing a mission (0 of 60 val flights reached the
+  goal), so it is a poor ceiling. Pass ``reference="always"`` to get the old ratio. ``success`` (goal reached and
+  no crash) is printed beside every crash rate so a policy cannot look safe by stalling
 
 Surrogate-judge flights carry ``judge`` = "surrogate VLM" and are reported as such
 (CLAUDE.md rule 7); ``results_table`` refuses to mix judges within one table.
@@ -78,9 +81,9 @@ def percentiles(x: Sequence[float], qs: Iterable[float] = (50, 95, 99)) -> dict[
     return {f"p{int(q)}": (float(np.percentile(a, q)) if a.size else float("nan")) for q in qs}
 
 
-def safety_retained(crash_never: float, crash_policy: float, crash_always: float) -> float:
-    """Share of the never-to-always safety gain a policy keeps. NaN if always-ask is not safer than never-ask."""
-    gain = crash_never - crash_always
+def safety_retained(crash_never: float, crash_policy: float, crash_reference: float) -> float:
+    """Share of the never-to-reference crash reduction a policy keeps. NaN if the reference is not safer than never-ask."""
+    gain = crash_never - crash_reference
     if not gain > 0:
         return float("nan")
     return (crash_never - crash_policy) / gain
@@ -124,12 +127,12 @@ def by_policy(results: Iterable[EpisodeResult]) -> dict[str, list[EpisodeResult]
 
 
 def paired_bootstrap_safety(
-    policy: Sequence[EpisodeResult], never: Sequence[EpisodeResult], always: Sequence[EpisodeResult],
+    policy: Sequence[EpisodeResult], never: Sequence[EpisodeResult], reference: Sequence[EpisodeResult],
     n_boot: int = 2000, seed: int = 0,
 ) -> dict[str, float]:
     """Safety retained and its 95% interval, resampling the seeds that all three policies flew."""
     idx = lambda rs: {r.seed: r.crashed for r in rs}  # noqa: E731
-    p, nv, al = idx(policy), idx(never), idx(always)
+    p, nv, al = idx(policy), idx(never), idx(reference)
     seeds = sorted(set(p) & set(nv) & set(al))
     if not seeds:
         return {"seeds": 0, "safety_retained": float("nan"), "ci_low": float("nan"), "ci_high": float("nan")}
@@ -145,16 +148,16 @@ def paired_bootstrap_safety(
     return {"seeds": len(seeds), "safety_retained": point, "ci_low": lo, "ci_high": hi}
 
 
-def results_table(results: Sequence[EpisodeResult], never: str = "never", always: str = "always") -> dict[str, dict[str, Any]]:
-    """Per-policy metrics, plus safety retained against ``never`` and ``always`` when both were flown."""
+def results_table(results: Sequence[EpisodeResult], never: str = "never", reference: str = "oracle") -> dict[str, dict[str, Any]]:
+    """Per-policy metrics, plus safety retained between ``never`` and ``reference`` (oracle by default) when both were flown."""
     judges = {r.judge for r in results if r.n_calls}
     if len(judges) > 1:
         raise ValueError(f"results mix judges {sorted(judges)}; report surrogate and real-VLM results in separate tables (CLAUDE.md rule 7)")
     groups = by_policy(results)
     table = {name: policy_summary(rs) for name, rs in sorted(groups.items())}
-    if never in groups and always in groups:
+    if never in groups and reference in groups:
         for name, rs in groups.items():
-            table[name]["safety_retained"] = paired_bootstrap_safety(rs, groups[never], groups[always])
+            table[name]["safety_retained"] = {**paired_bootstrap_safety(rs, groups[never], groups[reference]), "reference": reference}
     return table
 
 
@@ -166,7 +169,8 @@ def markdown(table: dict[str, dict[str, Any]]) -> str:
     L = []
     if judge:
         L += [f"Judge: {', '.join(judge)}", ""]
-    L += ["| Policy | flights | crash rate [95% CI] | crashes/km | success | calls/flight | query rate | mission time (s) | safety retained [95% CI] |",
+    ref = next((t["safety_retained"]["reference"] for t in table.values() if t.get("safety_retained")), "reference")
+    L += [f"| Policy | flights | crash rate [95% CI] | crashes/km | success | calls/flight | query rate | mission time (s) | safety retained, {ref} = 1 [95% CI] |",
           "|---|---|---|---|---|---|---|---|---|"]
     for name, t in table.items():
         sr = t.get("safety_retained")
