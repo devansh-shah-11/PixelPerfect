@@ -581,3 +581,10 @@
 - Impact on labels: a replay fork that asks, climbs and hits the map counts as "asking did not help", so some L3 positives at poses 0 and 2 may be missing. Not quantified.
 - Correction (assistant): estimated about 9 such crashes; the count is 13 (four on poles, wires and glass were hidden in the total).
 - Follow-ups: bare-map scan (job 41846) to confirm; then drop or re-place the bad poses before M4.7 freezes (DS).
+
+## 2026-11-24  |  docs  |  D21 approved (Project AirSim sign-off); branch sim/scenario-freeze started
+- Member: DS
+- Action: laptop. New branch `sim/scenario-freeze` from `origin/main` (52f3ad2). `PLAN_DETAILED.md`: D21 status OPEN -> APPROVED (proposed by SB 2026-11-16, approved by DS 2026-11-24), Q4 closed. `TASKS.md` M0.5 DONE. `PLAN.md` §7: removed the Q4/D3 row (these three files were committed by DS as 0d7f219). `CLAUDE.md`: after a commit, update the AGENT_LOG entry for the same task and day, or add one for a new task.
+- Decisions: D22, D23, D24 left OPEN; DS only approved the simulator row. D21 was approved by one teammate, which meets the §0 rule.
+- Evidence: quantized 8B has latency and memory only (job 35101: 8bit 0.354 s, 4bit 0.138 s vs bf16 0.091 s); no accuracy rows exist (`results/vlm_eval.jsonl` holds only 2B and 8B).
+- Outcome: success.

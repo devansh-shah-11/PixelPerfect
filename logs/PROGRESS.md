@@ -186,3 +186,8 @@
 ## 2026-11-23  |  eval, sim  |  unplaced-object crashes quantified (13 of 188, start poses 0 and 2)
 - Advances: input to M4.7. Next: bare-map scan result (job 41846), then choose replacement start poses.
 - Sanity check: log-only commit; counts from eval.ask_harm on the HPC.
+
+## 2026-11-24  |  docs  |  D21 approved (Project AirSim), Q4 closed, AGENT_LOG rule changed
+- Advances: M0 (M0.5 done). `CLAUDE.md` now says: after a commit, update the AGENT_LOG entry for the same task and day, or add one for a new task.
+- Unblocked: the simulator deviation from D3 is now a recorded decision. D22 to D24 still need teammate approval.
+- Sanity check: docs-only commit, no code run.

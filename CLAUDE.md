@@ -34,7 +34,7 @@ A simulated drone flies on a fast stack (Depth Anything V2-Small, metric checkpo
 
 ### After every commit (do all of these, then report what you did)
 1. **Append to `logs/PROGRESS.md`**: date/time, commit hash, one-line summary, which `TASKS.md` chunk it advances, and what is now unblocked or still blocked.
-2. **Append to `AGENT_LOG.md`** (see below) any decisions, assumptions, or mistakes from the work in this commit.
+2. **Check `AGENT_LOG.md` and update it** (see below): read the latest entries first. If there is already an entry from today for the same task, update that entry with the key points from this commit. If the commit is a different task (for example VLM work after simulator work), add a new entry. Do not rely on the user remembering to ask, and do not write one entry per commit.
 3. **Run a quick sanity check relevant to the change** (unit tests if they exist, or the smoke command for that area) and record pass/fail. Do not hide failures.
 4. **Check the working tree is clean** and nothing large or secret was staged (`git status`, `git diff --cached --stat` before the commit; `git show --stat` after).
 5. **Backup reminder**: if the commit touched `configs/`, `gate/` labels, or scenario generation, remind the user to `rsync` data/logs to the second location (VM ↔ HPC scratch ↔ cloud storage) per `PLAN_DETAILED.md` §11 "Insurance to create now". Run the sync only if asked.
@@ -44,7 +44,7 @@ A simulated drone flies on a fast stack (Depth Anything V2-Small, metric checkpo
 ## Monitoring and logging AI behaviour
 Goal: a transparent, auditable record of what the assistant did, assumed, got wrong, and why, so the report can describe the methodology honestly and mistakes are caught early.
 
-Maintain **`AGENT_LOG.md`** in the repo root (append-only, newest at the bottom). It feeds the Agent Log appendix of the report (`PLAN_DETAILED.md` §12), so every entry names the member whose session it was. One entry per meaningful action or decision:
+Maintain **`AGENT_LOG.md`** in the repo root (append-only, newest at the bottom). It feeds the Agent Log appendix of the report (`PLAN_DETAILED.md` §12), so every entry names the member whose session it was. **One entry per task per day** (not per commit, not per chat message). Commits and chats on the same task and the same day go into one entry, updated in place; a different task (different area or chunk) gets its own entry, even in the same session. Summarize the key points: what was asked, what was done, decisions and deviations, failures and corrections, what is still open. Use this format, with `Action` and `Decisions` holding several short bullets when an entry covers several things:
 
 ```
 ## YYYY-MM-DD HH:MM  |  <area>  |  <short title>
