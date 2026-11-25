@@ -1,0 +1,117 @@
+# World checks before the scenario freeze
+
+Poses (index: x, y, yaw_deg, clear_m):
+- 0: [-150.0, 50.0, 180.0, 140.0]
+- 1: [150.0, -150.0, 0.0, 80.0]
+- 2: [150.0, 150.0, 270.0, 77.0]
+- 3: [-50.0, 50.0, 270.0, 91.0]
+- 4: [-150.0, -150.0, 90.0, 76.0]
+- 5: [-150.0, 150.0, 0.0, 68.0]
+
+## Region scan (bare map, no obstacles spawned)
+
+Corridor-window depth below 0.3 m in every pass = map object; in some passes only = bad capture. Reject a pose only for map objects at the start (x 0 to 4, |y| <= 2.5) or at the landing area (x 48 to 62, |y| <= 12, heights (1.0, 2.0)). Other map objects are part of the world (crashes into them are logged as scenery).
+
+| pose | points | map objects | share | under 2 m (all passes) | bad captures | start | landing area | verdict |
+|---|---|---|---|---|---|---|---|---|
+| 0 | 709 | 1 | 0.001 | 1 | 0 | 0 | 0 | keep |
+| 1 | 632 | 0 | 0.000 | 1 | 0 | 0 | 0 | keep |
+| 2 | 1166 | 7 | 0.006 | 160 | 2 | 0 | 0 | keep |
+| 3 | 1295 | 6 | 0.005 | 28 | 23 | 0 | 0 | keep |
+| 4 | 993 | 6 | 0.006 | 179 | 0 | 0 | 0 | keep |
+| 5 | 887 | 7 | 0.008 | 47 | 0 | 0 | 0 | keep |
+
+Map objects by height (pose: height -> count; x and y of the first five):
+- pose 0: 1 m: 1 [(22.3, 7.5)]
+- pose 1: none
+- pose 2: 1 m: 2 [(6.0, -15.0), (18.05, 10.0)]; 2 m: 2 [(6.0, -15.0), (17.99, 10.0)]; 4 m: 1 [(6.0, -15.0)]; 6 m: 1 [(6.0, -15.0)]; 10 m: 1 [(0.0, 15.0)]
+- pose 3: 1 m: 1 [(59.56, 20.0)]; 2 m: 1 [(59.48, 20.0)]; 4 m: 2 [(8.0, -17.5), (10.0, -17.5)]; 6 m: 1 [(35.21, 22.5)]; 15 m: 1 [(10.0, -15.0)]
+- pose 4: 1 m: 3 [(16.91, -25.0), (27.23, -15.0), (30.53, -17.5)]; 2 m: 2 [(38.09, 25.0), (48.09, 25.0)]; 4 m: 1 [(22.67, -17.5)]
+- pose 5: 1 m: 1 [(60.62, -20.0)]; 2 m: 1 [(53.95, -17.5)]; 4 m: 1 [(60.54, -20.0)]; 6 m: 1 [(53.95, -17.5)]; 10 m: 2 [(44.83, -22.5), (60.61, -20.0)]; 15 m: 1 [(49.75, -20.0)]
+
+## Obstacle probe (one obstacle straight ahead, drone at 2 m)
+
+`true` = corridor minimum of the true depth image; `geometry` = our box geometry (labels use it); `est` = fast stack. `renders` from the segmentation extent. `1 m` = true depth with the drone 1 m in front of the near face (about 0.7 m expected: the camera sits about 0.3 m ahead).
+
+| family | dist | yaw | true | geometry | est | seg px | renders (h x w) | 1 m |
+|---|---|---|---|---|---|---|---|---|
+| ball_20cm_red | 10 | 0 | 9.59 | 9.90 | 21.37 | 20 | compact (5 x 4) | 0.70 |
+| ball_20cm_red | 10 | 11 | 9.58 | 9.88 | 21.60 | 20 | compact (5 x 4) | 0.69 |
+| ball_20cm_red | 15 | 0 | 14.26 | 14.90 | 21.85 | 6 | compact (3 x 2) | 0.70 |
+| ball_20cm_red | 15 | 11 | 14.26 | 14.89 | 21.27 | 12 | compact (3 x 4) | 0.69 |
+| ball_20cm_red | 25 | 0 | 14.26 | 18.29 | 21.66 | 2 | compact (1 x 2) | 0.70 |
+| ball_20cm_red | 25 | 11 | 14.26 | 18.29 | 21.54 | 2 | compact (1 x 2) | 0.69 |
+| box_1m_black | 10 | 0 | 9.20 | 9.50 | 19.56 | 462 | compact (21 x 22) | 0.70 |
+| box_1m_black | 10 | 11 | 9.12 | 9.43 | 19.27 | 523 | compact (21 x 25) | 0.68 |
+| box_1m_black | 15 | 0 | 14.20 | 14.50 | 21.57 | 210 | compact (15 x 14) | 0.70 |
+| box_1m_black | 15 | 11 | 14.12 | 14.43 | 21.98 | 234 | compact (15 x 16) | 0.68 |
+| box_1m_black | 25 | 0 | 14.26 | 18.29 | 21.89 | 72 | compact (9 x 8) | 0.70 |
+| box_1m_black | 25 | 11 | 14.26 | 18.29 | 21.18 | 90 | compact (9 x 10) | 0.68 |
+| box_1m_grey | 10 | 0 | 9.20 | 9.50 | 19.30 | 462 | compact (21 x 22) | 0.70 |
+| box_1m_grey | 10 | 11 | 9.12 | 9.43 | 19.73 | 523 | compact (21 x 25) | 0.68 |
+| box_1m_grey | 15 | 0 | 14.20 | 14.50 | 21.93 | 210 | compact (15 x 14) | 0.70 |
+| box_1m_grey | 15 | 11 | 14.12 | 14.43 | 21.79 | 234 | compact (15 x 16) | 0.68 |
+| box_1m_grey | 25 | 0 | 14.26 | 18.29 | 22.01 | 72 | compact (9 x 8) | 0.70 |
+| box_1m_grey | 25 | 11 | 14.26 | 18.29 | 21.34 | 90 | compact (9 x 10) | 0.68 |
+| glass_pane_alpha20 | 10 | 0 | 14.26 | 9.97 | 22.60 | 0 | invisible (0 x 0) | 15.28 |
+| glass_pane_alpha20 | 10 | 11 | 14.26 | 9.84 | 23.06 | 0 | invisible (0 x 0) | 15.28 |
+| glass_pane_alpha20 | 15 | 0 | 14.26 | 14.97 | 21.20 | 0 | invisible (0 x 0) | 20.27 |
+| glass_pane_alpha20 | 15 | 11 | 14.26 | 14.79 | 20.49 | 0 | invisible (0 x 0) | 20.27 |
+| glass_pane_alpha20 | 25 | 0 | 14.26 | 18.29 | 21.54 | 0 | invisible (0 x 0) | 12.95 |
+| glass_pane_alpha20 | 25 | 11 | 14.26 | 18.29 | 21.48 | 0 | invisible (0 x 0) | 12.95 |
+| pole_10cm_axis_y | 10 | 0 | 9.65 | 9.95 | 20.95 | 206 | vertical (103 x 2) | 0.70 |
+| pole_10cm_axis_y | 10 | 11 | 9.64 | 9.94 | 21.63 | 206 | vertical (103 x 2) | 0.69 |
+| pole_10cm_axis_y | 15 | 0 | 14.26 | 14.95 | 21.58 | 138 | vertical (69 x 2) | 0.70 |
+| pole_10cm_axis_y | 15 | 11 | 14.26 | 14.94 | 21.60 | 138 | vertical (69 x 2) | 0.69 |
+| pole_10cm_axis_y | 25 | 0 | 14.26 | 18.29 | 21.71 | 0 | invisible (0 x 0) | 0.70 |
+| pole_10cm_axis_y | 25 | 11 | 14.26 | 18.29 | 21.54 | 0 | invisible (0 x 0) | 0.69 |
+| pole_10cm_axis_z | 10 | 0 | 9.65 | 9.95 | 21.71 | 312 | horizontal (3 x 104) | 0.70 |
+| pole_10cm_axis_z | 10 | 11 | 9.51 | 9.81 | 22.01 | 282 | horizontal (3 x 102) | 0.69 |
+| pole_10cm_axis_z | 15 | 0 | 14.26 | 14.95 | 22.38 | 66 | horizontal (1 x 68) | 0.70 |
+| pole_10cm_axis_z | 15 | 11 | 14.26 | 14.74 | 22.03 | 66 | horizontal (1 x 68) | 0.69 |
+| pole_10cm_axis_z | 25 | 0 | 14.26 | 18.29 | 21.73 | 37 | horizontal (1 x 40) | 0.70 |
+| pole_10cm_axis_z | 25 | 11 | 14.26 | 18.29 | 21.60 | 37 | horizontal (1 x 40) | 0.69 |
+| wall_white_featureless | 10 | 0 | 9.59 | 9.90 | 6.60 | 8610 | vertical (142 x 62) | 0.70 |
+| wall_white_featureless | 10 | 11 | 9.46 | 9.76 | 6.71 | 8509 | vertical (145 x 61) | 0.69 |
+| wall_white_featureless | 15 | 0 | 14.26 | 14.90 | 10.39 | 3757 | vertical (93 x 42) | 0.70 |
+| wall_white_featureless | 15 | 11 | 14.26 | 14.69 | 11.48 | 3664 | vertical (94 x 41) | 0.69 |
+| wall_white_featureless | 25 | 0 | 14.26 | 18.29 | 15.85 | 1278 | vertical (55 x 24) | 0.70 |
+| wall_white_featureless | 25 | 11 | 14.26 | 18.29 | 16.71 | 1278 | vertical (55 x 24) | 0.69 |
+| wire_1cm_axis_z | 10 | 0 | 9.69 | 9.99 | 22.19 | 117 | horizontal (1 x 117) | 0.70 |
+| wire_1cm_axis_z | 10 | 11 | 9.55 | 9.86 | 21.77 | 114 | horizontal (1 x 122) | 0.69 |
+| wire_1cm_axis_z | 15 | 0 | 14.26 | 14.99 | 22.26 | 80 | horizontal (1 x 82) | 0.70 |
+| wire_1cm_axis_z | 15 | 11 | 14.26 | 14.79 | 22.11 | 79 | horizontal (1 x 81) | 0.69 |
+| wire_1cm_axis_z | 25 | 0 | 14.26 | 18.29 | 21.53 | 45 | horizontal (1 x 48) | 0.70 |
+| wire_1cm_axis_z | 25 | 11 | 14.26 | 18.29 | 22.19 | 44 | horizontal (1 x 47) | 0.69 |
+| wire_3cm_axis_z | 10 | 0 | 9.68 | 9.98 | 22.35 | 117 | horizontal (1 x 117) | 0.70 |
+| wire_3cm_axis_z | 10 | 11 | 9.55 | 9.85 | 21.61 | 114 | horizontal (1 x 122) | 0.69 |
+| wire_3cm_axis_z | 15 | 0 | 14.26 | 14.98 | 22.26 | 80 | horizontal (1 x 82) | 0.70 |
+| wire_3cm_axis_z | 15 | 11 | 14.26 | 14.78 | 22.11 | 79 | horizontal (1 x 81) | 0.69 |
+| wire_3cm_axis_z | 25 | 0 | 14.26 | 18.29 | 21.85 | 45 | horizontal (1 x 48) | 0.70 |
+| wire_3cm_axis_z | 25 | 11 | 14.26 | 18.29 | 22.12 | 44 | horizontal (1 x 47) | 0.69 |
+
+## Ground check (hovering at the start, bare map)
+
+Landing is safe to count only if the guard does not fire (true depth min >= 0.3 m) and the fast stack does not read the ground as blocked (est >= 8 m) at 1 m.
+
+| pose | height | true min | below radius | guard fires | est |
+|---|---|---|---|---|---|
+| 0 | 1 | 12.70 | 0.000 | False | 27.09 |
+| 0 | 1.5 | 12.89 | 0.000 | False | 23.46 |
+| 0 | 2 | 14.26 | 0.000 | False | 20.34 |
+| 1 | 1 | 19.27 | 0.000 | False | 32.35 |
+| 1 | 1.5 | 23.80 | 0.000 | False | 28.41 |
+| 1 | 2 | 28.42 | 0.000 | False | 31.64 |
+| 2 | 1 | 16.31 | 0.000 | False | 26.65 |
+| 2 | 1.5 | 20.89 | 0.000 | False | 28.02 |
+| 2 | 2 | 25.45 | 0.000 | False | 28.96 |
+| 3 | 1 | 20.11 | 0.000 | False | 26.46 |
+| 3 | 1.5 | 24.69 | 0.000 | False | 26.90 |
+| 3 | 2 | 29.27 | 0.000 | False | 26.58 |
+| 4 | 1 | 18.62 | 0.000 | False | 28.97 |
+| 4 | 1.5 | 23.20 | 0.000 | False | 28.74 |
+| 4 | 2 | 27.81 | 0.000 | False | 29.21 |
+| 5 | 1 | 19.23 | 0.000 | False | 24.12 |
+| 5 | 1.5 | 23.78 | 0.000 | False | 26.27 |
+| 5 | 2 | 28.34 | 0.000 | False | 28.21 |
+
