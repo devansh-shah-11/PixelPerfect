@@ -3,13 +3,13 @@
 #   for P in 0.15 0.22 0.30; do sbatch --time=01:30:00 --export=ALL,PA_ENV=/scratch/dns5508/envs/pa,HF_HOME=/scratch/$USER/hf,CMD="python -m eval.sweep --config configs/sweeps/airsim_cone_headroom.yaml --set scenario.p_in_path=$P --set out=results/sweeps/cone_headroom_p$P" hpc/airsim_job.sbatch; done
 #   noise floor: the same command for 0.22 again with --set out=results/sweeps/cone_headroom_p0.22_rep
 # p_in_path prediction [UNVERIFIED]: P(crash) about 1 - mean over n of (1 - 0.69 p)^n, so 0.22 to 0.25 for 35 to 40%.
-# STARTS ARE PLACEHOLDERS: replace with the 5 poses kept by eval.world_check.
+# Starts: the 5 poses chosen from the world checks (job 43339, results/world_check/report.md): 0, 1, 3, 4, 5; pose 2 (D) dropped.
 starts: &starts
-  - [-150.0, 50.0, 180.0, 140.0]
-  - [150.0, -150.0, 0.0, 80.0]
-  - [150.0, 150.0, 270.0, 77.0]
-  - [-50.0, 50.0, 270.0, 91.0]
-  - [-150.0, -150.0, 90.0, 76.0]
+  - [-150.0, 50.0, 180.0, 140.0]   # old pose 1
+  - [150.0, -150.0, 0.0, 80.0]     # old pose 4
+  - [-50.0, 50.0, 270.0, 91.0]     # B
+  - [-150.0, -150.0, 90.0, 76.0]   # new
+  - [-150.0, 150.0, 0.0, 68.0]     # new
 backend: airsim
 backend_kw: {configs: "${PP_SIM_CONFIGS}", scene_file: scene_cap_400.jsonc, starts: *starts}
 stack: da2
