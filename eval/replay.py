@@ -78,13 +78,15 @@ class AskOnce:
 
 
 def replay_flight(scenario: Scenario, sim: Any, stack: Any, judge: Any, cfg: LoopConfig, horizon_s: float,
-                  every: int = 1, judge_name: str = "none", fork_all: bool = False) -> list[dict[str, Any]]:
+                  every: int = 1, judge_name: str = "none", fork_all: bool = False,
+                  controller_kw: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     """Replay rows for every ``every``-th frame of one never-ask flight."""
     if horizon_s <= 0 or every < 1:
         raise ValueError("horizon_s must be > 0 and every >= 1")
     snaps: list[ForkPoint] = []
     base_policy = RecordingNever()
-    records, base = run_episode(scenario, sim, stack, RuleController(d_safe=cfg.d_safe), base_policy, None, cfg,
+    controller = RuleController(**{"d_safe": cfg.d_safe, **(controller_kw or {})})
+    records, base = run_episode(scenario, sim, stack, controller, base_policy, None, cfg,
                                 judge_name=judge_name, snapshots=snaps)
     times = [r.t for r in records]
     crash_time = base.mission_time_s if base.crashed else None
@@ -138,7 +140,7 @@ def run(cfg: dict[str, Any]) -> int:
         for seed in todo:
             scenario = generate(seed, cfg.get("split", "val"), scen_cfg)
             rows = replay_flight(scenario, sim, stack, judge, loop, float(cfg.get("horizon_s", 3.0)), int(cfg.get("every", 1)), judge_name,
-                                 bool(cfg.get("fork_all", False)))
+                                 bool(cfg.get("fork_all", False)), cfg.get("controller"))
             with open(rows_path, "a") as f:  # one write per flight, then mark it done
                 f.write("".join(json.dumps(r) + "\n" for r in rows))
             with open(done_path, "a") as f:

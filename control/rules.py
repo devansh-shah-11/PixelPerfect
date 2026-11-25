@@ -168,7 +168,7 @@ class RuleController:
         x, y, alt = drone_state.position[0], drone_state.position[1], -drone_state.position[2]
         if self.goal is not None and (self.landing or math.hypot(self.goal[0] - x, self.goal[1] - y) <= self.land_radius_m):
             self.landing, self.phase = True, "landing"
-            return Action.DESCEND if alt > self.land_alt + self.alt_tol_m else Action.STOP
+            return Action.DESCEND if alt > self.land_alt + 0.01 else Action.STOP  # DESCEND is floored at the landing height
         if self._blocked(float(depth.features["corridor_min"])):
             self.phase = "avoid"
             return self.avoid_action(depth, drone_state)

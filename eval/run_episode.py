@@ -11,7 +11,11 @@ Every step (``dt`` simulated seconds):
 5. the drone steps; our own swept collision check runs against the true geometry (glass included, D5);
 6. one ``FrameRecord`` is logged.
 
-The flight ends on a collision, at the goal, or at ``t_max``. Wall-clock time
+Line courses end on a collision, at ``x >= goal_m``, or at ``t_max``. Cone courses (a goal point, plan v7) end with
+``extra["outcome"]``: "landed" (within ``land_radius_m`` of the goal at the landing height), "crashed", "lost" (the
+distance to the goal has not shrunk by ``progress_m`` for ``lost_s``), "left_area" (more than ``area_half_width_m``
+from the start-to-goal line: the hard geofence) or "timeout" (``t_max``). On cone courses the controller gets the
+mission, and a VLM "yes" passes the judge's direction (``last_direction``) to ``avoid_action``. Wall-clock time
 never enters the dynamics, so a seed and a delay replay the same flight
 exactly; the real VLM latency is only logged.
 
@@ -34,7 +38,7 @@ from eval.metrics import EpisodeResult
 from gate.features import IMAGE_KEYS, TemporalFeatures
 from interfaces import Action, DepthEstimate, FrameRecord, RuntimeStep
 from sim.drone import DroneParams, KinematicState, hold, step
-from sim.geometry import hits_ground, segment_hits
+from sim.geometry import best_side, hits_ground, segment_hits
 from sim.raycast import corridor_truth
 from sim.scenario import Scenario
 
@@ -65,6 +69,11 @@ class LoopConfig:
     d_safe: float = 8.0  # for the L1 label handed to the oracle; match the controller
     d_judge: float = 15.0  # the surrogate's truth: a surface in the window closer than this "crosses" it
     save_dir: str | None = None  # write rgb/depth/seg per frame here (large); off by default
+    # cone courses only (plan v7, DS 2026-11-25); all tunable on val
+    land_radius_m: float = 2.0  # "landed" needs the drone this close to the goal, horizontally
+    land_tol_m: float = 0.1  # and at most this far above the landing height
+    lost_s: float = 30.0  # "lost": no progress towards the goal for this long
+    progress_m: float = 0.5  # what counts as progress
 
     def __post_init__(self) -> None:
         if self.delay_s <= 0:
@@ -80,10 +89,15 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
     replaced by the snapshot's copy) and ``t_stop`` ends the flight at that simulated time."""
     from vlm.overlay import render
 
-    cfg, params = cfg or LoopConfig(), params or DroneParams(v=scenario.speed_mps)
+    cone = scenario.goal_xy is not None
+    cfg = cfg or LoopConfig()
+    params = params or (DroneParams(v=scenario.speed_mps, alt_min=scenario.land_alt_m) if cone else DroneParams(v=scenario.speed_mps))
     if resume is None:
         sim.reset(scenario)
         controller.reset()
+        if cone and hasattr(controller, "set_mission"):
+            controller.set_mission(scenario.goal_xy, cruise_alt=scenario.alt_m, land_alt=scenario.land_alt_m,
+                                   area_half_width_m=scenario.area_half_width_m)
     else:
         controller = copy.deepcopy(resume.controller)
     if hasattr(policy, "reset"):
@@ -100,6 +114,7 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
     records: list[FrameRecord] = []
     latencies: list[float] = []
     avoid_until, distance, delay_total, crashed, reached = -1.0, 0.0, 0.0, False, False
+    avoid_dir: str | None = None  # the VLM's direction for the current avoidance window (not carried by a fork)
     if resume is not None:
         avoid_until, distance = resume.avoid_until, resume.distance
     episode_id = f"{scenario.split}-{scenario.seed}-{getattr(policy, 'name', 'policy')}"
@@ -110,6 +125,18 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
     from perception.depth_utils import corridor_window
 
     collision_source, guard_hit = None, None
+    outcome: str | None = None
+    directions: list[str | None] = []
+    phases: list[tuple[float, str]] = []  # (t, phase) whenever the controller's phase changes
+
+    def goal_dist(st: KinematicState) -> float:
+        return math.hypot(scenario.goal_xy[0] - st.x, scenario.goal_xy[1] - st.y)
+
+    def cross_track(st: KinematicState) -> float:
+        gx, gy = scenario.goal_xy
+        return (gx * st.y - gy * st.x) / math.hypot(gx, gy)
+
+    best_dist, best_t = (goal_dist(state), state.t) if cone else (0.0, 0.0)
     for k in range(0 if resume is None else resume.k, int(math.ceil(cfg.t_max / cfg.dt)) + 1):
         if snapshots is not None:
             snapshots.append(ForkPoint(k, state, copy.deepcopy(controller), copy.deepcopy(temporal), avoid_until, distance))
@@ -125,8 +152,12 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
             gt_near, fam_near = corridor_truth(state, boxes, sim.cam)
             crashed = True
             collision_source = "obstacle" if gt_near < 1.0 and fam_near not in (None, "ground") else "scenery"
+            r_, c_ = np.unravel_index(int(np.argmin(window)), window.shape)
+            seg_px = np.asarray(obs.seg)[rows, cols][r_, c_][:3]
             # what triggered it: a real surface fills part of the window, a bad capture shows up as zeros (analysis only)
-            guard_hit = {"x": round(state.x, 2), "alt": round(state.alt, 2), "corridor_gt": round(gt_near, 2), "family": fam_near,
+            guard_hit = {"x": round(state.x, 2), "y": round(state.y, 2), "alt": round(state.alt, 2), "yaw": round(state.yaw, 3),
+                         "phase": getattr(controller, "phase", None), "start_index": getattr(sim, "start_index", None),
+                         "seg_rgb": [int(v) for v in seg_px], "corridor_gt": round(gt_near, 2), "family": fam_near,
                          "depth_min": round(float(np.min(window)), 3), "depth_median": round(float(np.median(window)), 2),
                          "frac_below_radius": round(float(np.mean(window < params.radius)), 4),
                          "frac_zero": round(float(np.mean(window <= 0.0)), 4), "image_depth_median": round(float(np.median(obs.depth)), 2)}
@@ -140,6 +171,9 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
         est = DepthEstimate(depth=est.depth, features=feats)
         public = state.public()
         proposed = controller.act(est, public)
+        ph = getattr(controller, "phase", None)
+        if ph is not None and (not phases or phases[-1][1] != ph):
+            phases.append((round(state.t, 2), ph))
 
         gt_min, family = corridor_truth(state, boxes, sim.cam)
         est_min = float(feats["corridor_min"])
@@ -153,18 +187,26 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
                 raise ValueError(f"policy {getattr(policy, 'name', policy)} asked but no judge was given")
             overlay, crop = render(obs.rgb)
             if hasattr(judge, "set_truth"):
-                judge.set_truth(family, gt_min < cfg.d_judge and family not in (None, "ground"))
+                crosses = gt_min < cfg.d_judge and family not in (None, "ground")
+                if getattr(judge, "p_dir", None) is not None:  # the surrogate names a side: give it the true shortest way past
+                    near = [b for b in boxes if b.family == family]
+                    box = min(near, key=lambda b: float(np.linalg.norm(np.asarray(b.center[:2]) - state.position[:2]))) if near else None
+                    judge.set_truth(family, crosses, side=best_side(state.position, state.yaw, box, params.radius) if box and crosses else None)
+                else:
+                    judge.set_truth(family, crosses)
             a = judge.ask(obs.rgb, overlay, crop)
             answer, conf, lat = bool(a.answer), float(a.confidence), float(a.latency_s)
             latencies.append(lat)
             state = hold(state, cfg.delay_s)  # paused-time delay: brake and hold for d (D10, D11)
             charged = cfg.delay_s
             delay_total += charged
+            direction = getattr(judge, "last_direction", None) if answer else None
+            directions.append(direction)
             if answer:
-                avoid_until = state.t + cfg.vlm_avoid_s
+                avoid_until, avoid_dir = state.t + cfg.vlm_avoid_s, direction
         action = proposed
         if state.t < avoid_until and proposed == Action.CONTINUE:
-            action = controller.avoid_action(est, state.public())
+            action = controller.avoid_action(est, state.public(), avoid_dir) if avoid_dir else controller.avoid_action(est, state.public())
 
         new = step(state, action, cfg.dt, params)
         p0, p1 = state.position, new.position
@@ -184,12 +226,26 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
         history.append(RuntimeStep(t=state.t, asked=asked, vlm_answer=answer, action_taken=action, gate_score=getattr(policy, "last_score", None)))
         state = new
         if collision:
-            crashed = True
+            crashed, outcome = True, "crashed"
             break
-        if state.x >= scenario.goal_m:
+        if cone:
+            d_goal = goal_dist(state)
+            if d_goal <= cfg.land_radius_m and state.alt <= scenario.land_alt_m + cfg.land_tol_m:
+                reached, outcome = True, "landed"
+                break
+            if abs(cross_track(state)) > scenario.area_half_width_m:
+                outcome = "left_area"
+                break
+            if d_goal < best_dist - cfg.progress_m or d_goal <= cfg.land_radius_m:
+                best_dist, best_t = min(best_dist, d_goal), state.t  # descending over the goal also counts as progress
+            elif state.t - best_t >= cfg.lost_s:
+                outcome = "lost"
+                break
+        elif state.x >= scenario.goal_m:
             reached = True
             break
         if state.t >= cfg.t_max or (t_stop is not None and state.t >= t_stop - 1e-6):
+            outcome = outcome or "timeout"
             break
 
     result = EpisodeResult(
@@ -202,6 +258,11 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
                "start_index": getattr(sim, "start_index", None)})
     if guard_hit is not None:
         result.extra["guard_hit"] = guard_hit
+        outcome = "crashed"
+    if cone:
+        result.extra.update({"outcome": outcome or ("crashed" if crashed else "timeout"), "goal_xy": list(scenario.goal_xy),
+                             "goal_dist_m": round(goal_dist(state), 2), "end_alt_m": round(state.alt, 2),
+                             "n_obstacles": len(scenario.obstacles), "phases": phases, "vlm_directions": directions})
     if image_ms:  # wall-clock cost of the gate's image features per frame (PLAN_DETAILED.md §4.2 budget: under 1 ms)
         result.extra["image_features_ms"] = {"median": round(float(np.median(image_ms)), 3), "p95": round(float(np.percentile(image_ms, 95)), 3)}
     return records, result

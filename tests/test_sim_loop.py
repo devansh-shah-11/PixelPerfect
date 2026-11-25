@@ -158,7 +158,8 @@ def test_mission_steers_to_the_goal_bypasses_returns_to_cruise_and_lands():
     assert c.act(clear, pos(x=16.6, alt=6.0)) == Action.DESCEND and c.phase == "return"  # past the obstacle: back down
     assert c.act(clear, pos(x=22.5, alt=2.1)) == Action.CONTINUE and c.phase == "cruise"
     assert c.act(clear, pos(x=58.5, alt=2.0)) == Action.DESCEND and c.phase == "landing"  # within 2 m of the goal
-    assert c.act(banded(1.0, left=1.0, right=1.0, up=1.0), pos(x=58.5, alt=1.1)) == Action.STOP  # landed; obstacles ignored
+    assert c.act(banded(1.0, left=1.0, right=1.0, up=1.0), pos(x=58.5, alt=1.1)) == Action.DESCEND  # down to the landing height
+    assert c.act(banded(1.0, left=1.0, right=1.0, up=1.0), pos(x=58.5, alt=1.0)) == Action.STOP  # landed; obstacles ignored
 
 
 def test_bypass_ends_past_the_vlm_range_or_after_a_sideways_detour_and_restarts_on_a_new_obstacle():
@@ -534,3 +535,67 @@ def test_resolve_seeds_skip_gives_a_disjoint_slice_of_the_frozen_list(tmp_path):
     assert resolve_seeds({"split": "val", "seeds": {"file": str(path), "skip": 190}}) == lists["val"][190:]
     with pytest.raises(SystemExit):
         resolve_seeds({"split": "val", "seeds": {"file": str(path), "skip": -1}})
+
+
+# ---- cone courses in the flight loop (plan v7 chunk 4) ------------------------------------------
+
+
+def cone(*obstacles: Obstacle, goal=(50.0, 0.0), area=15.0, alt=2.0, seed=1) -> Scenario:
+    return Scenario(seed=seed, split="val", alt_m=alt, speed_mps=5.0, goal_m=math.hypot(*goal), condition="clear",
+                    obstacles=list(obstacles), goal_xy=goal, land_alt_m=1.0, area_half_width_m=area)
+
+
+def fly_cone(sc, stack, policy=None, judge=None, controller=None, **loop):
+    return run_episode(sc, RaycastSim(CAM), stack, controller or RuleController(avoid_mode="choose"), policy or Never(), judge,
+                       LoopConfig(**{"t_max": 120.0, **loop}))[1]
+
+
+def test_cone_course_flies_to_the_goal_and_lands():
+    for alt in (1.83, 1.9, 2.07, 2.2):  # regression: landing used to stop at 1.2 m for most start heights (smoke run 2026-11-25)
+        assert fly_cone(cone(alt=alt), TrueDepthStack()).extra["outcome"] == "landed"
+    r = fly_cone(cone(goal=(45.0, 8.0)), TrueDepthStack())
+    assert r.reached_goal and not r.crashed and r.extra["outcome"] == "landed"
+    assert r.extra["goal_dist_m"] <= 2.0 and r.extra["end_alt_m"] <= 1.1
+    assert [p for _, p in r.extra["phases"]][-1] == "landing"
+
+
+def test_cone_course_goes_around_a_box_with_true_depth_and_comes_back_down():
+    r = fly_cone(cone(Obstacle("box_1m_grey", 20.0, 0.0, 2.0)), TrueDepthStack())
+    assert r.extra["outcome"] == "landed", r.extra
+    names = [p for _, p in r.extra["phases"]]
+    assert "avoid" in names and names[-1] == "landing"
+
+
+def test_vlm_direction_steers_past_a_wire_depth_cannot_see():
+    sc = cone(Obstacle("wire_3cm_axis_z", 20.0, 0.0, 2.0))
+    assert fly_cone(sc, BlindStack()).extra["outcome"] == "crashed"  # never asks: flies into it
+    judge = SurrogateJudge(default_tpr=1.0, default_fpr=0.0, seed=0, p_dir=1.0)
+    r = fly_cone(sc, BlindStack(), policy=Oracle(), judge=judge)
+    assert r.extra["outcome"] == "landed", r.extra
+    assert "over" in r.extra["vlm_directions"]  # a 6 m horizontal wire: going over is the shortest way past
+
+
+def test_lost_left_area_and_timeout_outcomes():
+    class Hover:
+        phase = "cruise"
+
+        def reset(self):
+            pass
+
+        def act(self, depth, state):
+            return Action.STOP
+
+    assert fly_cone(cone(), TrueDepthStack(), controller=Hover()).extra["outcome"] == "lost"  # no progress for 30 s
+
+    class Straight(Hover):
+        def act(self, depth, state):
+            return Action.CONTINUE
+
+    assert fly_cone(cone(goal=(50.0, 10.0), area=2.0), TrueDepthStack(), controller=Straight()).extra["outcome"] == "left_area"
+    r = fly_cone(cone(), TrueDepthStack(), t_max=3.0)
+    assert r.extra["outcome"] == "timeout" and not r.reached_goal
+
+
+def test_line_courses_report_no_outcome_field_and_fly_as_before():
+    r = run_episode(scenario(Obstacle("box_1m_grey", 20.0, 0.0, 2.0)), RaycastSim(CAM), TrueDepthStack(), RuleController(), Never())[1]
+    assert r.reached_goal and "outcome" not in r.extra
