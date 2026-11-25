@@ -28,6 +28,7 @@ class Action(str, Enum):
     YAW_LEFT = "yaw_left"
     YAW_RIGHT = "yaw_right"
     CLIMB = "climb"
+    DESCEND = "descend"  # back to cruise height after avoiding, and landing (DS 2026-11-25, Decision-log row pending)
 
 
 @dataclass(frozen=True)

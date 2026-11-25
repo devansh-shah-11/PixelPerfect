@@ -52,7 +52,7 @@ def make_record(**overrides) -> FrameRecord:
 
 
 def test_actions_match_plan():
-    assert {a.value for a in Action} == {"continue", "stop", "yaw_left", "yaw_right", "climb"}
+    assert {a.value for a in Action} == {"continue", "stop", "yaw_left", "yaw_right", "climb", "descend"}
 
 
 def test_frame_record_round_trip():

@@ -10,6 +10,8 @@ Actions (``interfaces.Action``), each applied for one step of ``dt`` seconds:
 - ``STOP``: brake and hold (speed 0); also the waiting behaviour while the VLM is asked (D11 MVP)
 - ``YAW_LEFT`` / ``YAW_RIGHT``: turn at ``yaw_rate`` while moving at ``v_turn`` (0 = turn in place)
 - ``CLIMB``: rise at ``climb_rate`` while moving at ``v_climb`` (0 = climb in place), capped at ``alt_max``
+- ``DESCEND``: sink at ``climb_rate`` while moving at ``v_descend`` (0 = descend in place), floored at ``alt_min``
+  (the landing height, so landing is not ground contact)
 
 Hysteresis lives in the controller (``control.rules``), not here.
 """
@@ -32,6 +34,8 @@ class DroneParams:
     v_climb: float = 0.0
     alt_max: float = 25.0
     radius: float = 0.3  # collision sphere
+    v_descend: float = 0.0
+    alt_min: float = 1.0  # DESCEND stops here: the landing height above the ground
 
 
 @dataclass(frozen=True)
@@ -69,6 +73,9 @@ def step(s: KinematicState, action: Action, dt: float, p: DroneParams) -> Kinema
     elif action == Action.CLIMB:
         z = max(-p.alt_max, s.z - p.climb_rate * dt)
         v = p.v_climb
+    elif action == Action.DESCEND:
+        z = s.z if s.alt <= p.alt_min else min(-p.alt_min, s.z + p.climb_rate * dt)  # never pushes a low drone up
+        v = p.v_descend
     else:
         raise ValueError(action)
     yaw = (yaw + math.pi) % (2 * math.pi) - math.pi

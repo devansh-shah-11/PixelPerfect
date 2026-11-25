@@ -73,6 +73,17 @@ def test_drone_actions():
     assert h.t == pytest.approx(1.1) and h.x == s1.x and h.speed == 0.0
 
 
+def test_descend_sinks_in_place_and_stops_at_the_landing_height():
+    p = DroneParams(climb_rate=2.0, alt_min=1.0)
+    s = KinematicState(t=0.0, x=3.0, y=0.0, z=-2.0, yaw=0.0, speed=5.0)
+    d = step(s, Action.DESCEND, 0.1, p)
+    assert d.alt == pytest.approx(1.8) and d.x == 3.0 and d.speed == 0.0  # in place by default
+    low = step(replace(s, z=-1.1), Action.DESCEND, 0.1, p)
+    assert low.alt == pytest.approx(1.0)  # floored at the landing height, never ground contact
+    assert step(replace(s, z=-0.8), Action.DESCEND, 0.1, p).alt == pytest.approx(0.8)  # a low drone is not pushed up
+    assert not hits_ground(s.position, low.position, p.radius)
+
+
 def est(cm: float, w: int = 40) -> DepthEstimate:
     d = np.full((20, w), cm, np.float32)
     return DepthEstimate(depth=d, features=corridor_features(d))
@@ -110,6 +121,33 @@ def test_scenarios_are_deterministic_and_respect_holdout():
     assert half_extents("glass_pane_alpha20") == (0.025, 1.25, 1.5)  # facing the camera
     sc = generate(5, "val")
     assert Scenario.from_dict(json.loads(sc.to_json())).to_json() == sc.to_json()
+    assert sc.goal_xy is None and sc.land_alt_m is None  # line courses carry no goal point
+
+
+def test_cone_courses_place_the_goal_and_space_the_obstacles():
+    from sim.scenario import ScenarioConfig
+
+    cfg = ScenarioConfig(layout="cone", n_obstacles=(1, 5), p_in_path=0.5)
+    assert generate(7, "val", cfg).to_json() == generate(7, "val", cfg).to_json()
+    counts = []
+    for s in range(300):
+        sc = generate(s, "val", cfg)
+        assert Scenario.from_dict(json.loads(sc.to_json())).to_json() == sc.to_json()
+        gx, gy = sc.goal_xy
+        assert 50.0 <= sc.goal_m <= 60.0 and abs(gy) <= 10.0 and math.hypot(gx, gy) == pytest.approx(sc.goal_m, abs=1e-2)
+        assert sc.land_alt_m == 1.0
+        ux, uy = gx / sc.goal_m, gy / sc.goal_m
+        along = sorted(o.along_m * ux + o.lateral_m * uy for o in sc.obstacles)  # projection on the start-to-goal line
+        assert 1 <= len(along) <= 5
+        assert along[0] >= 12.0 - 1e-2 and along[-1] <= sc.goal_m - 8.0 + 1e-2
+        assert all(b - a >= 8.0 - 1e-2 for a, b in zip(along, along[1:]))  # positions are stored to the millimetre
+        assert all(math.hypot(o.along_m - gx, o.lateral_m - gy) >= 8.0 - 1e-2 for o in sc.obstacles)  # landing spot clear
+        assert all(o.yaw == pytest.approx(math.atan2(uy, ux), abs=1e-4) for o in sc.obstacles)  # facing along the line
+        counts.append(len(along))
+    assert set(counts) == {1, 2, 3, 4, 5}  # every count occurs (5 only when the goal is far enough)
+    assert generate(7, "val").to_json() != generate(7, "val", cfg).to_json()
+    with pytest.raises(ValueError):
+        generate(7, "val", ScenarioConfig(layout="spiral"))
 
 
 def test_seed_lists_freeze(tmp_path):

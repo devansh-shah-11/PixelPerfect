@@ -70,13 +70,14 @@ def half_extents(family: str) -> tuple[float, float, float]:
 @dataclass
 class Obstacle:
     family: str
-    along_m: float  # distance from the start along the path
-    lateral_m: float  # signed offset to the right (east when heading north)
+    along_m: float  # path-frame x of the centre (distance ahead of the start)
+    lateral_m: float  # path-frame y of the centre, signed to the right (east when heading north)
     alt_m: float  # centre altitude
+    yaw: float = 0.0  # radians; "cone" courses turn the box to face along the start-to-goal line
 
     def obb(self, name: str = "") -> OBB:
         _, _, see_through = CATALOG[self.family]
-        return OBB(center=(self.along_m, self.lateral_m, -self.alt_m), half=half_extents(self.family), yaw=0.0,
+        return OBB(center=(self.along_m, self.lateral_m, -self.alt_m), half=half_extents(self.family), yaw=self.yaw,
                    name=name or self.family, family=self.family, see_through=see_through)
 
 
@@ -89,6 +90,10 @@ class Scenario:
     goal_m: float
     condition: str
     obstacles: list[Obstacle] = field(default_factory=list)
+    # "cone" courses only (None on "line" courses): the goal point in the path frame, and the height the drone
+    # descends to there. On a cone course ``goal_m`` is the straight-line distance from the start to the goal.
+    goal_xy: tuple[float, float] | None = None
+    land_alt_m: float | None = None
 
     def obbs(self) -> list[OBB]:
         return [o.obb(f"obs{i}_{o.family}") for i, o in enumerate(self.obstacles)]
@@ -98,7 +103,8 @@ class Scenario:
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> Scenario:
-        return cls(**{**d, "obstacles": [Obstacle(**o) for o in d["obstacles"]]})
+        goal = d.get("goal_xy")
+        return cls(**{**d, "obstacles": [Obstacle(**o) for o in d["obstacles"]], "goal_xy": tuple(goal) if goal is not None else None})
 
 
 @dataclass
@@ -117,11 +123,25 @@ class ScenarioConfig:
     lateral_sd_m: float = 0.3  # spread of in-path obstacles
     off_path_m: tuple[float, float] = (3.0, 8.0)
     conditions: Sequence[str] = ("clear", "dusk")
+    # Course layout. "line": the original course, goal = travel goal_m along +x, obstacles from first_obstacle_m
+    # with gaps gap_m. "cone": a goal point drawn ahead of the start (DS 2026-11-25, PLAN_SCENARIO_FREEZE.md v7);
+    # n_obstacles obstacles spread along the start-to-goal line, none within the last land_clear_m metres.
+    layout: str = "line"
+    goal_dist_m: tuple[float, float] = (50.0, 60.0)  # cone: straight-line distance start to goal
+    goal_lateral_m: float = 10.0  # cone: goal at most this far to either side of the start heading
+    along_min_m: float = 12.0  # cone: no obstacle closer to the start than this, along the line
+    min_gap_m: float = 8.0  # cone: spacing between obstacles along the line (room for an ask plus avoidance)
+    land_clear_m: float = 8.0  # cone: no obstacle within this distance of the goal along the line
+    land_alt_m: float = 1.0  # cone: the drone descends to this height at the goal
 
 
 def generate(seed: int, split: str, cfg: ScenarioConfig | None = None) -> Scenario:
     """The scenario for ``seed``. Pure function of (seed, split, cfg)."""
     cfg = cfg or ScenarioConfig()
+    if cfg.layout == "cone":
+        return _generate_cone(seed, split, cfg)
+    if cfg.layout != "line":
+        raise ValueError(f"unknown layout {cfg.layout!r}; use 'line' or 'cone'")
     rng = np.random.default_rng([seed, 7919])
     families = [f for f in cfg.families if not (split == "train" and f == cfg.holdout_family)]
     alt = float(rng.uniform(*cfg.alt_range_m))
@@ -140,6 +160,45 @@ def generate(seed: int, split: str, cfg: ScenarioConfig | None = None) -> Scenar
         along += float(rng.uniform(*cfg.gap_m))
     cond = str(cfg.conditions[int(rng.integers(len(cfg.conditions)))])
     return Scenario(seed=seed, split=split, alt_m=round(alt, 3), speed_mps=cfg.speed_mps, goal_m=cfg.goal_m, condition=cond, obstacles=obstacles)
+
+
+def _generate_cone(seed: int, split: str, cfg: ScenarioConfig) -> Scenario:
+    """A goal point ahead of the start and 1 to n obstacles spread along the start-to-goal line.
+
+    Obstacle positions are drawn uniformly with a guaranteed minimum gap (sorted uniform draws on the span left
+    after the gaps are taken out). If the line is too short for the drawn count at that gap, the count is reduced:
+    ``len(scenario.obstacles)`` is the realised count. In-path obstacles sit on the line (spread ``lateral_sd_m``),
+    the others ``off_path_m`` to one side of it; every box is turned to face along the line.
+    """
+    rng = np.random.default_rng([seed, 7919, 2])  # own stream: line courses for the same seed stay unchanged
+    families = [f for f in cfg.families if not (split == "train" and f == cfg.holdout_family)]
+    alt = float(rng.uniform(*cfg.alt_range_m))
+    dist = float(rng.uniform(*cfg.goal_dist_m))
+    lat = float(rng.uniform(-cfg.goal_lateral_m, cfg.goal_lateral_m))
+    lat = max(-dist + 1e-6, min(dist - 1e-6, lat))
+    gx, gy = float(np.sqrt(dist ** 2 - lat ** 2)), lat
+    ux, uy = gx / dist, gy / dist  # unit vector along the line; (-uy, ux) points to its right
+    heading = float(np.arctan2(uy, ux))
+    lo, hi = cfg.along_min_m, dist - cfg.land_clear_m
+    n = int(rng.integers(cfg.n_obstacles[0], cfg.n_obstacles[1] + 1))
+    if hi < lo:
+        n = 0
+    else:
+        n = min(n, 1 + int((hi - lo) // cfg.min_gap_m))
+    slack = (hi - lo) - (n - 1) * cfg.min_gap_m if n else 0.0
+    alongs = [lo + float(u) + i * cfg.min_gap_m for i, u in enumerate(np.sort(rng.uniform(0.0, slack, n)))] if n else []
+    obstacles = []
+    for t in alongs:
+        fam = str(families[int(rng.integers(len(families)))])
+        if rng.random() < cfg.p_in_path:
+            off = float(rng.normal(0.0, cfg.lateral_sd_m))
+        else:
+            off = float(rng.choice([-1, 1]) * rng.uniform(*cfg.off_path_m))
+        x, y = t * ux - off * uy, t * uy + off * ux
+        obstacles.append(Obstacle(fam, round(x, 3), round(y, 3), round(alt, 3), round(heading, 5)))
+    cond = str(cfg.conditions[int(rng.integers(len(cfg.conditions)))])
+    return Scenario(seed=seed, split=split, alt_m=round(alt, 3), speed_mps=cfg.speed_mps, goal_m=round(dist, 3), condition=cond,
+                    obstacles=obstacles, goal_xy=(round(gx, 3), round(gy, 3)), land_alt_m=cfg.land_alt_m)
 
 
 # ---- frozen seed lists (D13) -----------------------------------------------------------------
