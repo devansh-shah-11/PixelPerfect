@@ -133,7 +133,6 @@ Owner and full list: `PLAN_DETAILED.md` §16. The ones that actually block somet
 
 | # | Question | Blocks |
 |---|---|---|
-| Q4 / D3 | Project AirSim v1.0.1 instead of Microsoft AirSim or Colosseum needs team sign-off and a Decision-log row | nothing technically, but it is an undocumented deviation |
 | Q10 | CoDrone (arXiv 2512.19083): what are its scheduler inputs and reward, and does it account for collisions? If it does, revisit D16 | how we frame the contribution |
 | Q3, Q6 | TA: is simulation-only evaluation accepted, and what are the exact final dates? | M7 planning |
 | new | Does pause/step work in Project AirSim, and do wires appear in segmentation or ground-truth depth? | M4, and the whole wire story |

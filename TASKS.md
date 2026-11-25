@@ -48,7 +48,7 @@ Everything below that is code is written and tested on the laptop (137 tests). W
 | M0.2 | Shared types and flight-log schema in `interfaces.py` + tests [S-04, H1] | B | `pytest` passes; all three have read it and agreed | DONE (needs A and C to confirm they agree) |
 | M0.3 | HPC access: account, partitions, scratch, cached weights [S-06] | each | Each member has one finished sbatch job id | DOING: A done, B done, **C outstanding** |
 | M0.4 | Owners written down, Q1 closed [S-02] | all | `PLAN.md` §5 table confirmed at a sync | DOING (filled in, needs confirming) |
-| M0.5 | Project AirSim sign-off: Decision-log row for D3 and Q4 [S-05] | all | Row added to `PLAN_DETAILED.md` §3 | TODO |
+| M0.5 | Project AirSim sign-off: Decision-log row for D3 and Q4 [S-05] | all | Row added to `PLAN_DETAILED.md` §3 | DONE (row is D21; DS approved 2026-11-24, Q4 closed) |
 
 ---
 
