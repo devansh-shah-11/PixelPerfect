@@ -205,3 +205,12 @@
 - Advances: M4.7 (plan v7 step 2, chunk 1 of 5: action set and course generator). Line layout unchanged and still the default.
 - Still blocked: controller, judge direction, flight loop outcomes (chunks 2 to 5), then the raycast smoke, the A100 pose scan and the headroom run, then the freeze.
 - Sanity check: full pytest 170 passed, 1 skipped (laptop). Note: the commit also carried an earlier v2 draft of PLAN_SCENARIO_FREEZE.md that was already staged; v7 follows in the next commit.
+
+## 2026-11-25  |  control  |  situation-based avoidance and landing (2e96721)
+- Advances: M4.7 (plan v7 step 2, chunk 2 of 5: controller). Also commits the AGENT_LOG analysis and plan v7.
+- Next: chunk 3 (judge direction), chunk 4 (flight loop outcomes and logging), chunk 5 (vertical pole, configs).
+- Sanity check: full pytest 175 passed, 1 skipped (laptop).
+
+## 2026-11-25  |  control, vlm  |  geofence and VLM direction (chunk 3)
+- Advances: M4.7 (plan v7 step 2: soft geofence in the controller; chunk 3, the judge's direction answer). Hard fence and outcomes come with chunk 4.
+- Sanity check: full pytest 180 passed, 1 skipped (laptop).

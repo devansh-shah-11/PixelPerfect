@@ -94,6 +94,7 @@ class Scenario:
     # descends to there. On a cone course ``goal_m`` is the straight-line distance from the start to the goal.
     goal_xy: tuple[float, float] | None = None
     land_alt_m: float | None = None
+    area_half_width_m: float | None = None  # mission area: this far either side of the start-to-goal line (geofence)
 
     def obbs(self) -> list[OBB]:
         return [o.obb(f"obs{i}_{o.family}") for i, o in enumerate(self.obstacles)]
@@ -133,6 +134,7 @@ class ScenarioConfig:
     min_gap_m: float = 8.0  # cone: spacing between obstacles along the line (room for an ask plus avoidance)
     land_clear_m: float = 8.0  # cone: no obstacle within this distance of the goal along the line
     land_alt_m: float = 1.0  # cone: the drone descends to this height at the goal
+    area_half_width_m: float = 15.0  # cone: mission area (geofence) either side of the start-to-goal line; tunable
 
 
 def generate(seed: int, split: str, cfg: ScenarioConfig | None = None) -> Scenario:
@@ -198,7 +200,8 @@ def _generate_cone(seed: int, split: str, cfg: ScenarioConfig) -> Scenario:
         obstacles.append(Obstacle(fam, round(x, 3), round(y, 3), round(alt, 3), round(heading, 5)))
     cond = str(cfg.conditions[int(rng.integers(len(cfg.conditions)))])
     return Scenario(seed=seed, split=split, alt_m=round(alt, 3), speed_mps=cfg.speed_mps, goal_m=round(dist, 3), condition=cond,
-                    obstacles=obstacles, goal_xy=(round(gx, 3), round(gy, 3)), land_alt_m=cfg.land_alt_m)
+                    obstacles=obstacles, goal_xy=(round(gx, 3), round(gy, 3)), land_alt_m=cfg.land_alt_m,
+                    area_half_width_m=cfg.area_half_width_m)
 
 
 # ---- frozen seed lists (D13) -----------------------------------------------------------------

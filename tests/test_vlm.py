@@ -106,7 +106,7 @@ class FakeJudge(QwenVLJudge):
         self._yes_ids, self._no_ids = [1], [3]
         self.seen: list[int] = []
 
-    def _logits(self, images):
+    def _logits(self, images, prompt=None):
         self.seen.append(len(images))
         logits = np.zeros(8)
         bright = images[0][0, 0, 0] > 127
@@ -269,3 +269,60 @@ def test_bench_depth_times_a_fast_stack_and_the_table_shows_quantization():
     stats = summarize([0.1, 0.2])
     table = markdown_table([{"model": "m@4bit", "dtype": "bfloat16", "quant": "4bit", "outcome": "success", "load_s": 1.0, **stats}, {**r, "load_s": 0.1}])
     assert "4bit (bfloat16 compute)" in table and "| fake/depth-small | float32 |" in table
+
+
+class DirectionJudge(FakeJudge):
+    """Answers yes, then puts the most weight on token 6 ("right") for the direction question."""
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self._dir_ids = {"left": [5], "right": [6], "over": [7]}
+        self.prompts: list[str | None] = []
+
+    def _logits(self, images, prompt=None):
+        self.prompts.append(prompt)
+        logits = np.zeros(8)
+        if prompt is None:
+            logits[1] = 3.0  # yes
+        else:
+            logits[6] = 2.0
+        return logits
+
+
+def test_judge_asks_for_a_direction_only_after_a_yes_when_enabled():
+    img = np.zeros((H, W, 3), dtype=np.uint8)
+    j = DirectionJudge(direction=True)
+    a = j.ask(img, img, img)
+    assert a.answer and j.last_direction == "right" and len(j.prompts) == 2 and "left, right or over" in j.prompts[1]
+    off = DirectionJudge()
+    off.ask(img, img, img)
+    assert off.last_direction is None and off.prompts == [None]  # yes/no judge: one pass, as before
+    no = FakeJudge(direction=True)
+    no.ask(img, img, img)  # dark frame: "no", so no direction pass
+    assert no.last_direction is None and len(no.seen) == 1
+
+
+def test_surrogate_direction_is_right_at_rate_p_dir_and_leaves_the_yes_no_stream_alone():
+    def run(p_dir, n=4000):
+        j = SurrogateJudge(default_tpr=1.0, default_fpr=0.0, seed=3, p_dir=p_dir)
+        out = []
+        for _ in range(n):
+            j.set_truth("pole_10cm_axis_y", True, side="left")
+            a = j.ask(None, None, None)
+            out.append((a.answer, j.last_direction))
+        return out
+    hits = [d == "left" for _, d in run(0.8)]
+    assert abs(np.mean(hits) - 0.8) < 0.03
+    assert all(d is None for _, d in run(None))
+    plain = SurrogateJudge(default_tpr=0.7, default_fpr=0.2, seed=5)
+    same = SurrogateJudge(default_tpr=0.7, default_fpr=0.2, seed=5, p_dir=None)
+    for k in range(200):
+        for j in (plain, same):
+            j.set_truth("box_1m_grey", k % 3 == 0)
+        assert plain.ask(None, None, None) == same.ask(None, None, None)
+    fa = SurrogateJudge(default_tpr=1.0, default_fpr=1.0, seed=1, p_dir=1.0)
+    fa.set_truth(None, False)
+    fa.ask(None, None, None)
+    assert fa.last_direction in ("left", "right", "over")  # a false alarm still names a side
+    with pytest.raises(ValueError):
+        SurrogateJudge(p_dir=1.5)

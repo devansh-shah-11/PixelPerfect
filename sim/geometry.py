@@ -95,3 +95,22 @@ def segment_hits(p0: np.ndarray, p1: np.ndarray, box: OBB, radius: float) -> boo
 def hits_ground(p0: np.ndarray, p1: np.ndarray, radius: float) -> bool:
     """Sphere below the ground at either end of the step (z is down, ground at 0)."""
     return bool(max(float(p0[2]), float(p1[2])) > -radius)
+
+
+def best_side(position: np.ndarray, yaw: float, box: OBB, r: float) -> str:
+    """Which way past ``box`` needs the smallest move: "left", "right" or "over" (ground truth, for the surrogate only).
+
+    In the drone's frame (forward along ``yaw``, lateral positive to the right, NED), the box's lateral extent is
+    projected onto the drone's lateral axis; passing left means moving past its left edge, right past its right edge,
+    over means rising above its top; each by the drone radius ``r``. Evaluation-side helper (CLAUDE.md rule 5).
+    """
+    p = np.asarray(position, dtype=np.float64)
+    c, s = np.cos(yaw), np.sin(yaw)
+    d = np.asarray(box.center, dtype=np.float64) - p
+    lat = -s * d[0] + c * d[1]  # box centre to the right of the drone
+    rel = box.yaw - yaw
+    half_lat = abs(box.half[0] * np.sin(rel)) + abs(box.half[1] * np.cos(rel))
+    top_alt = -(box.center[2] - box.half[2])  # NED: the box top is centre minus half-height in z
+    # to pass on the left the drone must end up at lateral <= lat - half_lat - r, on the right at >= lat + half_lat + r
+    need = {"left": half_lat + r - lat, "right": lat + half_lat + r, "over": top_alt - (-p[2]) + r}
+    return min(need, key=lambda k: (need[k], ("over", "left", "right").index(k)))

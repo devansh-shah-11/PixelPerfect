@@ -95,6 +95,12 @@ def prompt_text(key: str, overlay: bool) -> str:
 # the tokenizer splits them.
 YES_FORMS = ("yes", "Yes", " yes", " Yes", "YES")
 NO_FORMS = ("no", "No", " no", " No", "NO")
+# Direction question (plan v7, DS 2026-11-25), asked only after a "yes" when ``direction=True``: a second forward
+# pass, and the answer is the most likely of the three words. Its accuracy is not measured yet [UNVERIFIED].
+DIRECTION_PROMPT = ("Something blocks {where}. To get past it safely, should the drone go left, right or over? "
+                    "Answer with one word: left, right or over.")
+DIRECTION_FORMS = {"left": ("left", "Left", " left", " Left"), "right": ("right", "Right", " right", " Right"),
+                   "over": ("over", "Over", " over", " Over")}
 
 
 def variant_ids(tokenizer: Any, forms: Sequence[str]) -> list[int]:
@@ -161,6 +167,7 @@ class QwenVLJudge:
         quant: str | None = None,
         invert: bool = False,
         tau: float = 0.0,
+        direction: bool = False,
     ) -> None:
         plain_id, spec_quant = parse_model_spec(model_id)
         if quant is not None and quant not in QUANT_MODES:
@@ -175,6 +182,9 @@ class QwenVLJudge:
         self.prompt = prompt
         self.invert = invert
         self.tau = tau  # "yes" when confidence > tau; the cut is tuned offline on val (vlm.eval_bank.tune_tau), never at run time
+        self.direction = direction
+        self.last_direction: str | None = None
+        self._dir_ids: dict[str, list[int]] = {}
         self.load_seconds: float | None = None
         self._model = None
         self._processor = None
@@ -205,6 +215,7 @@ class QwenVLJudge:
         tok = self._processor.tokenizer
         self._yes_ids = variant_ids(tok, YES_FORMS)
         self._no_ids = variant_ids(tok, NO_FORMS)
+        self._dir_ids = {k: variant_ids(tok, forms) for k, forms in DIRECTION_FORMS.items()}
         self.load_seconds = time.perf_counter() - start
 
     def warmup(self, shape: tuple[int, int] = (225, 400)) -> float:
@@ -214,14 +225,14 @@ class QwenVLJudge:
 
     # ---- inference ---------------------------------------------------------------
 
-    def _logits(self, images: list[np.ndarray]) -> np.ndarray:
-        """Next-token logits (vocab,) after the prompt. Overridden by tests with a fake."""
+    def _logits(self, images: list[np.ndarray], prompt: str | None = None) -> np.ndarray:
+        """Next-token logits (vocab,) after ``prompt`` (default: the judge's prompt). Overridden by tests with a fake."""
         import torch
 
         if self._model is None:
             self._load()
         content: list[dict[str, Any]] = [{"type": "image"} for _ in images]
-        content.append({"type": "text", "text": self.prompt})
+        content.append({"type": "text", "text": self.prompt if prompt is None else prompt})
         text = self._processor.apply_chat_template(
             [{"role": "user", "content": content}], add_generation_prompt=True, tokenize=False
         )
@@ -240,8 +251,14 @@ class QwenVLJudge:
             images.append(crop)
         start = time.perf_counter()
         logits = self._logits(images)
-        latency = time.perf_counter() - start
         conf = yes_no_score(logits, self._yes_ids, self._no_ids)
         if self.invert:  # the question asked whether the path is clear
             conf = -conf
-        return VLMAnswer(answer=conf > self.tau, confidence=float(conf), latency_s=latency)
+        answer = conf > self.tau
+        self.last_direction = None
+        if answer and self.direction:
+            where = "the highlighted region" if self.use_overlay else "the centre image"
+            dl = np.asarray(self._logits(images, DIRECTION_PROMPT.format(where=where)), dtype=np.float64)
+            self.last_direction = max(self._dir_ids, key=lambda k: _logsumexp(dl[self._dir_ids[k]]))
+        latency = time.perf_counter() - start  # both passes: the drone waits for the direction too
+        return VLMAnswer(answer=bool(answer), confidence=float(conf), latency_s=latency)

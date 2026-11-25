@@ -176,6 +176,45 @@ def test_bypass_ends_past_the_vlm_range_or_after_a_sideways_detour_and_restarts_
     assert c.act(clear, pos(x=10.5, y=13.5, yaw=1.5)) == Action.YAW_LEFT and c.phase == "cruise"  # 13.5 m >= 2 x 6.5: turn back to the goal
 
 
+def test_soft_geofence_blocks_the_outward_side_overrides_the_vlm_and_cuts_the_hold():
+    c = RuleController(avoid_mode="choose", goal_bias_m=0.0, fence_margin_m=3.0)
+    c.set_mission((60.0, 0.0), cruise_alt=2.0, land_alt=1.0, area_half_width_m=15.0)
+    blocked = banded(5.0, left=12.0, right=40.0, up=90.0)  # right is freer
+    assert c.act(blocked, pos(x=20.0, y=5.0)) == Action.YAW_RIGHT  # well inside the area: free choice
+    c.reset()
+    c.set_mission((60.0, 0.0), cruise_alt=2.0, land_alt=1.0, area_half_width_m=15.0)
+    assert c.act(blocked, pos(x=20.0, y=13.0)) == Action.YAW_LEFT  # 13 m right of the line, 2 m from the edge: right is out
+    c.reset()
+    c.set_mission((60.0, 0.0), cruise_alt=2.0, land_alt=1.0, area_half_width_m=15.0)
+    assert c.avoid_action(est(50.0), pos(x=20.0, y=-13.0), direction="left") == Action.CLIMB  # VLM's outward side becomes "over"
+    c.reset()
+    c.set_mission((60.0, 0.0), cruise_alt=2.0, land_alt=1.0, area_half_width_m=15.0)
+    c.act(banded(5.0, left=6.0, right=40.0, up=90.0), pos(x=10.0))  # avoids to the right, obstacle 5 m ahead
+    clear = banded(60.0, left=60.0, right=60.0, up=90.0)
+    assert c.act(clear, pos(x=11.0, y=12.5, yaw=1.2)) == Action.YAW_LEFT and c.phase == "cruise"  # near the edge: hold ends
+
+
+def test_cone_courses_carry_the_mission_area():
+    from sim.scenario import ScenarioConfig
+
+    sc = generate(3, "val", ScenarioConfig(layout="cone", area_half_width_m=12.0))
+    assert sc.area_half_width_m == 12.0 and generate(3, "val").area_half_width_m is None
+
+
+def test_best_side_is_the_smallest_move_past_the_box():
+    from sim.geometry import best_side
+
+    me = np.array([0.0, 0.0, -2.0])
+    post = OBB(center=(10.0, 0.2, -2.5), half=(0.05, 0.05, 2.5))  # vertical post 0.2 m to the right, 5 m tall
+    assert best_side(me, 0.0, post, 0.3) == "left"  # 0.15 m left beats 0.55 m right
+    bar = OBB(center=(10.0, 0.0, -2.0), half=(0.05, 2.5, 0.05))  # horizontal bar across the path
+    assert best_side(me, 0.0, bar, 0.3) == "over"
+    wall = OBB(center=(10.0, -3.0, -2.5), half=(0.1, 4.0, 2.5))  # 5 m tall wall mostly on the left: 1.3 m right vs 3.3 m over
+    assert best_side(me, 0.0, wall, 0.3) == "right"
+    east_post = OBB(center=(0.2, 10.0, -2.5), half=(0.05, 0.05, 2.5))  # heading east (NED): north of the line is the left
+    assert best_side(me, math.pi / 2, east_post, 0.3) == "right"
+
+
 def test_line_courses_keep_the_original_controller():
     old, new = RuleController(), RuleController()
     seq = [(est(20.0), pos()), (est(7.0), pos()), (est(9.0), pos(alt=3.0)), (est(12.0), pos(alt=4.0)), (est(50.0), pos(alt=4.0, yaw=-0.5))]

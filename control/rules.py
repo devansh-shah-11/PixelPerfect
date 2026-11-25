@@ -32,7 +32,11 @@ Mission (``set_mission``; only on courses with a goal point, so line courses beh
   is the estimate's corridor minimum when avoidance started, or ``d_judge`` (the range the VLM is asked about) when
   only the VLM saw something. A new obstacle on the way starts a new avoidance episode at once. Then turn back
   towards the goal and descend in place to the cruise height while the corridor reads clear;
-- within ``land_radius_m`` of the goal (horizontally), stop and descend to the landing height, then hold.
+- within ``land_radius_m`` of the goal (horizontally), stop and descend to the landing height, then hold;
+- soft geofence: the mission area is ``area_half_width_m`` either side of the start-to-goal line. Within
+  ``fence_margin_m`` of its edge, a side that would carry the drone further out counts as blocked (for the
+  depth-based choice and for the VLM's direction, which then becomes "over"), and a hold after avoiding ends early
+  so the drone turns back. Crossing the edge anyway ends the flight in the loop (outcome "left area").
   The landing spot is kept free of placed obstacles by the course generator (``sim.scenario`` cone layout).
 """
 from __future__ import annotations
@@ -68,12 +72,13 @@ def _wrap(a: float) -> float:
 class RuleController:
     def __init__(self, d_safe: float = 8.0, hysteresis: float = 2.0, alt_max: float = 25.0, alt_margin: float = 1.0,
                  heading_tol: float = math.radians(10.0), avoid_mode: str = "climb_first", goal_bias_m: float = 5.0,
-                 past_margin_m: float = 1.5, d_judge: float = 15.0, land_radius_m: float = 2.0, alt_tol_m: float = 0.2) -> None:
+                 past_margin_m: float = 1.5, d_judge: float = 15.0, land_radius_m: float = 2.0, alt_tol_m: float = 0.2,
+                 fence_margin_m: float = 3.0) -> None:
         if avoid_mode not in ("climb_first", "choose"):
             raise ValueError(f"avoid_mode must be 'climb_first' or 'choose', got {avoid_mode!r}")
         self.d_safe, self.hysteresis, self.alt_max, self.alt_margin, self.heading_tol = d_safe, hysteresis, alt_max, alt_margin, heading_tol
         self.avoid_mode, self.goal_bias_m, self.past_margin_m, self.d_judge = avoid_mode, goal_bias_m, past_margin_m, d_judge
-        self.land_radius_m, self.alt_tol_m = land_radius_m, alt_tol_m
+        self.land_radius_m, self.alt_tol_m, self.fence_margin_m = land_radius_m, alt_tol_m, fence_margin_m
         self.goal_bearing = 0.0  # path frame: with no mission the goal lies straight ahead along +x
         self.reset()
 
@@ -82,6 +87,7 @@ class RuleController:
         self.goal: tuple[float, float] | None = None
         self.cruise_alt: float | None = None
         self.land_alt: float | None = None
+        self.half_width: float | None = None
         self.side: str | None = None  # direction of the current avoidance episode
         self.avoiding = False
         self.avoid_start: tuple[float, float, float, float] | None = None  # x, y, heading, obstacle distance
@@ -89,9 +95,27 @@ class RuleController:
         self.landing = False
         self.phase = "cruise"  # set by act(), for logs: cruise, avoid, bypass, return (down to cruise height), landing
 
-    def set_mission(self, goal_xy: tuple[float, float], cruise_alt: float, land_alt: float) -> None:
-        """The goal point (path frame), the cruise height and the landing height, given at takeoff (after ``reset``)."""
+    def set_mission(self, goal_xy: tuple[float, float], cruise_alt: float, land_alt: float, area_half_width_m: float | None = None) -> None:
+        """The goal point (path frame), cruise and landing heights and the mission area, given at takeoff (after ``reset``)."""
         self.goal, self.cruise_alt, self.land_alt = (float(goal_xy[0]), float(goal_xy[1])), float(cruise_alt), float(land_alt)
+        self.half_width = None if area_half_width_m is None else float(area_half_width_m)
+
+    def _cross_track(self, state: DroneState) -> float:
+        """Signed distance from the start-to-goal line, positive to its right (NED)."""
+        gx, gy = self.goal
+        n = math.hypot(gx, gy)
+        return (gx * state.position[1] - gy * state.position[0]) / n
+
+    def _outward(self, side: str, state: DroneState) -> bool:
+        """True when ``side`` would carry a drone near the edge of the mission area further out."""
+        if self.goal is None or self.half_width is None or side == "over":
+            return False
+        e = self._cross_track(state)
+        if abs(e) < self.half_width - self.fence_margin_m:
+            return False
+        turn = math.radians(45.0) * (1 if side == "right" else -1)
+        drift = math.sin(_wrap(state.yaw + turn - math.atan2(self.goal[1], self.goal[0])))  # > 0: moving right of the line
+        return drift * e > 0
 
     def _blocked(self, corridor_min: float) -> bool:
         limit = self.d_safe + (self.hysteresis if self.blocked else 0.0)
@@ -107,6 +131,7 @@ class RuleController:
 
     def _choose(self, free: dict[str, float], state: DroneState, can_climb: bool) -> str:
         bonus = self._goal_side(state)
+        free = {s: (0.0 if self._outward(s, state) else v) for s, v in free.items()}
         score = {s: free[s] + (self.goal_bias_m if s == bonus else 0.0) for s in ("left", "right")}
         best = max(score, key=lambda s: (score[s], s == bonus))
         if free[best] >= self.d_safe + self.hysteresis or not can_climb:
@@ -132,8 +157,8 @@ class RuleController:
             return Action.YAW_LEFT if left > right else Action.YAW_RIGHT
         free = free_space(depth.depth)
         if direction is not None:
-            self.side = direction  # the VLM's answer holds for this avoidance episode
-        elif self.side is None or (self.side != "over" and free[self.side] < self.d_safe):
+            self.side = "over" if self._outward(direction, state) else direction  # the VLM's answer holds for this episode
+        elif self.side is None or (self.side != "over" and (free[self.side] < self.d_safe or self._outward(self.side, state))):
             self.side = self._choose(free, state, can_climb)
         if self.side == "over" and not can_climb:
             self.side = self._choose(free, state, can_climb=False)
@@ -155,7 +180,8 @@ class RuleController:
             dx, dy = x - x0, y - y0
             ahead, flown = dx * math.cos(h0) + dy * math.sin(h0), math.hypot(dx, dy)
             need = dist + self.past_margin_m
-            if ahead < need and flown < 2 * need:
+            near_edge = self.half_width is not None and abs(self._cross_track(drone_state)) >= self.half_width - self.fence_margin_m
+            if ahead < need and flown < 2 * need and not near_edge:
                 self.phase = "bypass"
                 return Action.CONTINUE
             self.bypass_from = None
@@ -172,4 +198,4 @@ class RuleController:
     def config(self) -> dict[str, Any]:
         return {"d_safe": self.d_safe, "hysteresis": self.hysteresis, "alt_max": self.alt_max, "avoid_mode": self.avoid_mode,
                 "goal_bias_m": self.goal_bias_m, "past_margin_m": self.past_margin_m, "d_judge": self.d_judge,
-                "land_radius_m": self.land_radius_m}
+                "land_radius_m": self.land_radius_m, "fence_margin_m": self.fence_margin_m}
