@@ -1,0 +1,58 @@
+{
+ "always": {
+  "flights": 20,
+  "judges": [
+   "surrogate VLM"
+  ],
+  "crash_rate": 0.1,
+  "crash_rate_ci": [
+   0.02786648096169142,
+   0.3010336471864123
+  ],
+  "crashes_per_km": 1.4545412231528054,
+  "success_rate": 0.75,
+  "success_rate_ci": [
+   0.5312991206074114,
+   0.8881382993000237
+  ],
+  "mission_time_s_mean": 41.959999999999994,
+  "mission_time_s_median": 39.35,
+  "avg_speed_mps": 1.6384699714013347,
+  "calls_per_flight": 20.9,
+  "query_rate": 0.09924026590693258,
+  "delay_charged_s_per_flight": 20.9,
+  "latency_s": {
+   "p50": 1.0,
+   "p95": 1.0,
+   "p99": 1.0
+  }
+ },
+ "never": {
+  "flights": 20,
+  "judges": [
+   "surrogate VLM"
+  ],
+  "crash_rate": 0.0,
+  "crash_rate_ci": [
+   0.0,
+   0.16112516018512965
+  ],
+  "crashes_per_km": 0.0,
+  "success_rate": 0.95,
+  "success_rate_ci": [
+   0.7638688045357189,
+   0.9911185512976646
+  ],
+  "mission_time_s_mean": 14.455000000000002,
+  "mission_time_s_median": 12.3,
+  "avg_speed_mps": 3.9457246627464544,
+  "calls_per_flight": 0.0,
+  "query_rate": 0.0,
+  "delay_charged_s_per_flight": 0.0,
+  "latency_s": {
+   "p50": NaN,
+   "p95": NaN,
+   "p99": NaN
+  }
+ }
+}
