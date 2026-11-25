@@ -31,6 +31,7 @@ HALF_WIDTH_M = {
     "ball_20cm_red": 0.1, "box_1m_black": 0.5, "box_1m_grey": 0.5, "box_1m_white": 0.5,
     "building_block": 6.0, "glass_pane_alpha20": 1.25, "glass_pane_alpha50": 1.25,
     "wall_white_featureless": 1.5, "pole_10cm_axis_z": 2.5, "wire_1cm_axis_z": 3.0, "wire_3cm_axis_z": 3.0,
+    "pole_10cm_axis_y": 0.05,  # vertical post (plan v7): 10 cm wide; that it renders vertical is checked by eval.world_check
 }
 
 
