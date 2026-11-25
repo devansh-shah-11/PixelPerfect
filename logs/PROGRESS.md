@@ -218,3 +218,7 @@
 ## 2026-11-25  |  eval, sim  |  Job A world checks; flight loop for cone courses; raycast smoke (pending commit)
 - Advances: M4.7 (plan v7 chunks 4 and 5, steps 3 and 4 code). Job A ready to submit; Job B configs wait for Job A's poses.
 - Sanity check: full pytest 189 passed, 1 skipped; raycast cone smoke: oracle 20/20 landed (surrogate VLM, stand-in depth; not a result).
+
+## 2026-11-25  |  eval  |  Job B poses from the world checks (889af3e)
+- Advances: M4.7 (plan v7 step 4 done: 5 poses chosen). Next: Job B1 cone smoke, then B2 headroom grid.
+- Sanity check: config-only change; both configs parse (checked before the edit).
