@@ -1,0 +1,18 @@
+# Candidate start poses for the scenario freeze (M4.7), checked with the bare-map scan (no obstacles spawned):
+#   sbatch --time=00:45:00 --export=ALL,PA_ENV=/scratch/dns5508/envs/pa,CMD="python -m eval.pose_clearance --config configs/sweeps/airsim_pose_candidates.yaml --out results/pose_clearance_candidates" hpc/airsim_job.sbatch
+# Poses [x, y, yaw_deg, clear_m]. clear_m is the scene scan's corridor reading at 25 m altitude (as in the old configs); a 40 m
+# flight needs 45 m (pick_start). Source: capability_CityEnviron_16300/results.json, 400px.scene_scan.rows (checked 2026-11-24).
+# Pose 0 to 1 are the old poses 1 and 4 (clear at 2 to 12 m in job 42050); 2 to 6 are new candidates A to E.
+# Pose 1 reads 14.3 m at 2 m altitude in the scene scan yet was clear in job 42050: unexplained [UNVERIFIED].
+# Accept a pose only with zero map hits and zero "depth under 2 m" points at every altitude (2 to 12 m) in the report.
+# Only backend_kw is read by eval.pose_clearance; this file is not a sweep config.
+starts: &starts
+  - [-150.0, 50.0, 180.0, 140.0]   # old pose 1
+  - [150.0, -150.0, 0.0, 80.0]     # old pose 4
+  - [50.0, -50.0, 270.0, 94.0]     # A
+  - [-50.0, 50.0, 270.0, 91.0]     # B
+  - [-50.0, -50.0, 90.0, 80.0]     # C
+  - [150.0, 150.0, 270.0, 77.0]    # D, same spot as old pose 0 with another heading
+  - [50.0, 50.0, 180.0, 49.0]      # E, tight on clearance
+backend: airsim
+backend_kw: {configs: "${PP_SIM_CONFIGS}", scene_file: scene_cap_400.jsonc, starts: *starts}
