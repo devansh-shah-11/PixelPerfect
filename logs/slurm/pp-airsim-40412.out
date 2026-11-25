@@ -1,0 +1,90 @@
+[2026-11-23T03:24:02+00:00] job=40412 ENV=CityEnviron commit=a3a867a cmd: python -m eval.replay --config configs/replay/airsim_da2_surrogate.yaml --set split=val --set seeds.n=60 --set out=results/replay/airsim_da2_surrogate_val
+wrote scene_cap_400.jsonc and robot_cap_400.jsonc (400x225)
+wrote scene_cap_1280.jsonc and robot_cap_1280.jsonc (1280x720)
+wrote scene_cap_400n.jsonc and robot_cap_400n.jsonc (400x225, depth noise on)
+[03:25:03] 40 flights to replay, 20 done
+03:25:04:428 [INFO] Connecting to simulation server at 127.0.0.1
+03:25:04:440 [INFO] Connection opened.
+03:25:04:440 [INFO] Loading scene config: scene_cap_400.jsonc
+03:25:05:267 [INFO] Getting the list of available topic info from the sim server...
+03:25:05:277 [INFO] Successfully received topic info list.
+03:25:07:278 [INFO] World object updated for the loaded scene '/Sim/SceneManualStepDrone'. Note: Any previous Drone object instances may no longer be valid.
+03:25:07:279 [INFO] Trajectory 'null_trajectory' imported successfully.
+03:25:07:279 [INFO] Initalizing Drone 'Drone1'...
+03:25:07:279 [INFO] -------------------------------------------------
+03:25:07:279 [INFO] The following topics can be subscribed to for robot 'Drone1':
+03:25:07:279 [INFO]     sensors["Chase"]["scene_camera"]
+03:25:07:279 [INFO]     sensors["Chase"]["scene_camera_info"]
+03:25:07:279 [INFO]     sensors["DownCamera"]["scene_camera"]
+03:25:07:279 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+03:25:07:279 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+03:25:07:279 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+03:25:07:279 [INFO]     sensors["GPS"]["gps"]
+03:25:07:279 [INFO]     sensors["FrontCam"]["scene_camera"]
+03:25:07:279 [INFO]     sensors["FrontCam"]["scene_camera_info"]
+03:25:07:279 [INFO]     sensors["FrontCam"]["depth_camera"]
+03:25:07:279 [INFO]     sensors["FrontCam"]["depth_camera_info"]
+03:25:07:279 [INFO]     sensors["FrontCam"]["segmentation_camera"]
+03:25:07:279 [INFO]     sensors["FrontCam"]["segmentation_camera_info"]
+03:25:07:279 [INFO]     robot_info["actual_pose"]
+03:25:07:279 [INFO]     robot_info["collision_info"]
+03:25:07:280 [INFO]     robot_info["rotor_info"]
+03:25:07:280 [INFO] -------------------------------------------------
+03:25:07:280 [INFO] Drone 'Drone1' initialized for World scene '/Sim/SceneManualStepDrone'
+Loading weights:   0%|          | 0/287 [00:00<?, ?it/s]Loading weights:  31%|███       | 88/287 [00:00<00:00, 825.21it/s]Loading weights:  60%|█████▉    | 171/287 [00:00<00:00, 679.18it/s]Loading weights: 100%|██████████| 287/287 [00:00<00:00, 832.89it/s]
+  seed 101020: 17 frames, 13 L3 positive
+  seed 101021: 42 frames, 0 L3 positive
+  seed 101022: 20 frames, 14 L3 positive
+  seed 101023: 17 frames, 14 L3 positive
+  seed 101024: 17 frames, 11 L3 positive
+  seed 101025: 53 frames, 0 L3 positive
+  seed 101026: 23 frames, 12 L3 positive
+  seed 101027: 42 frames, 0 L3 positive
+  seed 101028: 16 frames, 11 L3 positive
+  seed 101029: 52 frames, 0 L3 positive
+  seed 101030: 40 frames, 0 L3 positive
+  seed 101031: 19 frames, 13 L3 positive
+  seed 101032: 42 frames, 0 L3 positive
+  seed 101033: 23 frames, 11 L3 positive
+  seed 101034: 24 frames, 13 L3 positive
+  seed 101035: 42 frames, 0 L3 positive
+  seed 101036: 43 frames, 0 L3 positive
+  seed 101037: 42 frames, 0 L3 positive
+  seed 101038: 23 frames, 15 L3 positive
+  seed 101039: 42 frames, 0 L3 positive
+  seed 101040: 40 frames, 0 L3 positive
+03:48:41:770 [INFO] Disconnecting from simulation server...
+03:48:41:795 [INFO] Disconnected.
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/scratch/psp8502/PixelPerfect/eval/replay.py", line 191, in <module>
+    main()
+  File "/scratch/psp8502/PixelPerfect/eval/replay.py", line 182, in main
+    n = run(cfg)
+        ^^^^^^^^
+  File "/scratch/psp8502/PixelPerfect/eval/replay.py", line 148, in run
+    rows = replay_flight(scenario, sim, stack, judge, loop, float(cfg.get("horizon_s", 3.0)), int(cfg.get("every", 1)), judge_name,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/psp8502/PixelPerfect/eval/replay.py", line 95, in replay_flight
+    records, base = run_episode(scenario, sim, stack, RuleController(d_safe=cfg.d_safe), base_policy, None, cfg,
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/psp8502/PixelPerfect/eval/run_episode.py", line 116, in run_episode
+    obs = sim.observe(state)
+          ^^^^^^^^^^^^^^^^^^
+  File "/scratch/psp8502/PixelPerfect/sim/airsim_backend.py", line 135, in observe
+    bgr, depth, seg = ct.grab(self._drone)
+                      ^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/psp8502/PixelPerfect/hpc/capability/capability_test.py", line 84, in grab
+    imgs = drone.get_images(CAM, [int(t) for t in types])
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/dns5508/envs/pa/lib/python3.11/site-packages/projectairsim/robot.py", line 479, in get_images
+    get_images_data = self.client.request(get_images_req)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/dns5508/envs/pa/lib/python3.11/site-packages/projectairsim/client.py", line 273, in request
+    return self.postprocess_response(response)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/dns5508/envs/pa/lib/python3.11/site-packages/projectairsim/client.py", line 402, in postprocess_response
+    raise RuntimeError(
+RuntimeError: ERROR code: 1.0, message: GetImages() Timeout waiting for new captured_images.
+[2026-11-23T03:48:47+00:00] exit code: 0

@@ -1,0 +1,56 @@
+[2026-11-24T02:23:14+00:00] job=41890 ENV=CityEnviron commit=914ffe4 cmd: python -m eval.sweep --config configs/sweeps/airsim_replay_gates_qwen.yaml --set seeds.n=5 --set loop.save_dir=results/sweeps/qwen_frames/frames --set out=results/sweeps/qwen_frames
+wrote scene_cap_400.jsonc and robot_cap_400.jsonc (400x225)
+wrote scene_cap_1280.jsonc and robot_cap_1280.jsonc (1280x720)
+wrote scene_cap_400n.jsonc and robot_cap_400n.jsonc (400x225, depth noise on)
+[02:24:16] never: 5 flights to fly, 0 done
+02:24:17:078 [INFO] Connecting to simulation server at 127.0.0.1
+02:24:17:093 [INFO] Connection opened.
+02:24:17:094 [INFO] Loading scene config: scene_cap_400.jsonc
+02:24:17:908 [INFO] Getting the list of available topic info from the sim server...
+02:24:17:919 [INFO] Successfully received topic info list.
+02:24:19:919 [INFO] World object updated for the loaded scene '/Sim/SceneManualStepDrone'. Note: Any previous Drone object instances may no longer be valid.
+02:24:19:920 [INFO] Trajectory 'null_trajectory' imported successfully.
+02:24:19:921 [INFO] Initalizing Drone 'Drone1'...
+02:24:19:921 [INFO] -------------------------------------------------
+02:24:19:921 [INFO] The following topics can be subscribed to for robot 'Drone1':
+02:24:19:921 [INFO]     sensors["Chase"]["scene_camera"]
+02:24:19:921 [INFO]     sensors["Chase"]["scene_camera_info"]
+02:24:19:921 [INFO]     sensors["DownCamera"]["scene_camera"]
+02:24:19:921 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+02:24:19:921 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+02:24:19:921 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+02:24:19:921 [INFO]     sensors["GPS"]["gps"]
+02:24:19:921 [INFO]     sensors["FrontCam"]["scene_camera"]
+02:24:19:921 [INFO]     sensors["FrontCam"]["scene_camera_info"]
+02:24:19:921 [INFO]     sensors["FrontCam"]["depth_camera"]
+02:24:19:921 [INFO]     sensors["FrontCam"]["depth_camera_info"]
+02:24:19:921 [INFO]     sensors["FrontCam"]["segmentation_camera"]
+02:24:19:921 [INFO]     sensors["FrontCam"]["segmentation_camera_info"]
+02:24:19:921 [INFO]     robot_info["actual_pose"]
+02:24:19:921 [INFO]     robot_info["collision_info"]
+02:24:19:921 [INFO]     robot_info["rotor_info"]
+02:24:19:921 [INFO] -------------------------------------------------
+02:24:19:921 [INFO] Drone 'Drone1' initialized for World scene '/Sim/SceneManualStepDrone'
+Loading weights:   0%|          | 0/287 [00:00<?, ?it/s]Loading weights:  25%|██▌       | 73/287 [00:00<00:00, 702.61it/s]Loading weights:  50%|█████     | 144/287 [00:00<00:00, 689.46it/s]Loading weights:  77%|███████▋  | 222/287 [00:00<00:00, 704.17it/s]Loading weights: 100%|██████████| 287/287 [00:00<00:00, 748.83it/s]
+[02:27:49] gate_l3_q10: 5 flights to fly, 0 done
+Loading weights:   0%|          | 0/750 [00:00<?, ?it/s]Loading weights:  11%|█         | 82/750 [00:00<00:00, 769.46it/s]Loading weights:  21%|██        | 159/750 [00:00<00:00, 604.13it/s]Loading weights:  30%|██▉       | 222/750 [00:00<00:00, 584.68it/s]Loading weights:  38%|███▊      | 282/750 [00:00<00:00, 537.09it/s]Loading weights:  45%|████▍     | 337/750 [00:00<00:00, 477.52it/s]Loading weights:  52%|█████▏    | 393/750 [00:00<00:00, 486.47it/s]Loading weights:  62%|██████▏   | 468/750 [00:00<00:00, 557.30it/s]Loading weights:  74%|███████▍  | 556/750 [00:00<00:00, 632.75it/s]Loading weights:  85%|████████▍ | 635/750 [00:01<00:00, 675.03it/s]Loading weights:  96%|█████████▌| 721/750 [00:01<00:00, 704.97it/s]Loading weights: 100%|██████████| 750/750 [00:01<00:00, 628.15it/s]
+[02:32:35] gate_l1_q10: 5 flights to fly, 0 done
+[02:35:50] random_p02: 5 flights to fly, 0 done
+[02:39:18] threshold_far_q10: 5 flights to fly, 0 done
+[02:42:39] oracle: 5 flights to fly, 0 done
+02:45:59:666 [INFO] Disconnecting from simulation server...
+02:45:59:766 [INFO] Disconnected.
+
+backend airsim, fast stack da2, delay 1.0 s, split val
+
+Judge: qwen3-vl-8b
+
+| Policy | flights | crash rate [95% CI] | crashes/km | success | calls/flight | query rate | mission time (s) | safety retained [95% CI] |
+|---|---|---|---|---|---|---|---|---|
+| gate_l1_q10 | 5 | 0.00 [0.00 to 0.43] | 0.00 | 1.00 | 1.2 | 0.011 | 12.0 | n/a |
+| gate_l3_q10 | 5 | 0.00 [0.00 to 0.43] | 0.00 | 1.00 | 0.2 | 0.002 | 10.3 | n/a |
+| never | 5 | 0.20 [0.04 to 0.62] | 4.95 | 0.80 | 0.0 | 0.000 | 9.2 | n/a |
+| oracle | 5 | 0.00 [0.00 to 0.43] | 0.00 | 1.00 | 5.6 | 0.051 | 16.7 | n/a |
+| random_p02 | 5 | 0.20 [0.04 to 0.62] | 4.43 | 0.80 | 1.6 | 0.014 | 13.2 | n/a |
+| threshold_far_q10 | 5 | 0.20 [0.04 to 0.62] | 4.49 | 0.80 | 2.0 | 0.018 | 13.3 | n/a |
+[2026-11-24T02:46:05+00:00] exit code: 0
