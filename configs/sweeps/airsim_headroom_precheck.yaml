@@ -1,0 +1,21 @@
+# Early read on difficulty (M4.7) while the pose scan runs: never-ask only, on the two poses already clear in job 42050
+# (old poses 1 and 4), with p_in_path 0.68. Prediction from the old sweep: 0.68 x 0.55 = 0.37 (range 0.28 to 0.46), AGENT_LOG 2026-11-24.
+# NOT the frozen headroom check: 2 poses, not the final 5. Val seeds 60 to 159 (disjoint from the 0 to 59 used to tune cuts).
+#   sbatch --time=01:15:00 --export=ALL,PA_ENV=/scratch/dns5508/envs/pa,CMD="python -m eval.sweep --config configs/sweeps/airsim_headroom_precheck.yaml" hpc/airsim_job.sbatch
+# Resumable per (policy, seed): resubmit the same line if the job stops. About 22 s per flight, so about 40 min.
+starts: &starts
+  - [-150.0, 50.0, 180.0, 140.0]
+  - [150.0, -150.0, 0.0, 80.0]
+backend: airsim
+backend_kw: {configs: "${PP_SIM_CONFIGS}", scene_file: scene_cap_400.jsonc, starts: *starts}
+stack: da2
+judge: none
+delay_s: 1.0
+split: val
+seeds: {file: configs/seeds.yaml, skip: 60, n: 100}
+scenario: {goal_m: 40.0, first_obstacle_m: [15.0, 25.0], n_obstacles: [1, 1], alt_range_m: [1.8, 2.2], p_in_path: 0.68}
+loop: {t_max: 60.0}
+policies:
+  - {name: never, policy: never}
+out: results/sweeps/headroom_precheck
+flight_logs: true
