@@ -39,7 +39,8 @@ from gate.features import IMAGE_KEYS, TemporalFeatures
 from interfaces import Action, DepthEstimate, FrameRecord, RuntimeStep
 from sim.drone import DroneParams, KinematicState, hold, step
 from sim.geometry import best_side, hits_ground, segment_hits
-from sim.raycast import corridor_truth
+from perception.depth_utils import MAX_RANGE_M
+from sim.raycast import corridor_truth, scenery_truth
 from sim.scenario import Scenario
 
 
@@ -68,6 +69,9 @@ class LoopConfig:
     vlm_avoid_s: float = 1.5  # how long a "yes" overrides a proposed CONTINUE
     d_safe: float = 8.0  # for the L1 label handed to the oracle; match the controller
     d_judge: float = 15.0  # the surrogate's truth: a surface in the window closer than this "crosses" it
+    # Map scenery in the truth of the surrogate VLM and the oracle (sim.raycast.scenery_truth): a true-depth surface
+    # within this many metres of the drone's height and heading line. None: placed obstacles only (before 2026-11-25).
+    scenery_tube_m: float | None = 0.8
     save_dir: str | None = None  # write rgb/depth/seg per frame here (large); off by default
     # cone courses only (plan v7, DS 2026-11-25); all tunable on val
     land_radius_m: float = 2.0  # "landed" needs the drone this close to the goal, horizontally
@@ -152,6 +156,7 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
         return (gx * y - gy * x) / math.hypot(gx, gy)
 
     crash: dict[str, Any] | None = None
+    scenery_frames = 0  # frames whose truth was map scenery within d_judge
     last_action: Action | None = None
     best_dist, best_t = (goal_dist(state), state.t) if cone else (0.0, 0.0)
     for k in range(0 if resume is None else resume.k, int(math.ceil(cfg.t_max / cfg.dt)) + 1):
@@ -198,9 +203,15 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
             phases.append((round(state.t, 2), ph))
 
         gt_min, family = corridor_truth(state, boxes, sim.cam)
+        truth_min, truth_family, scenery_side = gt_min, family, None
+        if cfg.scenery_tube_m is not None:  # a map tree or building nearer than any placed obstacle in the path
+            d_scn, side_scn = scenery_truth(obs.depth, state, boxes, sim.cam, tube_m=cfg.scenery_tube_m)
+            if d_scn < gt_min or (family in (None, "ground") and d_scn < MAX_RANGE_M):
+                truth_min, truth_family, scenery_side = d_scn, "scenery", side_scn
+                scenery_frames += d_scn < cfg.d_judge
         est_min = float(feats["corridor_min"])
         if hasattr(policy, "set_truth"):
-            policy.set_truth(gt_min < cfg.d_safe <= est_min)
+            policy.set_truth(truth_min < cfg.d_safe <= est_min)
         asked = bool(policy.should_ask(state.t, feats, public, history))
         answer = conf = lat = None
         charged = 0.0
@@ -209,13 +220,17 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
                 raise ValueError(f"policy {getattr(policy, 'name', policy)} asked but no judge was given")
             overlay, crop = render(obs.rgb)
             if hasattr(judge, "set_truth"):
-                crosses = gt_min < cfg.d_judge and family not in (None, "ground")
+                crosses = truth_min < cfg.d_judge and truth_family not in (None, "ground")
                 if getattr(judge, "p_dir", None) is not None:  # the surrogate names a side: give it the true shortest way past
-                    near = [b for b in boxes if b.family == family]
-                    box = min(near, key=lambda b: float(np.linalg.norm(np.asarray(b.center[:2]) - state.position[:2]))) if near else None
-                    judge.set_truth(family, crosses, side=best_side(state.position, state.yaw, box, params.radius) if box and crosses else None)
+                    if truth_family == "scenery":
+                        side = scenery_side if crosses else None
+                    else:
+                        near = [b for b in boxes if b.family == truth_family]
+                        box = min(near, key=lambda b: float(np.linalg.norm(np.asarray(b.center[:2]) - state.position[:2]))) if near else None
+                        side = best_side(state.position, state.yaw, box, params.radius) if box and crosses else None
+                    judge.set_truth(truth_family, crosses, side=side)
                 else:
-                    judge.set_truth(family, crosses)
+                    judge.set_truth(truth_family, crosses)
             a = judge.ask(obs.rgb, overlay, crop)
             answer, conf, lat = bool(a.answer), float(a.confidence), float(a.latency_s)
             latencies.append(lat)
@@ -280,7 +295,7 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
         obstacle_family=",".join(o.family for o in scenario.obstacles) or None,
         extra={"stack": getattr(stack, "name", type(stack).__name__), "backend": getattr(sim, "name", type(sim).__name__),
                "delay_s": cfg.delay_s, "condition": scenario.condition, "collision_source": collision_source,
-               "start_index": getattr(sim, "start_index", None)})
+               "start_index": getattr(sim, "start_index", None), "scenery_truth_frames": scenery_frames})
     if guard_hit is not None:
         result.extra["guard_hit"] = guard_hit
         outcome = "crashed"

@@ -222,3 +222,7 @@
 ## 2026-11-25  |  eval  |  Job B poses from the world checks (889af3e)
 - Advances: M4.7 (plan v7 step 4 done: 5 poses chosen). Next: Job B1 cone smoke, then B2 headroom grid.
 - Sanity check: config-only change; both configs parse (checked before the edit).
+## 2026-11-25  |  control, eval  |  Edge-loop and side-flip fixes, crash records, Job B2 at DS's settings (78e7629)
+- Advances: M4.7 (plan v7 step 5). Controller: the fence cuts only a sideways hold; one left/right switch per avoidance, then over; hold margin 2 m. Every crash records family, phase, action and pose (`extra["crash"]`). Job B2 config: 3 to 8 obstacles 5 m apart, p_in_path 0.35, pose D back; city pose scan config added.
+- Sanity check: 193 passed, 1 skipped (laptop); raycast smoke (surrogate VLM) never 12/20 crashed, oracle 20/20 landed.
+- Unblocked: Job B2 (DA2, repeat, true depth) and the city scan, submitted by DS. Still blocked: the freeze (final pose list, then one more B2), policy sweeps on city poses (surrogate VLM and oracle truth for map objects).

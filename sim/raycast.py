@@ -144,3 +144,37 @@ def corridor_truth(state: KinematicState, boxes: list[OBB], cam: Camera) -> tupl
     if not np.isfinite(d) or d > MAX_RANGE_M:
         return float(MAX_RANGE_M), None
     return d, (boxes[idx[k]].family if t_obj[k] <= t[k] and idx[k] >= 0 else "ground")
+
+
+def scenery_truth(depth_gt: np.ndarray, state: KinematicState, boxes: list[OBB], cam: Camera,
+                  tube_m: float = 0.8, placed_tol_m: float = 0.3) -> tuple[float, str | None]:
+    """Nearest map surface (tree, post, building, rising ground) in the drone's path, from the simulator's true depth.
+
+    ``corridor_truth`` only knows the placed obstacles and a flat ground plane, so the surrogate VLM and the oracle
+    could not see map scenery. Here each corridor-window pixel of the true depth image (distance along the ray, as
+    both backends give it) becomes a 3D point; it counts when it lies within ``tube_m`` of the drone's height and of
+    its heading line (the path the drone would sweep) and in front of any placed obstacle on that ray (else the pixel
+    is that obstacle). Flat ground below a drone flying higher than ``tube_m`` is left out by the height test; ground
+    rising into the path counts, as it should. Returns (distance, side to pass it: "left", "right" or "over"), or
+    (inf, None). Offline / evaluation only, like ``corridor_truth`` (rule 5).
+    """
+    from perception.depth_utils import MAX_RANGE_M, corridor_window
+
+    rows, cols = corridor_window((cam.h, cam.w))
+    d = np.asarray(depth_gt, dtype=np.float64)[rows, cols].reshape(-1)
+    dirs = cam.rays(state.yaw, rows, cols)
+    ok = np.isfinite(d) & (d > 0) & (d < MAX_RANGE_M)
+    if not ok.any():
+        return float("inf"), None
+    t_box, _ = first_hits(state.position, dirs, boxes)
+    ok &= d < t_box - placed_tol_m
+    p = state.position + dirs * d[:, None]
+    rel = p - state.position
+    c, s = math.cos(state.yaw), math.sin(state.yaw)
+    lateral = -s * rel[:, 0] + c * rel[:, 1]  # right of the heading is positive (NED)
+    ok &= (np.abs(rel[:, 2]) <= tube_m) & (np.abs(lateral) <= tube_m)
+    if not ok.any():
+        return float("inf"), None
+    near = ok & (d <= float(d[ok].min()) + 1.0)  # the surface nearest the drone, 1 m deep
+    side = "left" if float(np.mean(lateral[near])) > 0 else "right"  # pass on the side it leaves free
+    return float(d[ok].min()), side

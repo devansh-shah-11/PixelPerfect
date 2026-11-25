@@ -640,3 +640,60 @@ def test_lost_left_area_and_timeout_outcomes():
 def test_line_courses_report_no_outcome_field_and_fly_as_before():
     r = run_episode(scenario(Obstacle("box_1m_grey", 20.0, 0.0, 2.0)), RaycastSim(CAM), TrueDepthStack(), RuleController(), Never())[1]
     assert r.reached_goal and "outcome" not in r.extra
+
+
+# ---- map scenery in the truth of the surrogate VLM and the oracle (sim.raycast.scenery_truth) ----------
+
+
+class MapTreeSim(RaycastSim):
+    """Raycast backend with a 'map' tree that is rendered but is not a placed obstacle (not in scenario.obbs())."""
+
+    def __init__(self, tree: OBB):
+        super().__init__(CAM)
+        self.tree = tree
+
+    def reset(self, scenario):
+        super().reset(scenario)
+        self.boxes = self.boxes + [self.tree]
+
+
+class ClearStack:
+    """A fast stack that sees nothing at all (every corridor reads far): misses map scenery like a blind depth model."""
+
+    name = "clear (stand-in)"
+
+    def perceive_obs(self, obs, state=None, sim=None):
+        d = np.full(obs.depth.shape, 60.0, np.float32)
+        return DepthEstimate(depth=d, features=corridor_features(d))
+
+
+TREE = OBB(center=(20.0, 0.6, -3.0), half=(0.6, 0.6, 3.0), family="building_block")  # map stand-in, 6 m tall, just right of the line
+
+
+def test_scenery_truth_finds_a_map_tree_but_not_ground_or_placed_obstacles():
+    from sim.raycast import scenery_truth
+
+    sim = MapTreeSim(TREE)
+    sim.reset(cone())
+    st = KinematicState(t=0.0, x=8.0, y=0.0, z=-2.0, yaw=0.0, speed=5.0)
+    d, side = scenery_truth(sim.observe(st).depth, st, [], sim.cam)
+    assert 10.5 < d < 12.0 and side == "left"  # the tree's mass is right of the heading: pass it on the left
+    assert scenery_truth(sim.observe(st).depth, st, [TREE], sim.cam)[1] is None  # a placed obstacle is not scenery
+    open_sim = RaycastSim(CAM)
+    open_sim.reset(cone())
+    for alt in (1.0, 2.0, 6.0):  # flat ground below the drone is not in its path
+        low = KinematicState(t=0.0, x=0.0, y=0.0, z=-alt, yaw=0.0, speed=5.0)
+        assert scenery_truth(open_sim.observe(low).depth, low, [], open_sim.cam) == (float("inf"), None)
+
+
+def test_oracle_and_surrogate_avoid_a_map_tree_the_fast_stack_misses():
+    def fly(**loop):
+        judge = SurrogateJudge(default_tpr=1.0, default_fpr=0.0, seed=0, p_dir=1.0)
+        return run_episode(cone(), MapTreeSim(TREE), ClearStack(), RuleController(avoid_mode="choose"), Oracle(), judge,
+                           LoopConfig(**{"t_max": 120.0, **loop}))[1]
+
+    blind = fly(scenery_tube_m=None)  # before: the truth knew placed obstacles only, so nobody asked
+    assert blind.extra["outcome"] == "crashed" and blind.n_calls == 0
+    assert blind.extra["crash"]["kind"] == "guard_scenery"
+    r = fly()
+    assert r.extra["outcome"] == "landed" and r.n_calls >= 1 and r.extra["scenery_truth_frames"] > 0
