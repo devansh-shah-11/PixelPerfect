@@ -1,0 +1,170 @@
+{
+ "gate_l1_q10": {
+  "flights": 2,
+  "judges": [
+   "qwen3-vl-8b"
+  ],
+  "crash_rate": 0.0,
+  "crash_rate_ci": [
+   0.0,
+   0.6576197760453506
+  ],
+  "crashes_per_km": 0.0,
+  "success_rate": 1.0,
+  "success_rate_ci": [
+   0.3423802239546494,
+   1.0
+  ],
+  "mission_time_s_mean": 10.55,
+  "mission_time_s_median": 10.55,
+  "avg_speed_mps": 4.085308056872038,
+  "calls_per_flight": 1.0,
+  "query_rate": 0.010471204188481676,
+  "delay_charged_s_per_flight": 1.0,
+  "latency_s": {
+   "p50": 0.1626945939999871,
+   "p95": 0.16740493389997652,
+   "p99": 0.16782363077997559
+  }
+ },
+ "gate_l3_q10": {
+  "flights": 2,
+  "judges": [
+   "qwen3-vl-8b"
+  ],
+  "crash_rate": 0.0,
+  "crash_rate_ci": [
+   0.0,
+   0.6576197760453506
+  ],
+  "crashes_per_km": 0.0,
+  "success_rate": 1.0,
+  "success_rate_ci": [
+   0.3423802239546494,
+   1.0
+  ],
+  "mission_time_s_mean": 10.55,
+  "mission_time_s_median": 10.55,
+  "avg_speed_mps": 4.085308056872038,
+  "calls_per_flight": 1.0,
+  "query_rate": 0.010471204188481676,
+  "delay_charged_s_per_flight": 1.0,
+  "latency_s": {
+   "p50": 50.94667620150001,
+   "p95": 96.64906297335,
+   "p99": 100.71149735307
+  }
+ },
+ "never": {
+  "flights": 2,
+  "judges": [
+   "qwen3-vl-8b"
+  ],
+  "crash_rate": 0.5,
+  "crash_rate_ci": [
+   0.09453120463920084,
+   0.9054687953607992
+  ],
+  "crashes_per_km": 15.503875968992247,
+  "success_rate": 0.5,
+  "success_rate_ci": [
+   0.09453120463920084,
+   0.9054687953607992
+  ],
+  "mission_time_s_mean": 6.6,
+  "mission_time_s_median": 6.6,
+  "avg_speed_mps": 4.886363636363637,
+  "calls_per_flight": 0.0,
+  "query_rate": 0.0,
+  "delay_charged_s_per_flight": 0.0,
+  "latency_s": {
+   "p50": NaN,
+   "p95": NaN,
+   "p99": NaN
+  }
+ },
+ "oracle": {
+  "flights": 2,
+  "judges": [
+   "qwen3-vl-8b"
+  ],
+  "crash_rate": 0.0,
+  "crash_rate_ci": [
+   0.0,
+   0.6576197760453506
+  ],
+  "crashes_per_km": 0.0,
+  "success_rate": 1.0,
+  "success_rate_ci": [
+   0.3423802239546494,
+   1.0
+  ],
+  "mission_time_s_mean": 19.9,
+  "mission_time_s_median": 19.9,
+  "avg_speed_mps": 2.251256281407035,
+  "calls_per_flight": 9.5,
+  "query_rate": 0.09134615384615384,
+  "delay_charged_s_per_flight": 9.5,
+  "latency_s": {
+   "p50": 0.16555789699998513,
+   "p95": 0.17801523040001255,
+   "p99": 0.1841403812799922
+  }
+ },
+ "random_p02": {
+  "flights": 2,
+  "judges": [
+   "qwen3-vl-8b"
+  ],
+  "crash_rate": 0.5,
+  "crash_rate_ci": [
+   0.09453120463920084,
+   0.9054687953607992
+  ],
+  "crashes_per_km": 14.104372355430183,
+  "success_rate": 0.5,
+  "success_rate_ci": [
+   0.09453120463920084,
+   0.9054687953607992
+  ],
+  "mission_time_s_mean": 9.2,
+  "mission_time_s_median": 9.2,
+  "avg_speed_mps": 3.853260869565218,
+  "calls_per_flight": 1.0,
+  "query_rate": 0.012195121951219513,
+  "delay_charged_s_per_flight": 1.0,
+  "latency_s": {
+   "p50": 0.14765080850000345,
+   "p95": 0.15230639014996256,
+   "p99": 0.15272021962995894
+  }
+ },
+ "threshold_far_q10": {
+  "flights": 2,
+  "judges": [
+   "qwen3-vl-8b"
+  ],
+  "crash_rate": 0.5,
+  "crash_rate_ci": [
+   0.09453120463920084,
+   0.9054687953607992
+  ],
+  "crashes_per_km": 12.004801920768308,
+  "success_rate": 0.5,
+  "success_rate_ci": [
+   0.09453120463920084,
+   0.9054687953607992
+  ],
+  "mission_time_s_mean": 15.299999999999999,
+  "mission_time_s_median": 15.299999999999999,
+  "avg_speed_mps": 2.7222222222222223,
+  "calls_per_flight": 4.0,
+  "query_rate": 0.035398230088495575,
+  "delay_charged_s_per_flight": 4.0,
+  "latency_s": {
+   "p50": 0.15298242399998685,
+   "p95": 0.15589460999999005,
+   "p99": 0.15692577159999815
+  }
+ }
+}

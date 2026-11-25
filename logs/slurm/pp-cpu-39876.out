@@ -1,0 +1,14 @@
+[2026-11-22T18:42:04+00:00] job=39876 partition=n2c48m24 host=b-10-124 cmd=python -m eval.replay --config configs/replay/raycast_smoke.yaml
+[18:42:06] 10 flights to replay, 0 done
+  seed 100000: 39 frames, 24 L3 positive
+  seed 100001: 37 frames, 26 L3 positive
+  seed 100002: 44 frames, 22 L3 positive
+  seed 100003: 128 frames, 0 L3 positive
+  seed 100004: 41 frames, 23 L3 positive
+  seed 100005: 128 frames, 0 L3 positive
+  seed 100006: 42 frames, 25 L3 positive
+  seed 100007: 145 frames, 0 L3 positive
+  seed 100008: 128 frames, 0 L3 positive
+  seed 100009: 43 frames, 22 L3 positive
+775 frames from 10 flights | outcomes {'NO_EFFECT_SAFE': 0, 'SAVED': 142, 'CAUSED': 0, 'NO_EFFECT_CRASH': 37, 'SAFE_NOT_FORKED': 596} | L1 positive 92, L2 179, L3 142 | L1 and L3 agree on 687/775 frames
+[2026-11-22T18:47:08+00:00] done
