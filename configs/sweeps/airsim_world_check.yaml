@@ -1,0 +1,18 @@
+# Job A world checks before the scenario freeze (plan v7, PLAN_SCENARIO_FREEZE.md): region scan of the bare map,
+# obstacle probe, ground check. Only backend and backend_kw are read (eval.world_check), so this is not a sweep config.
+#   sbatch --time=02:00:00 --export=ALL,PA_ENV=/scratch/dns5508/envs/pa,HF_HOME=/scratch/$USER/hf,CMD="python -m eval.world_check --config configs/sweeps/airsim_world_check.yaml --out results/world_check --stack da2" hpc/airsim_job.sbatch
+# Resumable: resubmit the same line if the job stops. Estimate [UNVERIFIED]: about 12,000 region captures at about 0.22 s
+# plus about 120 probe and ground captures, so 45 to 60 minutes.
+# Poses [x, y, yaw_deg, clear_m]; clear_m is the scene scan's 25 m-altitude reading (job 16300) and only gates pick_start.
+# 0 to 3 passed the centre-line scan (job 42952): old pose 1, old pose 4, D, B (B with one point under 2 m at 5 m).
+# 4 and 5 are new: open at 2 m in the scene scan, sparse (9 segmentation colours), never scanned along the path.
+# E (50, 50, 180) is left out: 49 m clear is too short for a 50 to 60 m course.
+starts: &starts
+  - [-150.0, 50.0, 180.0, 140.0]   # 0: old pose 1
+  - [150.0, -150.0, 0.0, 80.0]     # 1: old pose 4
+  - [150.0, 150.0, 270.0, 77.0]    # 2: D
+  - [-50.0, 50.0, 270.0, 91.0]     # 3: B
+  - [-150.0, -150.0, 90.0, 76.0]   # 4: new
+  - [-150.0, 150.0, 0.0, 68.0]     # 5: new
+backend: airsim
+backend_kw: {configs: "${PP_SIM_CONFIGS}", scene_file: scene_cap_400.jsonc, starts: *starts}
