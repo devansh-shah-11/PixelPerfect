@@ -1,0 +1,30 @@
+{
+ "never": {
+  "flights": 100,
+  "judges": [
+   "none"
+  ],
+  "crash_rate": 0.01,
+  "crash_rate_ci": [
+   0.0017674320446096452,
+   0.05448619674900669
+  ],
+  "crashes_per_km": 0.15982562385135318,
+  "success_rate": 0.8,
+  "success_rate_ci": [
+   0.7111708336357507,
+   0.8666330671028517
+  ],
+  "mission_time_s_mean": 18.299,
+  "mission_time_s_median": 14.55,
+  "avg_speed_mps": 3.4192136182305046,
+  "calls_per_flight": 0.0,
+  "query_rate": 0.0,
+  "delay_charged_s_per_flight": 0.0,
+  "latency_s": {
+   "p50": NaN,
+   "p95": NaN,
+   "p99": NaN
+  }
+ }
+}

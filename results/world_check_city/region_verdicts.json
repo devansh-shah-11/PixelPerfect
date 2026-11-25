@@ -1,0 +1,56 @@
+{
+ "0": {
+  "keep": true,
+  "points": 1474,
+  "map": 13,
+  "bad": 54,
+  "near": 93,
+  "start_hits": 0,
+  "landing_hits": 0
+ },
+ "1": {
+  "keep": true,
+  "points": 1602,
+  "map": 27,
+  "bad": 106,
+  "near": 105,
+  "start_hits": 0,
+  "landing_hits": 0
+ },
+ "2": {
+  "keep": true,
+  "points": 1440,
+  "map": 12,
+  "bad": 72,
+  "near": 87,
+  "start_hits": 0,
+  "landing_hits": 0
+ },
+ "3": {
+  "keep": true,
+  "points": 1237,
+  "map": 11,
+  "bad": 59,
+  "near": 62,
+  "start_hits": 0,
+  "landing_hits": 0
+ },
+ "4": {
+  "keep": true,
+  "points": 1214,
+  "map": 18,
+  "bad": 17,
+  "near": 124,
+  "start_hits": 0,
+  "landing_hits": 0
+ },
+ "5": {
+  "keep": false,
+  "points": 909,
+  "map": 6,
+  "bad": 9,
+  "near": 37,
+  "start_hits": 1,
+  "landing_hits": 0
+ }
+}
