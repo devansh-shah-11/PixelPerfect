@@ -214,3 +214,7 @@
 ## 2026-11-25  |  control, vlm  |  geofence and VLM direction (chunk 3)
 - Advances: M4.7 (plan v7 step 2: soft geofence in the controller; chunk 3, the judge's direction answer). Hard fence and outcomes come with chunk 4.
 - Sanity check: full pytest 180 passed, 1 skipped (laptop).
+
+## 2026-11-25  |  eval, sim  |  Job A world checks; flight loop for cone courses; raycast smoke (pending commit)
+- Advances: M4.7 (plan v7 chunks 4 and 5, steps 3 and 4 code). Job A ready to submit; Job B configs wait for Job A's poses.
+- Sanity check: full pytest 189 passed, 1 skipped; raycast cone smoke: oracle 20/20 landed (surrogate VLM, stand-in depth; not a result).
