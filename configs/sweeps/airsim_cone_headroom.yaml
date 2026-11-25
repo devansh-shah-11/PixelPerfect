@@ -1,0 +1,31 @@
+# Job B2 (plan v7): never-ask headroom grid on cone courses, to pick p_in_path for a 35 to 40% crash rate (DS band).
+# Run once per value with --set, on the same 100 val seeds (60 to 159; 0 to 59 stay for tuning the policy cuts):
+#   for P in 0.15 0.22 0.30; do sbatch --time=01:30:00 --export=ALL,PA_ENV=/scratch/dns5508/envs/pa,HF_HOME=/scratch/$USER/hf,CMD="python -m eval.sweep --config configs/sweeps/airsim_cone_headroom.yaml --set scenario.p_in_path=$P --set out=results/sweeps/cone_headroom_p$P" hpc/airsim_job.sbatch; done
+#   noise floor: the same command for 0.22 again with --set out=results/sweeps/cone_headroom_p0.22_rep
+# p_in_path prediction [UNVERIFIED]: P(crash) about 1 - mean over n of (1 - 0.69 p)^n, so 0.22 to 0.25 for 35 to 40%.
+# STARTS ARE PLACEHOLDERS: replace with the 5 poses kept by eval.world_check.
+starts: &starts
+  - [-150.0, 50.0, 180.0, 140.0]
+  - [150.0, -150.0, 0.0, 80.0]
+  - [150.0, 150.0, 270.0, 77.0]
+  - [-50.0, 50.0, 270.0, 91.0]
+  - [-150.0, -150.0, 90.0, 76.0]
+backend: airsim
+backend_kw: {configs: "${PP_SIM_CONFIGS}", scene_file: scene_cap_400.jsonc, starts: *starts}
+stack: da2
+judge: none
+delay_s: 1.0
+split: val
+seeds: {file: configs/seeds.yaml, skip: 60, n: 100}
+scenario:
+  layout: cone
+  n_obstacles: [1, 5]
+  p_in_path: 0.22
+  alt_range_m: [1.8, 2.2]
+  families: [pole_10cm_axis_y, wire_3cm_axis_z, wire_1cm_axis_z, box_1m_grey, box_1m_black, wall_white_featureless, glass_pane_alpha20, ball_20cm_red]
+controller: {avoid_mode: choose}
+loop: {t_max: 120.0}
+policies:
+  - {name: never, policy: never}
+out: results/sweeps/cone_headroom
+flight_logs: true

@@ -1,0 +1,26 @@
+# Laptop smoke for cone courses (plan v7 step 3) on the Plan B raycast backend: no GPU, synthetic stand-ins.
+# NOT a result: the blind stand-in imitates a depth model that misses thin and see-through obstacles, and the
+# judge is the SURROGATE VLM with a placeholder direction accuracy (p_dir 0.8, unmeasured).
+#   python -m eval.sweep --config configs/sweeps/raycast_cone_smoke.yaml --no-log
+backend: raycast
+backend_kw: {width: 200, height: 113}
+stack: blind
+judge: surrogate
+judge_kw: {default_tpr: 0.80, default_fpr: 0.14, seed: 0, p_dir: 0.8}
+delay_s: 1.0
+split: val
+seeds: {file: configs/seeds.yaml, n: 20}
+scenario:
+  layout: cone
+  n_obstacles: [1, 5]
+  p_in_path: 0.22
+  alt_range_m: [1.8, 2.2]
+  families: [pole_10cm_axis_y, wire_3cm_axis_z, wire_1cm_axis_z, box_1m_grey, box_1m_black, wall_white_featureless, glass_pane_alpha20, ball_20cm_red]
+controller: {avoid_mode: choose}
+loop: {t_max: 120.0}
+policies:
+  - {name: never, policy: never}
+  - {name: oracle, policy: oracle, cooldown_s: 1.0}
+  - {name: always, policy: always, cooldown_s: 1.0}
+out: results/sweeps/raycast_cone_smoke
+flight_logs: true
