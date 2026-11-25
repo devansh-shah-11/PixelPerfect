@@ -1,0 +1,118 @@
+[2026-11-23T04:15:02+00:00] job=40485 ENV=CityEnviron commit=2640167 cmd: python -m eval.replay --config configs/replay/airsim_da2_surrogate.yaml --set seeds.n=100
+wrote scene_cap_400.jsonc and robot_cap_400.jsonc (400x225)
+wrote scene_cap_1280.jsonc and robot_cap_1280.jsonc (1280x720)
+wrote scene_cap_400n.jsonc and robot_cap_400n.jsonc (400x225, depth noise on)
+[04:16:04] 80 flights to replay, 20 done
+04:16:05:004 [INFO] Connecting to simulation server at 127.0.0.1
+04:16:05:017 [INFO] Connection opened.
+04:16:05:018 [INFO] Loading scene config: scene_cap_400.jsonc
+04:16:05:872 [INFO] Getting the list of available topic info from the sim server...
+04:16:05:883 [INFO] Successfully received topic info list.
+04:16:07:883 [INFO] World object updated for the loaded scene '/Sim/SceneManualStepDrone'. Note: Any previous Drone object instances may no longer be valid.
+04:16:07:884 [INFO] Trajectory 'null_trajectory' imported successfully.
+04:16:07:884 [INFO] Initalizing Drone 'Drone1'...
+04:16:07:884 [INFO] -------------------------------------------------
+04:16:07:884 [INFO] The following topics can be subscribed to for robot 'Drone1':
+04:16:07:884 [INFO]     sensors["Chase"]["scene_camera"]
+04:16:07:884 [INFO]     sensors["Chase"]["scene_camera_info"]
+04:16:07:884 [INFO]     sensors["DownCamera"]["scene_camera"]
+04:16:07:884 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+04:16:07:884 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+04:16:07:884 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+04:16:07:884 [INFO]     sensors["GPS"]["gps"]
+04:16:07:884 [INFO]     sensors["FrontCam"]["scene_camera"]
+04:16:07:885 [INFO]     sensors["FrontCam"]["scene_camera_info"]
+04:16:07:885 [INFO]     sensors["FrontCam"]["depth_camera"]
+04:16:07:885 [INFO]     sensors["FrontCam"]["depth_camera_info"]
+04:16:07:885 [INFO]     sensors["FrontCam"]["segmentation_camera"]
+04:16:07:885 [INFO]     sensors["FrontCam"]["segmentation_camera_info"]
+04:16:07:885 [INFO]     robot_info["actual_pose"]
+04:16:07:885 [INFO]     robot_info["collision_info"]
+04:16:07:885 [INFO]     robot_info["rotor_info"]
+04:16:07:885 [INFO] -------------------------------------------------
+04:16:07:885 [INFO] Drone 'Drone1' initialized for World scene '/Sim/SceneManualStepDrone'
+Loading weights:   0%|          | 0/287 [00:00<?, ?it/s]Loading weights:  25%|██▌       | 73/287 [00:00<00:00, 721.08it/s]Loading weights:  51%|█████     | 146/287 [00:00<00:00, 643.18it/s]Loading weights:  74%|███████▍  | 212/287 [00:00<00:00, 649.37it/s]Loading weights: 100%|██████████| 287/287 [00:00<00:00, 686.68it/s]
+  seed 100020: 20 frames, 11 L3 positive
+  seed 100021: 40 frames, 0 L3 positive
+  seed 100022: 19 frames, 12 L3 positive
+  seed 100023: 42 frames, 0 L3 positive
+  seed 100024: 52 frames, 0 L3 positive
+  seed 100025: 16 frames, 11 L3 positive
+  seed 100026: 43 frames, 0 L3 positive
+  seed 100027: 40 frames, 0 L3 positive
+  seed 100028: 21 frames, 14 L3 positive
+  seed 100029: 40 frames, 0 L3 positive
+  seed 100030: 16 frames, 12 L3 positive
+  seed 100031: 53 frames, 0 L3 positive
+  seed 100032: 40 frames, 0 L3 positive
+  seed 100033: 21 frames, 13 L3 positive
+  seed 100034: 24 frames, 10 L3 positive
+  seed 100035: 53 frames, 0 L3 positive
+  seed 100036: 43 frames, 0 L3 positive
+  seed 100037: 15 frames, 10 L3 positive
+  seed 100038: 23 frames, 11 L3 positive
+  seed 100039: 21 frames, 13 L3 positive
+  seed 100040: 21 frames, 11 L3 positive
+  seed 100041: 23 frames, 12 L3 positive
+  seed 100042: 40 frames, 0 L3 positive
+  seed 100043: 22 frames, 12 L3 positive
+  seed 100044: 40 frames, 0 L3 positive
+  seed 100045: 16 frames, 11 L3 positive
+  seed 100046: 20 frames, 14 L3 positive
+  seed 100047: 40 frames, 0 L3 positive
+  seed 100048: 52 frames, 0 L3 positive
+  seed 100049: 42 frames, 0 L3 positive
+  seed 100050: 42 frames, 0 L3 positive
+  seed 100051: 17 frames, 10 L3 positive
+  seed 100052: 40 frames, 0 L3 positive
+  seed 100053: 23 frames, 9 L3 positive
+  seed 100054: 53 frames, 0 L3 positive
+  seed 100055: 40 frames, 0 L3 positive
+  seed 100056: 25 frames, 13 L3 positive
+  seed 100057: 40 frames, 0 L3 positive
+  seed 100058: 22 frames, 11 L3 positive
+  seed 100059: 52 frames, 0 L3 positive
+  seed 100060: 22 frames, 14 L3 positive
+  seed 100061: 22 frames, 11 L3 positive
+  seed 100062: 21 frames, 10 L3 positive
+  seed 100063: 25 frames, 13 L3 positive
+  seed 100064: 20 frames, 11 L3 positive
+  seed 100065: 20 frames, 12 L3 positive
+  seed 100066: 42 frames, 0 L3 positive
+  seed 100067: 40 frames, 0 L3 positive
+  seed 100068: 18 frames, 10 L3 positive
+  seed 100069: 19 frames, 11 L3 positive
+  seed 100070: 19 frames, 12 L3 positive
+  seed 100071: 16 frames, 13 L3 positive
+  seed 100072: 60 frames, 0 L3 positive
+  seed 100073: 15 frames, 11 L3 positive
+  seed 100074: 21 frames, 12 L3 positive
+  seed 100075: 22 frames, 14 L3 positive
+  seed 100076: 43 frames, 0 L3 positive
+  seed 100077: 40 frames, 0 L3 positive
+  seed 100078: 42 frames, 0 L3 positive
+  seed 100079: 52 frames, 0 L3 positive
+  seed 100080: 20 frames, 13 L3 positive
+  seed 100081: 25 frames, 13 L3 positive
+  seed 100082: 16 frames, 9 L3 positive
+  seed 100083: 25 frames, 11 L3 positive
+  seed 100084: 52 frames, 0 L3 positive
+  seed 100085: 24 frames, 14 L3 positive
+  seed 100086: 23 frames, 12 L3 positive
+  seed 100087: 20 frames, 11 L3 positive
+  seed 100088: 52 frames, 0 L3 positive
+  seed 100089: 52 frames, 0 L3 positive
+  seed 100090: 16 frames, 12 L3 positive
+  seed 100091: 23 frames, 13 L3 positive
+  seed 100092: 20 frames, 11 L3 positive
+  seed 100093: 23 frames, 13 L3 positive
+  seed 100094: 40 frames, 0 L3 positive
+  seed 100095: 18 frames, 13 L3 positive
+  seed 100096: 40 frames, 0 L3 positive
+  seed 100097: 21 frames, 11 L3 positive
+  seed 100098: 42 frames, 0 L3 positive
+  seed 100099: 23 frames, 11 L3 positive
+05:51:03:631 [INFO] Disconnecting from simulation server...
+05:51:03:696 [INFO] Disconnected.
+2961 frames from 100 flights | outcomes {'NO_EFFECT_SAFE': 0, 'SAVED': 724, 'CAUSED': 0, 'NO_EFFECT_CRASH': 203, 'SAFE_NOT_FORKED': 2034} | L1 positive 536, L2 927, L3 724 | L1 and L3 agree on 2415/2961 frames
+[2026-11-23T05:51:08+00:00] exit code: 0

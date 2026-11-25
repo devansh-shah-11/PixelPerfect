@@ -1,0 +1,182 @@
+% Gate and labels. DRAFT, 2026-11-24. Needs booktabs and amsmath.
+% Every number here is a DEVELOPMENT result: surrogate VLM, validation seeds, scenario not frozen.
+% Replace Section "Results" with the final rerun (frozen scenario, real VLM, test seeds) before submission.
+% Sources: AGENT_LOG.md 2026-11-16 to 2026-11-24, results/gate_val.json, results/gate_holdout_*, results/benchmark.md.
+\providecommand{\todo}[1]{\textbf{[TODO: #1]}}
+
+\section{The gate: when is it worth asking?}
+\label{sec:gate}
+
+The gate reads the fast stack's output on every frame and decides whether to pause the drone and ask the VLM one
+yes/no question. It has two parts that we can choose separately: what it looks at (its features), and what it is
+trained to predict (its labels). We keep the features and the model fixed and change only the labels.
+
+\subsection{Labels}
+\label{sec:gate-labels}
+
+Let $d^{\mathrm{gt}}$ and $\hat d$ be the nearest distance in the forward corridor (the region of the image the
+drone is about to fly through), from simulator ground truth and from the estimated depth, and let
+$d_{\mathrm{safe}} = 8$\,m be the distance at which the controller starts to avoid. Ground truth is used only to
+build labels, never by the controller, the gate or any policy in flight.
+
+\paragraph{L1, missed obstacle.} A frame is positive when the estimate says the way is clear and it is not:
+\[
+  y_{\mathrm{L1}} = 1 \iff d^{\mathrm{gt}} < d_{\mathrm{safe}} \le \hat d .
+\]
+L1 says that perception is wrong, not that asking would help.
+
+\paragraph{L3, worth asking.} L3 asks about the outcome. We fly each seed once without asking. At every second
+frame whose flight crashes within the horizon $H = 3$\,s, we restore the exact flight state and fly on from there,
+asking exactly once at that frame: the drone brakes and holds for $d = 1$\,s of simulated time, the VLM answers,
+and a ``yes'' makes the drone avoid. The frame is positive only if the flight that asked does not crash:
+\[
+  y_{\mathrm{L3}} = 1 \iff \text{crash without asking} \ \wedge\ \text{no crash when asking.}
+\]
+The asking branch gets $H + d$ seconds, so both branches fly for the same time after the question; otherwise the
+pause alone would push a crash past the horizon and look like a save. The simulator steps poses directly, so
+restoring a state does not need a simulator snapshot. We do not label as positive a frame where asking
+\emph{causes} a crash, because that would train the gate to ask where asking hurts. Only frames whose no-ask flight
+crashes within $H$ are branched, so this case does not occur in our labels and is not measured.
+
+L1 and L3 differ in an informative way: on the 20 train flights we compared first, they agree on 346 of 495 frames.
+\todo{Final agreement figure from the rerun.}
+
+\subsection{Features and model}
+\label{sec:gate-model}
+
+Both gates use the same 17 features, all available in flight: seven statistics of the estimated depth in the corridor
+(minimum, 5th and 25th percentiles, median, variance, mean gradient, share of far pixels); four changes of those
+statistics per metre flown, so they mean the same at any speed; and six image features of the RGB corridor crop that
+target thin structures (gradient, edge density, horizontal and vertical line response, contrast, brightness). The model
+is a small multilayer perceptron (hidden layers of 32 and 16 units, standardized inputs, $\ell_2$ penalty $10^{-3}$,
+early stopping, fixed seed). Training and validation flights are separated by seed, never by frame.
+
+In flight, the gate asks when its score exceeds a cut $\tau$, at most once per second. Cuts are set on validation
+frames so that the gate asks on 5\% or 10\% of them; they are never set on test seeds.
+
+\subsection{Baselines}
+\label{sec:gate-baselines}
+
+We compare against a policy that never asks, one that asks at random with a probability chosen so that its calls per
+flight are close to the gate's, a threshold on the estimated corridor minimum (asking when it is \emph{high}, the
+direction that predicted L3 best on train; its cut is set on validation like the gates'), an oracle that asks exactly
+when L1 is positive, and a policy that asks as often as it can.
+
+\section{Results}
+\label{sec:gate-results}
+
+\noindent\textbf{Read this first.} Unless stated otherwise, the numbers below use a \emph{surrogate VLM}: a random
+answerer with the recall (0.80) and false-alarm rate (0.14) we measured for Qwen3-VL-8B on frames where depth misses
+the obstacle. They come from validation seeds and a scenario that is not frozen. They are development results and
+will be replaced. \todo{Rerun on the frozen scenario with real VLM answers, then test seeds once.}
+
+\subsection{Gate-L1 on the frame bank}
+
+On 1{,}830 validation frames from a held-out set of bank episodes (281 positive, 19 flights), the L1 gate reaches
+AUROC 0.829 [0.753, 0.906] and AUPRC 0.566 (base rate 0.154). Depth variance alone reaches 0.425, the best single
+depth feature 0.695, and the gate without image features 0.635. Most of the gain comes from the image features.
+Holding out one obstacle family from training keeps most of the quality for thin obstacles (AUROC against all
+negatives for the held-out family: poles 0.81, 3\,cm wires 0.71) and loses it for glass (0.04, with only two
+positive validation flights). A value below 0.5 means the gate ranked glass as \emph{safer} than clear frames. We
+report this as a limitation: the gate learned glass only from glass.
+
+\subsection{Gate-L3 against gate-L1 on replay frames}
+
+Both gates were trained on the same frames (100 flights, 2{,}961 frames, 62 of 100 crashing, 724 L3-positive) and
+scored on 60 flights (1{,}999 frames, 28 crashing, 346 L3-positive). Table~\ref{tab:offline} compares them at equal
+query rates, with intervals from resampling whole flights.
+
+\begin{table}[t]
+\centering
+\caption{Gate-L3 minus gate-L1 on validation replay frames (surrogate VLM). L3 recall: share of worth-asking
+frames on which the gate asks. Wasted: share of asks that change nothing.}
+\label{tab:offline}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+ & 5\% & 10\% & 20\% \\
+\midrule
+L3 recall, difference & $+0.058$ & $+0.101$ & $+0.197$ \\
+\quad 95\% interval & $[0.015, 0.122]$ & $[0.025, 0.198]$ & $[0.089, 0.294]$ \\
+\midrule
+AUROC against L3 & \multicolumn{3}{c}{gate-L3 0.857 [0.809, 0.900]; gate-L1 0.717 [0.651, 0.778]} \\
+Wasted asks at 5\% & \multicolumn{3}{c}{gate-L3 0.290; gate-L1 0.490; random 0.880} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Training on L3 makes the gate rank worth-asking frames better and waste fewer asks. It does not show a gain in the
+share of crashing flights saved: every interval for that difference includes zero. With about 12 savable frames per
+savable flight, even random asking at 10\% catches one on 61\% of them, so this measure saturates.
+
+\subsection{In flight}
+
+Table~\ref{tab:flight} flies the same 60 validation seeds with each policy, where each ask costs one second of
+braking and changes what follows.
+
+\begin{table}[t]
+\centering
+\caption{Closed loop, surrogate VLM, validation seeds, 60 flights per policy. Wilson 95\% intervals for the crash rate.
+Development result; the scenario is not frozen.}
+\label{tab:flight}
+\begin{tabular}{@{}lrlrr@{}}
+\toprule
+Policy & Crashes & Crash rate & Calls/flight & Mission (s) \\
+\midrule
+never                  & 29 & 0.48 [0.36, 0.61] & 0.0  & 6.6 \\
+\midrule
+gate-L3, 5\%           & 13 & 0.22 [0.13, 0.34] & 0.6  & 9.1 \\
+gate-L1, 5\%           & 11 & 0.18 [0.11, 0.30] & 0.8  & 9.6 \\
+random, $p=0.01$       & 22 & 0.37 [0.26, 0.49] & 0.8  & 8.6 \\
+threshold, 5\%         & 23 & 0.38 [0.27, 0.51] & 0.5  & 8.1 \\
+\midrule
+gate-L3, 10\%          &  7 & 0.12 [0.06, 0.22] & 1.2  & 10.6 \\
+gate-L1, 10\%          &  5 & 0.08 [0.04, 0.18] & 1.2  & 10.9 \\
+random, $p=0.02$       & 17 & 0.28 [0.19, 0.41] & 1.3  & 9.7 \\
+threshold, 10\%        & 17 & 0.28 [0.19, 0.41] & 1.0  & 10.0 \\
+\midrule
+random, $p=0.10$       &  4 & 0.07 [0.03, 0.16] & 5.6  & 16.3 \\
+oracle                 &  0 & 0.00 [0.00, 0.06] & 5.5  & 16.0 \\
+always                 &  2 & 0.03 [0.01, 0.11] & 54.2 & 59.6 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\emph{Gates against baselines.} At similar calls per flight, each gate crashes less than random and less than the
+threshold in all eight paired comparisons (crash-rate differences of 15 to 20 points; every 95\% bootstrap interval
+excludes zero). After a Holm correction for the eight McNemar tests, four remain at the 0.05 level. The intervals
+for the difference in calls per flight include zero, so calls are not shown to differ, which is weaker than showing
+that they are equal.
+
+\emph{L3 against L1.} No closed-loop difference is visible: gate-L3 crashes on two more flights than gate-L1 at each
+cut (McNemar $p = 0.80$ and $0.75$). Detecting a gap this small would need roughly 400 or more flights. The offline
+advantage of L3 therefore does not carry over in this experiment.
+
+\emph{Why the remaining crashes happen.} In the baselines, nearly all crashes are missed asks (21 of 22 for random at
+$p=0.01$, 23 of 23 for the 5\% threshold). At the 10\% cut, four crashes per gate follow a ``no'' from the VLM,
+which no gate can remove. Asking always is not a usable reference here: it spends the whole 60\,s limit asking and
+completes no mission.
+
+\subsection{Does it hold with the real VLM?}
+
+A first check with Qwen3-VL-8B in the loop (30 flights, five seeds, 25 asks outside the oracle) shows that the model
+runs in the flight job at about 0.15\,s per call, but that its decision cut does not transfer. With the true
+depth beyond 30\,m and nothing placed within 30\,m, it answered ``yes'' on 12 of 13 asks at the cut tuned on the frame
+bank, where the same cut gives 10\% false alarms. Under 15\,m it answered ``yes'' on 6 of 7. Confidence still
+separates near from far, so this is a calibration problem. Two likely causes are that the bank images we inspected
+show one location while flights use five, and that the prompt asks whether an object \emph{crosses} the region
+without saying how near. Until the cut is retuned on train flights, the surrogate's 0.14 false-alarm rate is
+too optimistic for these flights. \todo{Retune (SB), rerun labels, gates and sweep.}
+
+\subsection{Limitations}
+\label{sec:gate-limits}
+\begin{itemize}
+\item \textbf{Surrogate answers.} Errors are independent draws; a real VLM tends to miss the same object every time.
+\item \textbf{Tuned on these seeds.} Gate and threshold cuts were set on the same 60 validation seeds,
+      which favours them slightly over random. The first 432 flights also used an earlier judge seeding scheme.
+\item \textbf{Start poses.} The map itself obstructs climbing drones at three of five start poses. Of 188 crashes over all
+      policies, 13 hit scenery that we did not place, all at two poses; none came from never, random at 1--2\%, or the tuned threshold.
+\item \textbf{Difficulty.} The never-ask policy crashes on 48\% of these flights, above our 15 to 30\% target.
+\item \textbf{Simulator noise.} Two of 60 never-ask seeds ended differently on a second run (one crash outcome, one
+      crash time shifted by 0.1\,s); two of 233 flights that made no calls ended unlike the never-ask flight.
+\item \textbf{Small counts.} Per-family results have single-digit counts and are not used for claims.
+\end{itemize}
