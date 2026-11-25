@@ -1,0 +1,63 @@
+corridor depth below 0.3 m (hit in every pass = map; hit in some passes only = bad capture); no obstacles spawned
+
+| pose | alt (m) | points | map hits | x of map hits | bad captures | x of bad captures | points with depth under 2 m in every pass |
+|---|---|---|---|---|---|---|---|
+| 0 | 2 | 41 | 0 | none | 0 | none | 0 |
+| 0 | 3 | 41 | 0 | none | 0 | none | 0 |
+| 0 | 4 | 41 | 0 | none | 0 | none | 0 |
+| 0 | 5 | 41 | 0 | none | 0 | none | 0 |
+| 0 | 6 | 41 | 0 | none | 0 | none | 0 |
+| 0 | 8 | 41 | 0 | none | 0 | none | 0 |
+| 0 | 10 | 41 | 0 | none | 0 | none | 0 |
+| 0 | 12 | 41 | 0 | none | 0 | none | 0 |
+| 1 | 2 | 41 | 0 | none | 0 | none | 0 |
+| 1 | 3 | 41 | 0 | none | 0 | none | 0 |
+| 1 | 4 | 41 | 0 | none | 0 | none | 0 |
+| 1 | 5 | 41 | 0 | none | 0 | none | 0 |
+| 1 | 6 | 41 | 0 | none | 0 | none | 0 |
+| 1 | 8 | 41 | 0 | none | 0 | none | 0 |
+| 1 | 10 | 41 | 0 | none | 0 | none | 0 |
+| 1 | 12 | 41 | 0 | none | 0 | none | 0 |
+| 2 | 2 | 41 | 0 | none | 0 | none | 0 |
+| 2 | 3 | 41 | 1 | 34 | 0 | none | 4 |
+| 2 | 4 | 41 | 2 | 35 36 | 1 | 34 | 10 |
+| 2 | 5 | 41 | 3 | 31 34 35 | 0 | none | 11 |
+| 2 | 6 | 41 | 5 | 26 27 31 35 36 | 1 | 33 | 13 |
+| 2 | 8 | 41 | 3 | 26 29 32 | 2 | 27 30 | 12 |
+| 2 | 10 | 41 | 2 | 31 32 | 0 | none | 7 |
+| 2 | 12 | 41 | 0 | none | 1 | 34 | 8 |
+| 3 | 2 | 41 | 0 | none | 0 | none | 0 |
+| 3 | 3 | 41 | 0 | none | 0 | none | 0 |
+| 3 | 4 | 41 | 0 | none | 0 | none | 0 |
+| 3 | 5 | 41 | 0 | none | 0 | none | 1 |
+| 3 | 6 | 41 | 0 | none | 0 | none | 0 |
+| 3 | 8 | 41 | 0 | none | 0 | none | 0 |
+| 3 | 10 | 41 | 0 | none | 0 | none | 0 |
+| 3 | 12 | 41 | 0 | none | 0 | none | 0 |
+| 4 | 2 | 41 | 0 | none | 0 | none | 0 |
+| 4 | 3 | 41 | 0 | none | 0 | none | 0 |
+| 4 | 4 | 41 | 0 | none | 0 | none | 0 |
+| 4 | 5 | 41 | 0 | none | 0 | none | 0 |
+| 4 | 6 | 41 | 0 | none | 0 | none | 3 |
+| 4 | 8 | 41 | 0 | none | 1 | 2 | 3 |
+| 4 | 10 | 41 | 0 | none | 1 | 4 | 3 |
+| 4 | 12 | 41 | 0 | none | 0 | none | 2 |
+| 5 | 2 | 41 | 0 | none | 0 | none | 0 |
+| 5 | 3 | 41 | 0 | none | 0 | none | 0 |
+| 5 | 4 | 41 | 0 | none | 0 | none | 0 |
+| 5 | 5 | 41 | 0 | none | 0 | none | 0 |
+| 5 | 6 | 41 | 0 | none | 0 | none | 0 |
+| 5 | 8 | 41 | 0 | none | 0 | none | 0 |
+| 5 | 10 | 41 | 0 | none | 0 | none | 0 |
+| 5 | 12 | 41 | 0 | none | 0 | none | 0 |
+| 6 | 2 | 41 | 0 | none | 0 | none | 0 |
+| 6 | 3 | 41 | 0 | none | 0 | none | 0 |
+| 6 | 4 | 41 | 0 | none | 0 | none | 0 |
+| 6 | 5 | 41 | 0 | none | 0 | none | 0 |
+| 6 | 6 | 41 | 0 | none | 0 | none | 0 |
+| 6 | 8 | 41 | 0 | none | 0 | none | 0 |
+| 6 | 10 | 41 | 0 | none | 0 | none | 0 |
+| 6 | 12 | 41 | 0 | none | 0 | none | 0 |
+
+captures: 4592; with zero depth in the window: 0
+corridor depth change between passes: median 0.000 m, 95th percentile 0.187 m, max 75.74 m
