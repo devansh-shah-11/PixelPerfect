@@ -597,6 +597,15 @@ def test_cone_course_goes_around_a_box_with_true_depth_and_comes_back_down():
     assert "avoid" in names and names[-1] == "landing"
 
 
+def test_avoidance_steps_log_the_free_distances_the_choice_used():
+    r = fly_cone(cone(Obstacle("box_1m_grey", 20.0, 0.0, 2.0)), TrueDepthStack())
+    rows = r.extra["avoid_bands"]
+    assert rows and all(len(x) == 6 for x in rows)  # t, left, right, over, side, action
+    t, left, right, over, side, action = rows[0]
+    assert left > 0 and right > 0 and over > 0 and action in ("yaw_left", "yaw_right", "climb")
+    assert fly_cone(cone(), TrueDepthStack()).extra["avoid_bands"] == []  # nothing to avoid
+
+
 def test_every_crash_records_phase_action_and_the_obstacle_hit():
     sc = cone(Obstacle("box_1m_grey", 30.0, 9.0, 2.0), Obstacle("wire_3cm_axis_z", 20.0, 0.0, 2.0))
     r = fly_cone(sc, BlindStack())

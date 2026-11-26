@@ -191,6 +191,8 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--seed", type=int)
     p.add_argument("--policy", default="never", help="a policy name from the config")
     p.add_argument("--out", required=True, help="folder for frames, logs and the video")
+    p.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", dest="overrides",
+                   help="override a config key, dotted for nested ones, e.g. --set stack=true-depth")
     p.add_argument("--render-only", action="store_true", help="rebuild the video from --out without flying")
     p.add_argument("--fps", type=int, default=10, help="10 = real time at dt 0.1 s")
     a = p.parse_args(argv)
@@ -199,7 +201,8 @@ def main(argv: list[str] | None = None) -> None:
     if not a.render_only:
         if a.config is None or a.seed is None:
             raise SystemExit("--config and --seed are needed to fly")
-        fly(yaml.safe_load(Path(a.config).read_text()), a.seed, a.policy, folder)
+        from eval.sweep import apply_overrides
+        fly(apply_overrides(yaml.safe_load(Path(a.config).read_text()), a.overrides), a.seed, a.policy, folder)
     print(f"video: {render(folder, a.fps)}", flush=True)
 
 

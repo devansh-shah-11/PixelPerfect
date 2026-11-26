@@ -40,8 +40,12 @@ from interfaces import Action, DepthEstimate, FrameRecord, RuntimeStep
 from sim.drone import DroneParams, KinematicState, hold, step
 from sim.geometry import best_side, hits_ground, segment_hits
 from perception.depth_utils import MAX_RANGE_M
+from control.rules import free_space
 from sim.raycast import corridor_truth, scenery_truth
 from sim.scenario import Scenario
+
+
+MAX_AVOID_BANDS = 400  # avoidance steps logged per flight in extra['avoid_bands'] (0.1 s each)
 
 
 @dataclass(frozen=True)
@@ -132,6 +136,7 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
     outcome: str | None = None
     directions: list[str | None] = []
     phases: list[tuple[float, str]] = []  # (t, phase) whenever the controller's phase changes
+    avoid_bands: list[list[Any]] = []  # [t, left, right, over, side, action] on every avoidance step: what the controller saw (capped)
 
     def goal_dist(st: KinematicState) -> float:
         return math.hypot(scenario.goal_xy[0] - st.x, scenario.goal_xy[1] - st.y)
@@ -201,6 +206,10 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
         ph = getattr(controller, "phase", None)
         if ph is not None and (not phases or phases[-1][1] != ph):
             phases.append((round(state.t, 2), ph))
+        if ph == "avoid" and len(avoid_bands) < MAX_AVOID_BANDS:  # the free distances the side choice is based on (job B2: why no climb?)
+            fs = free_space(est.depth)
+            avoid_bands.append([round(state.t, 2), round(fs["left"], 1), round(fs["right"], 1), round(fs["over"], 1),
+                                getattr(controller, "side", None), proposed.value if hasattr(proposed, "value") else str(proposed)])
 
         gt_min, family = corridor_truth(state, boxes, sim.cam)
         truth_min, truth_family, scenery_side = gt_min, family, None
@@ -304,7 +313,8 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
     if cone:
         result.extra.update({"outcome": outcome or ("crashed" if crashed else "timeout"), "goal_xy": list(scenario.goal_xy),
                              "goal_dist_m": round(goal_dist(state), 2), "end_alt_m": round(state.alt, 2),
-                             "n_obstacles": len(scenario.obstacles), "phases": phases, "vlm_directions": directions})
+                             "n_obstacles": len(scenario.obstacles), "phases": phases, "vlm_directions": directions,
+                             "avoid_bands": avoid_bands})
     if image_ms:  # wall-clock cost of the gate's image features per frame (PLAN_DETAILED.md §4.2 budget: under 1 ms)
         result.extra["image_features_ms"] = {"median": round(float(np.median(image_ms)), 3), "p95": round(float(np.percentile(image_ms, 95)), 3)}
     return records, result
