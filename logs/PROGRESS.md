@@ -233,3 +233,10 @@
 ## 2026-11-25  |  eval  |  Crash cause "scenery" (62658df)
 - Advances: M4.7 / chunk 4 close-out. `eval/crash_causes.py` files hits on map objects (`collision_source == "scenery"`) under their own cause, ahead of the other rules; test added. Chunk 4 is now complete on the laptop; chunk 5 was already in place (pole family, `HALF_WIDTH_M`, cone sweep configs).
 - Sanity check: 197 passed, 1 skipped (laptop). Not pushed.
+
+## 2026-11-26  |  0b0ea6b  |  vlm: L2 direction benchmark and city-pose VLM video config (branch vlm/direction-bench)
+- Advances: M4.7 side question "can the VLM steer?" (not a numbered TASKS.md chunk; DS request). Code for the saved-frame direction benchmark (depth only vs VLM only vs both, goal as nothing / arrow / text), the resumable driver, `ask_direction`, and `configs/sweeps/airsim_city_vlm_videos.yaml` (8B, city poses 1 and 4). Flight video status line now shows position and yaw.
+- Sanity check: `.venv/bin/python -m pytest tests -q` on the laptop: 208 passed, 1 skipped. Nothing run on the HPC yet.
+- Unblocked: the direction pilot (val, 8B, about 900 passes, needs DS to submit) and four flight videos. Still blocked: any decision on who steers (needs the pilot numbers).
+- Parked: the `score` avoid mode and the loop fixes (`git stash@{0}` on control/score-avoid), A* (DS decision: revisit later).
+- Not pushed. Backup reminder: `configs/` was touched (new sweep config); rsync data/logs to the second location when convenient.
