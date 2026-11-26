@@ -1,0 +1,39 @@
+[2026-11-26T18:42:34+00:00] job=44035 ENV=CityEnviron commit=43e711d cmd: python -m eval.flight_video --config configs/sweeps/airsim_city_vlm_videos.yaml --seed 101062 --policy always --out results/videos/city_101062_always_qwen8b
+wrote scene_cap_400.jsonc and robot_cap_400.jsonc (400x225)
+wrote scene_cap_1280.jsonc and robot_cap_1280.jsonc (1280x720)
+wrote scene_cap_400n.jsonc and robot_cap_400n.jsonc (400x225, depth noise on)
+18:43:36:910 [INFO] Connecting to simulation server at 127.0.0.1
+18:43:36:922 [INFO] Connection opened.
+18:43:36:923 [INFO] Loading scene config: scene_cap_400.jsonc
+18:43:37:712 [INFO] Getting the list of available topic info from the sim server...
+18:43:37:723 [INFO] Successfully received topic info list.
+18:43:39:724 [INFO] World object updated for the loaded scene '/Sim/SceneManualStepDrone'. Note: Any previous Drone object instances may no longer be valid.
+18:43:39:725 [INFO] Trajectory 'null_trajectory' imported successfully.
+18:43:39:725 [INFO] Initalizing Drone 'Drone1'...
+18:43:39:725 [INFO] -------------------------------------------------
+18:43:39:725 [INFO] The following topics can be subscribed to for robot 'Drone1':
+18:43:39:725 [INFO]     sensors["Chase"]["scene_camera"]
+18:43:39:725 [INFO]     sensors["Chase"]["scene_camera_info"]
+18:43:39:725 [INFO]     sensors["DownCamera"]["scene_camera"]
+18:43:39:725 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+18:43:39:725 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+18:43:39:725 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+18:43:39:725 [INFO]     sensors["GPS"]["gps"]
+18:43:39:725 [INFO]     sensors["FrontCam"]["scene_camera"]
+18:43:39:725 [INFO]     sensors["FrontCam"]["scene_camera_info"]
+18:43:39:725 [INFO]     sensors["FrontCam"]["depth_camera"]
+18:43:39:725 [INFO]     sensors["FrontCam"]["depth_camera_info"]
+18:43:39:725 [INFO]     sensors["FrontCam"]["segmentation_camera"]
+18:43:39:725 [INFO]     sensors["FrontCam"]["segmentation_camera_info"]
+18:43:39:725 [INFO]     robot_info["actual_pose"]
+18:43:39:725 [INFO]     robot_info["collision_info"]
+18:43:39:725 [INFO]     robot_info["rotor_info"]
+18:43:39:725 [INFO] -------------------------------------------------
+18:43:39:726 [INFO] Drone 'Drone1' initialized for World scene '/Sim/SceneManualStepDrone'
+Loading weights:   0%|          | 0/287 [00:00<?, ?it/s]Loading weights:  20%|█▉        | 57/287 [00:00<00:00, 566.25it/s]Loading weights:  40%|███▉      | 114/287 [00:00<00:00, 552.82it/s]Loading weights:  65%|██████▍   | 186/287 [00:00<00:00, 612.72it/s]Loading weights:  90%|█████████ | 259/287 [00:00<00:00, 655.46it/s]Loading weights: 100%|██████████| 287/287 [00:00<00:00, 657.81it/s]
+Loading weights:   0%|          | 0/750 [00:00<?, ?it/s]Loading weights:   6%|▋         | 47/750 [00:00<00:01, 458.73it/s]Loading weights:  12%|█▏        | 93/750 [00:00<00:01, 430.48it/s]Loading weights:  19%|█▊        | 139/750 [00:00<00:01, 433.83it/s]Loading weights:  25%|██▍       | 185/750 [00:00<00:01, 436.44it/s]Loading weights:  31%|███       | 229/750 [00:00<00:01, 365.57it/s]Loading weights:  36%|███▌      | 268/750 [00:00<00:01, 303.49it/s]Loading weights:  40%|████      | 301/750 [00:00<00:01, 271.70it/s]Loading weights:  45%|████▍     | 335/750 [00:01<00:01, 285.54it/s]Loading weights:  49%|████▉     | 366/750 [00:01<00:01, 273.09it/s]Loading weights:  53%|█████▎    | 395/750 [00:01<00:01, 272.06it/s]Loading weights:  57%|█████▋    | 428/750 [00:01<00:01, 285.87it/s]Loading weights:  64%|██████▎   | 478/750 [00:01<00:00, 344.05it/s]Loading weights:  70%|██████▉   | 524/750 [00:01<00:00, 373.09it/s]Loading weights:  77%|███████▋  | 575/750 [00:01<00:00, 389.18it/s]Loading weights:  84%|████████▍ | 629/750 [00:01<00:00, 430.63it/s]Loading weights:  90%|████████▉ | 673/750 [00:01<00:00, 432.27it/s]Loading weights:  97%|█████████▋| 725/750 [00:01<00:00, 452.19it/s]Loading weights: 100%|██████████| 750/750 [00:02<00:00, 372.16it/s]
+18:48:29:989 [INFO] Disconnecting from simulation server...
+18:48:30:025 [INFO] Disconnected.
+{"episode_id": "val-101062-always", "seed": 101062, "split": "val", "policy": "always", "judge": "qwen3-vl-8b", "crashed": false, "reached_goal": false, "distance_m": 2.2, "mission_time_s": 30.0, "n_frames": 150, "n_calls": 15, "delay_charged_s": 15.0, "latencies_s": [185.562983274, 0.3170095760000322, 0.3215430500000025, 0.33412284600001385, 0.31903382000001557, 0.32337622199997895, 0.35519010199999457, 0.3123076069999797, 0.3072222509999847, 0.2935969960000193, 0.3467399330000376, 0.32623843199996827, 0.32177055900001506, 0.3299731319999637, 0.3103044140000293], "obstacle_family": "wire_1cm_axis_z,wire_1cm_axis_z,glass_pane_alpha20,glass_pane_alpha20,ball_20cm_red,box_1m_black,box_1m_black", "crash_cause": null, "extra": {"stack": "depth-anything/Depth-Anything-V2-Metric-Outdoor-Small-hf", "backend": "project-airsim", "delay_s": 1.0, "condition": "clear", "collision_source": null, "start_index": 6, "scenery_truth_frames": 0, "outcome": "lost", "goal_xy": [51.825, 4.119], "goal_dist_m": 51.99, "end_alt_m": 4.23, "n_obstacles": 7, "phases": [[0.0, "cruise"], [1.1, "bypass"]], "vlm_directions": ["left", "left", "left", "over", "left", "left", "left", "left", "left", "left", "left", "left", "left", "left", "left"], "avoid_bands": []}}
+video: results/videos/city_101062_always_qwen8b/flight.gif
+[2026-11-26T18:49:52+00:00] exit code: 0
