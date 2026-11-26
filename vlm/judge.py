@@ -263,6 +263,35 @@ class QwenVLJudge:
         logits = self._logits(images, prompt)
         return option_logprobs(logits, self._dir4_ids), time.perf_counter() - start
 
+    def _generate(self, images: list[np.ndarray], prompt: str, max_new_tokens: int) -> str:
+        """Greedy free text after ``prompt``. Overridden by tests with a fake."""
+        import torch
+
+        if self._model is None:
+            self._load()
+        content: list[dict[str, Any]] = [{"type": "image"} for _ in images]
+        content.append({"type": "text", "text": prompt})
+        text = self._processor.apply_chat_template([{"role": "user", "content": content}], add_generation_prompt=True, tokenize=False)
+        inputs = self._processor(text=[text], images=[Image.fromarray(im) for im in images], return_tensors="pt").to(self.device)
+        with torch.inference_mode():
+            out = self._model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False)
+            if self.device == "cuda":
+                torch.cuda.synchronize()
+        new = out[0, inputs["input_ids"].shape[1]:]
+        return self._processor.tokenizer.decode(new, skip_special_tokens=True)
+
+    def generate(self, images: list[np.ndarray], prompt: str, max_new_tokens: int = 200) -> tuple[str, float]:
+        """Free-text reply (greedy) and the latency in seconds. Used for the JSON scene read (``vlm.scene``); the caller parses and checks it."""
+        start = time.perf_counter()
+        text = self._generate(images, prompt, max_new_tokens)
+        return text, time.perf_counter() - start
+
+    def score_yes_no(self, images: list[np.ndarray], prompt: str) -> tuple[float, float]:
+        """``logit(yes) - logit(no)`` for a custom question, and the latency in seconds (the grid format of ``vlm.scene``)."""
+        start = time.perf_counter()
+        logits = self._logits(images, prompt)  # loads the model on first use, which also fills the yes/no ids
+        return yes_no_score(logits, self._yes_ids, self._no_ids), time.perf_counter() - start
+
     def ask(self, image: np.ndarray, path_overlay: np.ndarray, crop: np.ndarray) -> VLMAnswer:
         images = [path_overlay if self.use_overlay else image]
         if self.use_crop:

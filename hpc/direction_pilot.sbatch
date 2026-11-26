@@ -5,6 +5,8 @@
 #   sbatch hpc/direction_pilot.sbatch                       # both steps, about 1 h
 #   sbatch --export=ALL,STEPS="flight" hpc/direction_pilot.sbatch   # only the flight-frame table (minutes)
 #   sbatch --export=ALL,STEPS="pilot" hpc/direction_pilot.sbatch    # only the direction pilot
+# Plan v7 step A (scene read: boxes, kind, range vs the true depth of every surface; val only; about 40 min with the depth model):
+#   sbatch --time=01:30:00 --export=ALL,STEPS="scene" hpc/direction_pilot.sbatch
 #SBATCH --account=csci_ga_2271-2026fa
 #SBATCH --partition=c12m85-a100-1
 #SBATCH --job-name=pp-direction
@@ -38,5 +40,9 @@ esac
 case " ${STEPS} " in *" pilot "*)
     python -m vlm.eval_direction --bank "${BANK}" --models "${MODEL}" --splits val --stride 4 \
         --goal-inputs none arrow text --images both --out results/direction_pilot.jsonl ;;
+esac
+case " ${STEPS} " in *" scene "*)
+    python -m vlm.eval_scene --bank "${BANK}" --models "${MODEL}" --splits val --stride 4 \
+        --conditions json_raw grid_raw yesno_both --depth-model --out results/scene_val.jsonl ;;
 esac
 echo "[$(date -Is)] done"

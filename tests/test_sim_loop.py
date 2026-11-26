@@ -706,3 +706,13 @@ def test_oracle_and_surrogate_avoid_a_map_tree_the_fast_stack_misses():
     assert blind.extra["crash"]["kind"] == "guard_scenery"
     r = fly()
     assert r.extra["outcome"] == "landed" and r.n_calls >= 1 and r.extra["scenery_truth_frames"] > 0
+
+
+def test_drone_height_cap_follows_the_controller():
+    from eval.run_episode import default_params
+    from sim.scenario import ScenarioConfig, generate
+
+    sc = generate(101063, "val", ScenarioConfig(layout="cone"))
+    assert default_params(sc, RuleController()).alt_max == 25.0  # the default is unchanged
+    p = default_params(sc, RuleController(alt_max=50.0))
+    assert p.alt_max == 50.0 and p.alt_min == sc.land_alt_m

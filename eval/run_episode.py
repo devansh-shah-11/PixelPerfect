@@ -88,6 +88,15 @@ class LoopConfig:
             raise ValueError("delay_s must be > 0 (PLAN_DETAILED.md D10)")
 
 
+def default_params(scenario: Scenario, controller: Any) -> DroneParams:
+    """The drone's physics for this flight. Its height cap follows the controller's ``alt_max`` (config ``controller: {alt_max: 50}``):
+    a controller that plans a 50 m climb on a drone that stops at 25 m would climb forever."""
+    alt_max = float(getattr(controller, "alt_max", DroneParams.alt_max))
+    if scenario.goal_xy is not None:
+        return DroneParams(v=scenario.speed_mps, alt_min=scenario.land_alt_m, alt_max=alt_max)
+    return DroneParams(v=scenario.speed_mps, alt_max=alt_max)
+
+
 def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, policy: Any, judge: Any = None,
                 cfg: LoopConfig | None = None, params: DroneParams | None = None, judge_name: str = "none",
                 snapshots: list[ForkPoint] | None = None, resume: ForkPoint | None = None,
@@ -99,7 +108,7 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
 
     cone = scenario.goal_xy is not None
     cfg = cfg or LoopConfig()
-    params = params or (DroneParams(v=scenario.speed_mps, alt_min=scenario.land_alt_m) if cone else DroneParams(v=scenario.speed_mps))
+    params = params or default_params(scenario, controller)
     if resume is None:
         sim.reset(scenario)
         controller.reset()

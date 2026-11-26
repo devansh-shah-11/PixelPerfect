@@ -247,3 +247,9 @@
 - Sanity check: `.venv/bin/python -m pytest -q` on the laptop: 210 passed, 1 skipped. New script not yet run on the HPC; the direction pilot has not run (first command failed, job 44201, no conda env).
 - Unblocked: `sbatch hpc/direction_pilot.sbatch` (flight-frame table, then the pilot). Still blocked: choice of cut and wiring (needs those two tables).
 - Not pushed. Backup reminder: nothing in `configs/` changed.
+
+## 2026-11-26  |  vlm, eval  |  scene-read benchmark and height-cap plumbing (plan v7 steps A and C; branch vlm/direction-bench)
+- Advances: M4.7 side question "can the VLM steer / what can it report?" (not a numbered TASKS.md chunk; DS request). Direction pilot results are in (job 44207): the 4-way direction prompt is no better than random or the goal-side rule. New: scene-read benchmark (boxes, kind, range vs true depth of every surface), `generate` / `score_yes_no` on the judge, and the drone's height cap following the controller's `alt_max`.
+- Sanity check: `.venv/bin/python -m pytest -q` on the laptop: 218 passed, 1 skipped. Scene benchmark not run on the HPC yet.
+- Unblocked: `sbatch --time=01:30:00 --export=ALL,STEPS="scene" hpc/direction_pilot.sbatch`; the 50 m / 60 s try-out on seeds 101063 and 101071 (policy never). Still blocked: any decision on painting VLM boxes into depth (needs the scene report), Step C2.
+- Backup reminder: `hpc/` and a sweep-related plumbing change; no `configs/` change.
