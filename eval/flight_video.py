@@ -86,22 +86,157 @@ def _map_tile(scenario: dict[str, Any], track: list[tuple[float, float, float]],
     return im
 
 
-def compose(rec: dict[str, Any], scenario: dict[str, Any], track: list, k: int, phase: str, vlm: str, alt: float) -> Image.Image:
+CHASE_BACK_M, CHASE_UP_M, CHASE_AHEAD_M, CHASE_HFOV_DEG = 9.0, 4.0, 4.0, 80.0  # third-person camera: behind and above the drone
+CAM_HFOV_DEG = 90.0  # the flight camera (perception.depth_utils.CAMERA_HFOV_DEG)
+
+
+def _map_points(recs: list[dict[str, Any]], every: int = 3, stride: int = 6) -> list[tuple[int, np.ndarray]]:
+    """Surfaces the true depth saw, as world points (x, y, height), per frame: (frame index, N x 3). Viewer only.
+
+    Pixels become rays of the flight camera (distance along the ray, as both backends give it); points within
+    0.4 m of the start's ground level are dropped, so the floor does not fill the picture."""
+    out = []
+    for k in range(0, len(recs), every):
+        path = recs[k].get("depth_gt_path")
+        if not path or not os.path.exists(path):
+            continue
+        d = np.load(path).astype(np.float32)[::stride, ::stride]
+        h, w = d.shape
+        f = (w / 2) / math.tan(math.radians(CAM_HFOV_DEG / 2))
+        xs, ys = (np.arange(w) - w / 2 + 0.5) / f, (np.arange(h) - h / 2 + 0.5) / f
+        gx, gy = np.meshgrid(xs, ys)
+        n = np.sqrt(1 + gx**2 + gy**2)
+        x, y, z, yaw = recs[k]["pose"]
+        fwd, right = np.array([math.cos(yaw), math.sin(yaw)]), np.array([-math.sin(yaw), math.cos(yaw)])
+        dist = np.where(np.isfinite(d) & (d > 0.3) & (d < 60.0), d, np.nan)
+        px = x + dist * (fwd[0] + gx * right[0]) / n
+        py = y + dist * (fwd[1] + gx * right[1]) / n
+        ph = -z + dist * (-gy) / n
+        pts = np.stack([px, py, ph], -1).reshape(-1, 3)
+        pts = pts[np.isfinite(pts).all(1) & (pts[:, 2] > 0.4)]
+        out.append((k, pts.astype(np.float32)))
+    return out
+
+
+def _chase_camera(recs: list[dict[str, Any]], k: int, yaw: float) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Camera position and its (right, up, forward) axes for frame k, behind the drone along the smoothed heading."""
+    x, y, z, _ = recs[k]["pose"]
+    drone = np.array([x, y, -z])
+    c = drone + np.array([-CHASE_BACK_M * math.cos(yaw), -CHASE_BACK_M * math.sin(yaw), CHASE_UP_M])
+    target = drone + np.array([CHASE_AHEAD_M * math.cos(yaw), CHASE_AHEAD_M * math.sin(yaw), 0.0])
+    f = (target - c) / np.linalg.norm(target - c)
+    r = np.array([-f[1], f[0], 0.0]) / max(math.hypot(f[0], f[1]), 1e-6)
+    u = np.array([0.0, 0.0, 1.0]) - f[2] * f
+    return c, r, u / np.linalg.norm(u), f
+
+
+def _project(pts: np.ndarray, cam: tuple, size: tuple[int, int]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Pixel columns, rows and depth along the viewing axis for world points (N x 3); depth <= 0.3 is behind the camera."""
+    c, r, u, f = cam
+    w, h = size
+    v = pts - c
+    zc = v @ f
+    foc = (w / 2) / math.tan(math.radians(CHASE_HFOV_DEG / 2))
+    zs = np.maximum(zc, 1e-3)
+    return w / 2 + foc * (v @ r) / zs, h / 2 - foc * (v @ u) / zs, zc
+
+
+def _chase_tile(scenario: dict[str, Any], recs: list[dict[str, Any]], k: int, yaws: list[float],
+                map_pts: list[tuple[int, np.ndarray]], size: tuple[int, int]) -> Image.Image:
+    """Third person: the drone from behind and above, its path so far, the obstacles, the goal and what the depth has seen."""
+    from sim.scenario import Scenario
+
+    sc = Scenario.from_dict(scenario)
+    w, h = size
+    cam = _chase_camera(recs, k, yaws[k])
+    img = np.zeros((h, w, 3), np.uint8)
+    img[:] = (24, 26, 30)
+    img[h // 2:] = (30, 33, 38)  # a dim ground half; the horizon is only roughly right when the camera pitches
+    seen = [p for i, p in map_pts if i <= k]
+    if seen:
+        pts = np.concatenate(seen)
+        x, y, z, _ = recs[k]["pose"]
+        pts = pts[(np.abs(pts[:, 0] - x) < 70) & (np.abs(pts[:, 1] - y) < 70)]
+        u, v, zc = _project(pts, cam, size)
+        ok = (zc > 0.5) & (u >= 0) & (u < w) & (v >= 0) & (v < h)
+        shade = np.clip(215 - 4.0 * zc[ok], 60, 215).astype(np.uint8)
+        img[v[ok].astype(int), u[ok].astype(int)] = np.stack([shade, shade, np.clip(shade + 20, 0, 255).astype(np.uint8)], -1)
+        for dx, dy in ((1, 0), (0, 1)):  # thicken the dots by one pixel
+            img[np.clip(v[ok].astype(int) + dy, 0, h - 1), np.clip(u[ok].astype(int) + dx, 0, w - 1)] = np.stack(
+                [shade, shade, np.clip(shade + 20, 0, 255).astype(np.uint8)], -1)
+    im = Image.fromarray(img)
+    d = ImageDraw.Draw(im)
+
+    def line(a: np.ndarray, b: np.ndarray, fill: tuple, width: int = 1) -> None:
+        u, v, zc = _project(np.stack([a, b]), cam, size)
+        if zc.min() > 0.5:
+            d.line([(u[0], v[0]), (u[1], v[1])], fill=fill, width=width)
+
+    for gx in range(-20, 100, 10):  # ground grid at the start's level, 10 m cells
+        line(np.array([gx, -40.0, 0.0]), np.array([gx, 40.0, 0.0]), (45, 50, 58))
+    for gy in range(-40, 41, 10):
+        line(np.array([-20.0, gy, 0.0]), np.array([100.0, gy, 0.0]), (45, 50, 58))
+    for b in sc.obbs():  # obstacles as boxes (a wire is a long thin box)
+        c, sn = math.cos(b.yaw), math.sin(b.yaw)
+        hx, hy, hz = max(b.half[0], 0.08), max(b.half[1], 0.08), max(b.half[2], 0.08)
+        corners = {}
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                for sz in (-1, 1):
+                    corners[(sx, sy, sz)] = np.array([b.center[0] + c * sx * hx - sn * sy * hy, b.center[1] + sn * sx * hx + c * sy * hy,
+                                                      -b.center[2] + sz * hz])  # centre z is NED: height = -z
+        col = (120, 170, 220) if b.see_through else (240, 150, 60)
+        for a_, b_ in ((a, b) for a in corners for b in corners if a < b and sum(i != j for i, j in zip(a, b)) == 1):
+            line(corners[a_], corners[b_], col, 2)
+    if sc.goal_xy is not None:
+        gx, gy = sc.goal_xy
+        line(np.array([gx, gy, 0.0]), np.array([gx, gy, 6.0]), (90, 220, 110), 3)
+        for a in range(0, 360, 30):
+            a0, a1 = math.radians(a), math.radians(a + 30)
+            line(np.array([gx + 2 * math.cos(a0), gy + 2 * math.sin(a0), 0.0]), np.array([gx + 2 * math.cos(a1), gy + 2 * math.sin(a1), 0.0]), (90, 220, 110), 2)
+    for i in range(max(0, k - 400), k):  # path flown so far
+        line(np.array([recs[i]["pose"][0], recs[i]["pose"][1], -recs[i]["pose"][2]]),
+             np.array([recs[i + 1]["pose"][0], recs[i + 1]["pose"][1], -recs[i + 1]["pose"][2]]), (250, 250, 250))
+    x, y, z, yaw = recs[k]["pose"]  # the drone: a cross along and across its heading, nose in red
+    pos = np.array([x, y, -z])
+    fwd, side = np.array([math.cos(yaw), math.sin(yaw), 0.0]), np.array([-math.sin(yaw), math.cos(yaw), 0.0])
+    line(pos - 0.6 * side, pos + 0.6 * side, (230, 230, 230), 3)
+    line(pos - 0.6 * fwd, pos + 0.9 * fwd, (255, 80, 80), 3)
+    line(pos, np.array([x, y, 0.0]), (110, 110, 130))  # drop line to the ground: height
+    d.rectangle([0, 0, 330, 14], fill=(0, 0, 0))
+    d.text((4, 1), "third person (camera behind the drone; dots = what depth has seen)", fill=(255, 255, 255))
+    return im
+
+
+def _smooth_yaws(recs: list[dict[str, Any]], alpha: float = 0.15) -> list[float]:
+    """Heading for the chase camera, low-passed so a turn in place does not spin the picture."""
+    out, cur = [], recs[0]["pose"][3]
+    for r in recs:
+        cur += alpha * ((r["pose"][3] - cur + math.pi) % (2 * math.pi) - math.pi)
+        out.append(cur)
+    return out
+
+
+def compose(rec: dict[str, Any], scenario: dict[str, Any], track: list, k: int, phase: str, vlm: str, alt: float,
+            chase: Image.Image | None = None) -> Image.Image:
     rgb = np.asarray(Image.open(rec["rgb_path"]).convert("RGB"))
     rgb = draw_overlay(rgb, corridor_box(rgb.shape), fill_alpha=0.0)
     est = np.load(rec["depth_est_path"]).astype(np.float32)
     gt = np.load(rec["depth_gt_path"]).astype(np.float32)
-    frame = Image.new("RGB", (2 * TILE_W, 2 * TILE_H + BAR_H), (10, 10, 12))
+    rows = 3 if chase is not None else 2
+    frame = Image.new("RGB", (2 * TILE_W, rows * TILE_H + BAR_H), (10, 10, 12))
     frame.paste(_tile(rgb, "camera (red: corridor window)"), (0, 0))
     frame.paste(_tile(depth_rgb(est), "fast stack depth (what the drone believes)"), (TILE_W, 0))
     frame.paste(_tile(depth_rgb(gt), "true depth (viewer only)"), (0, TILE_H))
     frame.paste(_map_tile(scenario, track, k), (TILE_W, TILE_H))
+    if chase is not None:
+        frame.paste(chase, (0, 2 * TILE_H))
     d = ImageDraw.Draw(frame)
     act = rec["action_taken"]
     line1 = (f"t {rec['t']:5.1f} s   height {alt:4.1f} m   phase {phase:<8}   action {act:<9}   "
              f"corridor: estimate {rec['corridor_min_est']:5.1f} m, true {rec['corridor_min_gt']:5.1f} m")
-    d.text((8, 2 * TILE_H + 6), line1, fill=(235, 235, 235))
-    d.text((8, 2 * TILE_H + 26), vlm, fill=(255, 210, 90) if vlm else (150, 150, 150))
+    d.text((8, rows * TILE_H + 6), line1, fill=(235, 235, 235))
+    d.text((8, rows * TILE_H + 26), vlm, fill=(255, 210, 90) if vlm else (150, 150, 150))
     return frame
 
 
@@ -113,6 +248,7 @@ def render(folder: Path, fps: int = 10) -> Path:
     phases = extra.get("phases") or []
     directions = list(extra.get("vlm_directions") or [])
     track = [(r["pose"][0], r["pose"][1], r["pose"][3]) for r in recs]
+    yaws, map_pts = _smooth_yaws(recs), _map_points(recs)
     frames_dir = folder / "video_frames"
     frames_dir.mkdir(exist_ok=True)
     n, ask_i, last_vlm = 0, 0, ""
@@ -129,12 +265,13 @@ def render(folder: Path, fps: int = 10) -> Path:
             last_vlm = f"VLM asked at t {rec['t']:.1f} s: {ans}" + (f", go {direction}" if direction else "") + \
                        f"   (drone holds {rec['delay_charged_s']:.1f} s)"
             repeat = 1 + int(round(rec["delay_charged_s"] * fps))  # the pause the call costs
-        img = compose(rec, scenario, track, k, phase, last_vlm, -rec["pose"][2])
+        img = compose(rec, scenario, track, k, phase, last_vlm, -rec["pose"][2],
+                      _chase_tile(scenario, recs, k, yaws, map_pts, (2 * TILE_W, TILE_H)))
         for _ in range(repeat):
             img.save(frames_dir / f"{n:05d}.png")
             n += 1
     end = Image.open(frames_dir / f"{n - 1:05d}.png")
-    ImageDraw.Draw(end).text((8, 2 * TILE_H + 40), f"END: {extra.get('outcome') or ('crashed' if result['crashed'] else 'reached goal' if result['reached_goal'] else 'stopped')}"
+    ImageDraw.Draw(end).text((8, 3 * TILE_H + 40), f"END: {extra.get('outcome') or ('crashed' if result['crashed'] else 'reached goal' if result['reached_goal'] else 'stopped')}"
                              f"   VLM calls {result['n_calls']}   time {result['mission_time_s']:.1f} s", fill=(255, 120, 120))
     for _ in range(2 * fps):
         end.save(frames_dir / f"{n:05d}.png")

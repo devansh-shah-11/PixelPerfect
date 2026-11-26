@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import yaml
+from PIL import Image
 
 from eval.flight_video import main
 
@@ -17,3 +18,7 @@ def test_flight_video_flies_and_renders(tmp_path):
     assert any(p.suffix in (".mp4", ".gif") and p.stat().st_size > 0 for p in out)
     n_frames = len(list((tmp_path / "v" / "video_frames").glob("*.png")))
     assert n_frames > 30  # 3 s of flight plus the held frames of each VLM call and the end card
+    frame = Image.open(tmp_path / "v" / "video_frames" / "00000.png")
+    assert frame.height > 3 * 225  # camera, depth, true depth, top view and the third-person tile (3 rows) plus the status bar
+    chase = frame.crop((0, 2 * 225, 800, 3 * 225))
+    assert len({chase.getpixel((x, y)) for x in range(0, 800, 7) for y in range(0, 225, 7)}) > 3  # something is drawn in it
