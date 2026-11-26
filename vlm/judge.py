@@ -185,6 +185,7 @@ class QwenVLJudge:
         self.direction = direction
         self.last_direction: str | None = None
         self._dir_ids: dict[str, list[int]] = {}
+        self._dir4_ids: dict[str, list[int]] = {}  # straight, left, right, over (vlm.direction), for ask_direction
         self.load_seconds: float | None = None
         self._model = None
         self._processor = None
@@ -216,6 +217,9 @@ class QwenVLJudge:
         self._yes_ids = variant_ids(tok, YES_FORMS)
         self._no_ids = variant_ids(tok, NO_FORMS)
         self._dir_ids = {k: variant_ids(tok, forms) for k, forms in DIRECTION_FORMS.items()}
+        from vlm.direction import OPTION_FORMS
+
+        self._dir4_ids = {k: variant_ids(tok, forms) for k, forms in OPTION_FORMS.items()}
         self.load_seconds = time.perf_counter() - start
 
     def warmup(self, shape: tuple[int, int] = (225, 400)) -> float:
@@ -244,6 +248,20 @@ class QwenVLJudge:
             if self.device == "cuda":
                 torch.cuda.synchronize()
         return logits.float().cpu().numpy()
+
+    def ask_direction(self, images: list[np.ndarray], prompt: str) -> tuple[dict[str, float], float]:
+        """One pass, no prior yes/no: log-probabilities over straight / left / right / over, and the latency in seconds.
+
+        ``images`` and ``prompt`` come from ``vlm.direction.render_inputs`` (goal marker and text included). The answer
+        is read from the next-token logits like ``ask``, so there is no free text to hallucinate (D8).
+        """
+        from vlm.direction import option_logprobs
+
+        if not self._dir4_ids and self._model is None:
+            self._load()
+        start = time.perf_counter()
+        logits = self._logits(images, prompt)
+        return option_logprobs(logits, self._dir4_ids), time.perf_counter() - start
 
     def ask(self, image: np.ndarray, path_overlay: np.ndarray, crop: np.ndarray) -> VLMAnswer:
         images = [path_overlay if self.use_overlay else image]

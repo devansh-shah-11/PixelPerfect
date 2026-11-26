@@ -1,0 +1,38 @@
+# Flight videos with the REAL VLM (Qwen3-VL-8B, direction on) on the city poses, DS 2026-11-26. Look, don't measure:
+# one flight per video. Same scenario and 8 start poses as Job B3 (configs/sweeps/airsim_cone_headroom_city.yaml); a flight
+# uses pose seed % 8, so on val seeds 101060 to 101159: 101062 and 101070 fly city pose 1 (x 26 to 35 m map objects),
+# 101063 and 101071 fly city pose 4 (wall along y 10 m). Judge settings from results/benchmark.md (8B, "both", cut -4.02).
+# The status line of the video shows time, position, yaw, height, phase, action, both corridor distances and every VLM
+# call with its answer and direction. Policies: never (depth only) and always (asks every second, cooldown 1 s).
+#   sbatch --time=00:45:00 --export=ALL,PA_ENV=/scratch/dns5508/envs/pa,HF_HOME=/scratch/$USER/hf,CMD="python -m eval.flight_video --config configs/sweeps/airsim_city_vlm_videos.yaml --seed 101062 --policy always --out results/videos/city_101062_always_qwen8b" hpc/airsim_job.sbatch
+starts: &starts
+  - [-150.0, 50.0, 180.0, 140.0]   # old pose 1
+  - [150.0, -150.0, 0.0, 80.0]     # old pose 4
+  - [-50.0, 50.0, 270.0, 91.0]     # B
+  - [-150.0, -150.0, 90.0, 76.0]   # new
+  - [-150.0, 150.0, 0.0, 68.0]     # new
+  - [150.0, 150.0, 270.0, 77.0]    # D: map objects in the mission area (city)
+  - [50.0, -50.0, 270.0, 94.0]     # city 1 (world_check_city pose 1)
+  - [-50.0, -150.0, 270.0, 120.0]  # city 4 (world_check_city pose 4)
+backend: airsim
+backend_kw: {configs: "${PP_SIM_CONFIGS}", scene_file: scene_cap_400.jsonc, starts: *starts}
+stack: da2
+judge: qwen
+judge_kw: {model_id: Qwen/Qwen3-VL-8B-Instruct, prompt_key: cross, tau: -4.02, direction: true}
+delay_s: 1.0
+split: val
+seeds: {file: configs/seeds.yaml, skip: 60, n: 100}
+scenario:
+  layout: cone
+  n_obstacles: [3, 8]
+  min_gap_m: 5.0
+  p_in_path: 0.35
+  alt_range_m: [1.8, 2.2]
+  families: [pole_10cm_axis_y, wire_3cm_axis_z, wire_1cm_axis_z, box_1m_grey, box_1m_black, wall_white_featureless, glass_pane_alpha20, ball_20cm_red]
+controller: {avoid_mode: choose}
+loop: {t_max: 120.0}
+policies:
+  - {name: never, policy: never}
+  - {name: always, policy: always, cooldown_s: 1.0}
+out: results/sweeps/city_vlm_videos
+flight_logs: true

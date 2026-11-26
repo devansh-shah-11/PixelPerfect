@@ -233,7 +233,8 @@ def compose(rec: dict[str, Any], scenario: dict[str, Any], track: list, k: int, 
         frame.paste(chase, (0, 2 * TILE_H))
     d = ImageDraw.Draw(frame)
     act = rec["action_taken"]
-    line1 = (f"t {rec['t']:5.1f} s   height {alt:4.1f} m   phase {phase:<8}   action {act:<9}   "
+    px, py, yaw = rec["pose"][0], rec["pose"][1], math.degrees(rec["pose"][3])
+    line1 = (f"t {rec['t']:5.1f} s   at ({px:6.1f}, {py:6.1f}) m  yaw {yaw:4.0f}   height {alt:4.1f} m   phase {phase:<8}   action {act:<9}   "
              f"corridor: estimate {rec['corridor_min_est']:5.1f} m, true {rec['corridor_min_gt']:5.1f} m")
     d.text((8, rows * TILE_H + 6), line1, fill=(235, 235, 235))
     d.text((8, rows * TILE_H + 26), vlm, fill=(255, 210, 90) if vlm else (150, 150, 150))
