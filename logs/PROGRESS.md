@@ -226,3 +226,7 @@
 - Advances: M4.7 (plan v7 step 5). Controller: the fence cuts only a sideways hold; one left/right switch per avoidance, then over; hold margin 2 m. Every crash records family, phase, action and pose (`extra["crash"]`). Job B2 config: 3 to 8 obstacles 5 m apart, p_in_path 0.35, pose D back; city pose scan config added.
 - Sanity check: 193 passed, 1 skipped (laptop); raycast smoke (surrogate VLM) never 12/20 crashed, oracle 20/20 landed.
 - Unblocked: Job B2 (DA2, repeat, true depth) and the city scan, submitted by DS. Still blocked: the freeze (final pose list, then one more B2), policy sweeps on city poses (surrogate VLM and oracle truth for map objects).
+## 2026-11-25  |  eval, demo, sim  |  Avoidance-band logging, third-person video, Job B3 config (7e5d3c9, 54f8037, 0db6232)
+- Advances: M4.7 (scenario freeze). `7e5d3c9`: `extra["avoid_bands"]` (left, right, over, side, action per avoidance step) and `--set` for `eval.flight_video`, for the rerun of B2 true-depth seeds 101150 and 101084 (pose 2, never climbed). `54f8037`: third-person chase view in the flight video (viewer only; dots = surfaces the true depth saw). `0db6232`: `configs/sweeps/airsim_cone_headroom_city.yaml` (B3, 8 poses), not run.
+- Sanity check: 196 passed, 1 skipped (laptop); raycast flight rendered and the third-person tile checked by eye (oracle, seed 101062).
+- Unblocked: the HPC rerun of two seeds with frames. Still blocked: B3 and the freeze, until the pose 2 / true-depth non-landing question is settled. Not pushed.
