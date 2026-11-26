@@ -1,0 +1,20 @@
+[2026-11-20T22:44:51+00:00] job=38208 ENV=CityEnviron commit=dfffff8 cmd: python -m eval.sweep --config configs/sweeps/airsim_headroom.yaml
+wrote scene_cap_400.jsonc and robot_cap_400.jsonc (400x225)
+wrote scene_cap_1280.jsonc and robot_cap_1280.jsonc (1280x720)
+wrote scene_cap_400n.jsonc and robot_cap_400n.jsonc (400x225, depth noise on)
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/scratch/dns5508/PixelPerfect/eval/sweep.py", line 162, in <module>
+    main()
+  File "/scratch/dns5508/PixelPerfect/eval/sweep.py", line 145, in main
+    cfg = apply_overrides(yaml.safe_load(Path(a.config).read_text()), a.overrides)
+                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/dns5508/envs/pa/lib/python3.11/pathlib.py", line 1058, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/dns5508/envs/pa/lib/python3.11/pathlib.py", line 1044, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'configs/sweeps/airsim_headroom.yaml'
+[2026-11-20T22:45:52+00:00] exit code: 0

@@ -1,0 +1,106 @@
+[2026-11-25T22:28:25+00:00] job=43465 ENV=CityEnviron commit=78e7629 cmd: python -m eval.world_check --config configs/sweeps/airsim_world_check_city.yaml --out results/world_check_city --parts region ground --stack da2
+wrote scene_cap_400.jsonc and robot_cap_400.jsonc (400x225)
+wrote scene_cap_1280.jsonc and robot_cap_1280.jsonc (1280x720)
+wrote scene_cap_400n.jsonc and robot_cap_400n.jsonc (400x225, depth noise on)
+22:29:27:640 [INFO] Connecting to simulation server at 127.0.0.1
+22:29:27:651 [INFO] Connection opened.
+22:29:27:651 [INFO] Loading scene config: scene_cap_400.jsonc
+22:29:28:428 [INFO] Getting the list of available topic info from the sim server...
+22:29:28:439 [INFO] Successfully received topic info list.
+22:29:30:439 [INFO] World object updated for the loaded scene '/Sim/SceneManualStepDrone'. Note: Any previous Drone object instances may no longer be valid.
+22:29:30:440 [INFO] Trajectory 'null_trajectory' imported successfully.
+22:29:30:440 [INFO] Initalizing Drone 'Drone1'...
+22:29:30:440 [INFO] -------------------------------------------------
+22:29:30:440 [INFO] The following topics can be subscribed to for robot 'Drone1':
+22:29:30:440 [INFO]     sensors["Chase"]["scene_camera"]
+22:29:30:440 [INFO]     sensors["Chase"]["scene_camera_info"]
+22:29:30:440 [INFO]     sensors["DownCamera"]["scene_camera"]
+22:29:30:440 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+22:29:30:440 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+22:29:30:440 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+22:29:30:440 [INFO]     sensors["GPS"]["gps"]
+22:29:30:440 [INFO]     sensors["FrontCam"]["scene_camera"]
+22:29:30:440 [INFO]     sensors["FrontCam"]["scene_camera_info"]
+22:29:30:440 [INFO]     sensors["FrontCam"]["depth_camera"]
+22:29:30:440 [INFO]     sensors["FrontCam"]["depth_camera_info"]
+22:29:30:440 [INFO]     sensors["FrontCam"]["segmentation_camera"]
+22:29:30:440 [INFO]     sensors["FrontCam"]["segmentation_camera_info"]
+22:29:30:440 [INFO]     robot_info["actual_pose"]
+22:29:30:440 [INFO]     robot_info["collision_info"]
+22:29:30:440 [INFO]     robot_info["rotor_info"]
+22:29:30:440 [INFO] -------------------------------------------------
+22:29:30:440 [INFO] Drone 'Drone1' initialized for World scene '/Sim/SceneManualStepDrone'
+region: pass 0 pose 0 done
+region: pass 0 pose 1 done
+region: pass 0 pose 2 done
+region: pass 0 pose 3 done
+region: pass 0 pose 4 done
+region: pass 0 pose 5 done
+region: pass 1 pose 0 done
+region: pass 1 pose 1 done
+region: pass 1 pose 2 done
+region: pass 1 pose 3 done
+region: pass 1 pose 4 done
+region: pass 1 pose 5 done
+Loading weights:   0%|          | 0/287 [00:00<?, ?it/s]Loading weights:  24%|██▍       | 69/287 [00:00<00:00, 670.14it/s]Loading weights:  48%|████▊     | 137/287 [00:00<00:00, 673.86it/s]Loading weights:  71%|███████▏  | 205/287 [00:00<00:00, 664.75it/s]Loading weights: 100%|██████████| 287/287 [00:00<00:00, 720.72it/s]
+ground done
+23:16:27:036 [INFO] Disconnecting from simulation server...
+23:16:27:065 [INFO] Disconnected.
+# World checks before the scenario freeze
+
+Poses (index: x, y, yaw_deg, clear_m):
+- 0: [50.0, -150.0, 90.0, 120.0]
+- 1: [50.0, -50.0, 270.0, 94.0]
+- 2: [50.0, -50.0, 180.0, 74.0]
+- 3: [50.0, -50.0, 90.0, 81.0]
+- 4: [-50.0, -150.0, 270.0, 120.0]
+- 5: [-50.0, -50.0, 90.0, 80.0]
+
+## Region scan (bare map, no obstacles spawned)
+
+Corridor-window depth below 0.3 m in every pass = map object; in some passes only = bad capture. Reject a pose only for map objects at the start (x 0 to 4, |y| <= 2.5) or at the landing area (x 48 to 62, |y| <= 12, heights (1.0, 2.0)). Other map objects are part of the world (crashes into them are logged as scenery).
+
+| pose | points | map objects | share | under 2 m (all passes) | bad captures | start | landing area | verdict |
+|---|---|---|---|---|---|---|---|---|
+| 0 | 1474 | 13 | 0.009 | 93 | 54 | 0 | 0 | keep |
+| 1 | 1602 | 27 | 0.017 | 105 | 106 | 0 | 0 | keep |
+| 2 | 1440 | 12 | 0.008 | 87 | 72 | 0 | 0 | keep |
+| 3 | 1237 | 11 | 0.009 | 62 | 59 | 0 | 0 | keep |
+| 4 | 1214 | 18 | 0.015 | 124 | 17 | 0 | 0 | keep |
+| 5 | 909 | 6 | 0.007 | 37 | 9 | 1 | 0 | REJECT |
+
+Map objects by height (pose: height -> count; x and y of the first five):
+- pose 0: 1 m: 5 [(62.7, -17.5), (62.93, -20.0), (63.38, -10.0), (63.4, -2.5), (63.49, 0.0)]; 4 m: 3 [(0.0, 5.0), (10.0, 5.0), (18.0, 7.5)]; 6 m: 4 [(2.0, 5.0), (8.0, 5.0), (20.0, 7.5), (36.0, 7.5)]; 10 m: 1 [(8.0, 7.5)]
+- pose 1: 1 m: 8 [(4.0, 25.0), (17.45, 22.5), (19.45, 22.5), (26.24, 5.0), (28.07, 2.5)]; 2 m: 1 [(26.59, 10.0)]; 4 m: 5 [(15.77, 17.5), (19.77, 17.5), (19.83, 20.0), (21.83, 20.0), (33.23, -2.5)]; 6 m: 8 [(15.92, 20.0), (17.92, 20.0), (18.31, 22.5), (19.92, 20.0), (21.92, 20.0)]; 10 m: 5 [(12.64, 22.5), (14.47, 20.0), (14.64, 22.5), (20.47, 20.0), (28.98, 2.5)]
+- pose 2: 1 m: 4 [(4.0, -20.0), (4.0, -17.5), (6.0, -12.5), (50.37, -25.0)]; 4 m: 3 [(8.0, -25.0), (8.0, -22.5), (10.0, -20.0)]; 6 m: 3 [(10.0, -22.5), (12.0, -25.0), (12.0, -22.5)]; 10 m: 2 [(6.0, -22.5), (8.0, -22.5)]
+- pose 3: 1 m: 4 [(0.0, 25.0), (6.0, 12.5), (16.61, 5.0), (18.61, 5.0)]; 4 m: 1 [(4.0, 22.5)]; 6 m: 2 [(8.0, 22.5), (8.0, 25.0)]; 10 m: 4 [(0.0, 25.0), (4.0, 25.0), (22.09, 7.5), (24.39, 5.0)]
+- pose 4: 1 m: 1 [(6.0, 10.0)]; 2 m: 7 [(4.0, 10.0), (6.0, 10.0), (8.0, 10.0), (10.0, 10.0), (12.0, 10.0)]; 4 m: 5 [(14.12, -2.5), (56.91, 17.5), (56.98, 5.0), (56.98, 12.5), (56.98, 15.0)]; 6 m: 1 [(56.62, 20.0)]; 10 m: 1 [(62.0, 0.0)]; 15 m: 3 [(56.58, 17.5), (56.58, 20.0), (56.59, 10.0)]
+- pose 5: 1 m: 1 [(0.0, -2.5)]; 2 m: 1 [(39.44, -20.0)]; 10 m: 1 [(2.0, 5.0)]; 15 m: 3 [(0.0, -17.5), (6.0, -17.5), (6.0, -15.0)]
+
+## Ground check (hovering at the start, bare map)
+
+Landing is safe to count only if the guard does not fire (true depth min >= 0.3 m) and the fast stack does not read the ground as blocked (est >= 8 m) at 1 m.
+
+| pose | height | true min | below radius | guard fires | est |
+|---|---|---|---|---|---|
+| 0 | 1 | 16.64 | 0.000 | False | 32.98 |
+| 0 | 1.5 | 18.20 | 0.000 | False | 35.03 |
+| 0 | 2 | 17.50 | 0.000 | False | 32.29 |
+| 1 | 1 | 16.62 | 0.000 | False | 29.54 |
+| 1 | 1.5 | 21.47 | 0.000 | False | 32.23 |
+| 1 | 2 | 24.22 | 0.000 | False | 31.67 |
+| 2 | 1 | 14.40 | 0.000 | False | 25.72 |
+| 2 | 1.5 | 14.44 | 0.000 | False | 22.37 |
+| 2 | 2 | 14.48 | 0.000 | False | 19.31 |
+| 3 | 1 | 16.67 | 0.000 | False | 26.63 |
+| 3 | 1.5 | 16.69 | 0.000 | False | 23.61 |
+| 3 | 2 | 16.72 | 0.000 | False | 22.39 |
+| 4 | 1 | 13.30 | 0.000 | False | 25.78 |
+| 4 | 1.5 | 13.35 | 0.000 | False | 22.86 |
+| 4 | 2 | 15.74 | 0.000 | False | 23.97 |
+| 5 | 1 | 19.36 | 0.000 | False | 28.13 |
+| 5 | 1.5 | 23.94 | 0.000 | False | 27.30 |
+| 5 | 2 | 28.52 | 0.000 | False | 29.02 |
+
+
+[2026-11-25T23:16:32+00:00] exit code: 0

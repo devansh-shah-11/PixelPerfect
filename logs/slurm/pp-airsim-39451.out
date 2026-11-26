@@ -1,0 +1,52 @@
+[2026-11-22T20:58:11+00:00] job=39451 ENV=CityEnviron commit=e029a70 cmd: python -m eval.sweep --config configs/sweeps/airsim_headroom.yaml
+wrote scene_cap_400.jsonc and robot_cap_400.jsonc (400x225)
+wrote scene_cap_1280.jsonc and robot_cap_1280.jsonc (1280x720)
+wrote scene_cap_400n.jsonc and robot_cap_400n.jsonc (400x225, depth noise on)
+[20:59:13] never: 5 flights to fly, 95 done
+20:59:13:894 [INFO] Connecting to simulation server at 127.0.0.1
+20:59:13:908 [INFO] Connection opened.
+20:59:13:908 [INFO] Loading scene config: scene_cap_400.jsonc
+20:59:14:950 [INFO] Getting the list of available topic info from the sim server...
+20:59:14:961 [INFO] Successfully received topic info list.
+20:59:16:961 [INFO] World object updated for the loaded scene '/Sim/SceneManualStepDrone'. Note: Any previous Drone object instances may no longer be valid.
+20:59:16:962 [INFO] Trajectory 'null_trajectory' imported successfully.
+20:59:16:962 [INFO] Initalizing Drone 'Drone1'...
+20:59:16:962 [INFO] -------------------------------------------------
+20:59:16:963 [INFO] The following topics can be subscribed to for robot 'Drone1':
+20:59:16:963 [INFO]     sensors["Chase"]["scene_camera"]
+20:59:16:963 [INFO]     sensors["Chase"]["scene_camera_info"]
+20:59:16:963 [INFO]     sensors["DownCamera"]["scene_camera"]
+20:59:16:963 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+20:59:16:963 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+20:59:16:963 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+20:59:16:963 [INFO]     sensors["GPS"]["gps"]
+20:59:16:963 [INFO]     sensors["FrontCam"]["scene_camera"]
+20:59:16:963 [INFO]     sensors["FrontCam"]["scene_camera_info"]
+20:59:16:963 [INFO]     sensors["FrontCam"]["depth_camera"]
+20:59:16:963 [INFO]     sensors["FrontCam"]["depth_camera_info"]
+20:59:16:963 [INFO]     sensors["FrontCam"]["segmentation_camera"]
+20:59:16:963 [INFO]     sensors["FrontCam"]["segmentation_camera_info"]
+20:59:16:963 [INFO]     robot_info["actual_pose"]
+20:59:16:963 [INFO]     robot_info["collision_info"]
+20:59:16:963 [INFO]     robot_info["rotor_info"]
+20:59:16:963 [INFO] -------------------------------------------------
+20:59:16:963 [INFO] Drone 'Drone1' initialized for World scene '/Sim/SceneManualStepDrone'
+Loading weights:   0%|          | 0/287 [00:00<?, ?it/s]Loading weights:  24%|██▍       | 70/287 [00:00<00:00, 688.42it/s]Loading weights:  48%|████▊     | 139/287 [00:00<00:00, 676.70it/s]Loading weights:  74%|███████▍  | 212/287 [00:00<00:00, 694.75it/s]Loading weights: 100%|██████████| 287/287 [00:00<00:00, 727.02it/s]
+[2026-11-22T21:26:50.343] error: If munged is up, restart with --num-threads=10
+[2026-11-22T21:26:50.343] error: Munge encode failed: Failed to access "/var/run/munge/munge.socket.2": No such file or directory
+[2026-11-22T21:26:50.343] error: slurm_buffers_pack_msg: auth_g_create: REQUEST_COMPLETE_BATCH_SCRIPT has authentication error
+[2026-11-22T21:27:07.348] error: If munged is up, restart with --num-threads=10
+[2026-11-22T21:27:07.348] error: Munge encode failed: Failed to access "/var/run/munge/munge.socket.2": No such file or directory
+[2026-11-22T21:27:07.348] error: slurm_buffers_pack_msg: auth_g_create: REQUEST_COMPLETE_BATCH_SCRIPT has authentication error
+[2026-11-22T21:27:24.352] error: If munged is up, restart with --num-threads=10
+[2026-11-22T21:27:24.352] error: Munge encode failed: Failed to access "/var/run/munge/munge.socket.2": No such file or directory
+[2026-11-22T21:27:24.352] error: slurm_buffers_pack_msg: auth_g_create: REQUEST_COMPLETE_BATCH_SCRIPT has authentication error
+[2026-11-22T21:27:41.356] error: If munged is up, restart with --num-threads=10
+[2026-11-22T21:27:41.356] error: Munge encode failed: Failed to access "/var/run/munge/munge.socket.2": No such file or directory
+[2026-11-22T21:27:41.356] error: slurm_buffers_pack_msg: auth_g_create: REQUEST_COMPLETE_BATCH_SCRIPT has authentication error
+[2026-11-22T21:27:58.361] error: If munged is up, restart with --num-threads=10
+[2026-11-22T21:27:58.361] error: Munge encode failed: Failed to access "/var/run/munge/munge.socket.2": No such file or directory
+[2026-11-22T21:27:58.361] error: slurm_buffers_pack_msg: auth_g_create: REQUEST_COMPLETE_BATCH_SCRIPT has authentication error
+[2026-11-22T21:28:15.364] error: If munged is up, restart with --num-threads=10
+[2026-11-22T21:28:15.364] error: Munge encode failed: Failed to access "/var/run/munge/munge.socket.2": No such file or directory
+[2026-11-22T21:28:15.364] error: slurm_buffers_pack_msg: auth_g_create: REQUEST_COMPLETE_BATCH_SCRIPT has authentication error

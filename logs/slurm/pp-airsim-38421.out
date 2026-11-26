@@ -1,0 +1,36 @@
+[2026-11-21T02:04:50+00:00] job=38421 ENV=CityEnviron commit=e029a70 cmd: python -m eval.sweep --config configs/sweeps/airsim_headroom.yaml
+wrote scene_cap_400.jsonc and robot_cap_400.jsonc (400x225)
+wrote scene_cap_1280.jsonc and robot_cap_1280.jsonc (1280x720)
+wrote scene_cap_400n.jsonc and robot_cap_400n.jsonc (400x225, depth noise on)
+[02:05:51] never: 100 flights to fly, 0 done
+02:05:52:295 [INFO] Connecting to simulation server at 127.0.0.1
+02:05:52:308 [INFO] Connection opened.
+02:05:52:308 [INFO] Loading scene config: scene_cap_400.jsonc
+02:05:53:040 [INFO] Getting the list of available topic info from the sim server...
+02:05:53:051 [INFO] Successfully received topic info list.
+02:05:55:051 [INFO] World object updated for the loaded scene '/Sim/SceneManualStepDrone'. Note: Any previous Drone object instances may no longer be valid.
+02:05:55:052 [INFO] Trajectory 'null_trajectory' imported successfully.
+02:05:55:052 [INFO] Initalizing Drone 'Drone1'...
+02:05:55:052 [INFO] -------------------------------------------------
+02:05:55:052 [INFO] The following topics can be subscribed to for robot 'Drone1':
+02:05:55:052 [INFO]     sensors["Chase"]["scene_camera"]
+02:05:55:052 [INFO]     sensors["Chase"]["scene_camera_info"]
+02:05:55:052 [INFO]     sensors["DownCamera"]["scene_camera"]
+02:05:55:052 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+02:05:55:052 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+02:05:55:052 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+02:05:55:052 [INFO]     sensors["GPS"]["gps"]
+02:05:55:052 [INFO]     sensors["FrontCam"]["scene_camera"]
+02:05:55:052 [INFO]     sensors["FrontCam"]["scene_camera_info"]
+02:05:55:052 [INFO]     sensors["FrontCam"]["depth_camera"]
+02:05:55:052 [INFO]     sensors["FrontCam"]["depth_camera_info"]
+02:05:55:052 [INFO]     sensors["FrontCam"]["segmentation_camera"]
+02:05:55:052 [INFO]     sensors["FrontCam"]["segmentation_camera_info"]
+02:05:55:052 [INFO]     robot_info["actual_pose"]
+02:05:55:052 [INFO]     robot_info["collision_info"]
+02:05:55:052 [INFO]     robot_info["rotor_info"]
+02:05:55:052 [INFO] -------------------------------------------------
+02:05:55:052 [INFO] Drone 'Drone1' initialized for World scene '/Sim/SceneManualStepDrone'
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/287 [00:00<?, ?it/s]Loading weights:  23%|██▎       | 66/287 [00:00<00:00, 610.59it/s]Loading weights:  45%|████▍     | 128/287 [00:00<00:00, 454.56it/s]Loading weights:  61%|██████▏   | 176/287 [00:00<00:00, 455.22it/s]Loading weights:  78%|███████▊  | 223/287 [00:00<00:00, 429.55it/s]Loading weights: 100%|██████████| 287/287 [00:00<00:00, 502.39it/s]
+[2026-11-21T02:31:02.519] error: *** JOB 38421 ON b-20-3 CANCELLED AT 2026-11-21T02:31:02 DUE to SIGNAL Terminated ***

@@ -1,0 +1,40 @@
+[2026-11-26T23:45:29+00:00] job=44259 partition=c12m85-a100-1 host=b-19-105 commit=e351289
+name, memory.total [MiB]
+NVIDIA A100-SXM4-40GB, 40960 MiB
+env ok 2.15.0+cu132 5.23.0
+[23:46:01] 468 frames, 468 with work left; conditions ['json_raw', 'grid_raw', 'yesno_both']
+Loading weights:   0%|          | 0/287 [00:00<?, ?it/s]Loading weights:  25%|██▍       | 71/287 [00:00<00:00, 521.38it/s]Loading weights:  49%|████▉     | 142/287 [00:00<00:00, 617.91it/s]Loading weights:  72%|███████▏  | 206/287 [00:00<00:00, 598.80it/s]Loading weights: 100%|██████████| 287/287 [00:00<00:00, 658.77it/s]
+/scratch/dns5508/envs/pa/lib/python3.11/site-packages/transformers/image_processing_backends.py:135: UserWarning: The given NumPy array is not writable, and PyTorch does not support non-writable tensors. This means writing to this tensor will result in undefined behavior. You may want to copy the array to protect its data or make it writable before converting it to a tensor. This type of warning will be suppressed for the rest of this program. (Triggered internally at /__w/pytorch/pytorch/torch/csrc/utils/tensor_numpy.cpp:208.)
+  image = torch.from_numpy(image)
+Loading weights:   0%|          | 0/750 [00:00<?, ?it/s]Loading weights:  13%|█▎        | 97/750 [00:00<00:00, 860.34it/s]Loading weights:  25%|██▍       | 184/750 [00:00<00:00, 733.02it/s]Loading weights:  36%|███▌      | 268/750 [00:00<00:00, 773.96it/s]Loading weights:  46%|████▋     | 347/750 [00:00<00:00, 777.80it/s]Loading weights:  57%|█████▋    | 426/750 [00:00<00:00, 775.61it/s]Loading weights:  68%|██████▊   | 507/750 [00:00<00:00, 782.78it/s]Loading weights: 100%|██████████| 750/750 [00:00<00:00, 1050.46it/s]
+  50/468 frames
+  100/468 frames
+  150/468 frames
+  200/468 frames
+  250/468 frames
+  300/468 frames
+  350/468 frames
+  400/468 frames
+  450/468 frames
+Scene read: frame and object level (truth = true depth of every surface, placed or scenery)
+
+| condition | pos n | neg n | recall | false alarm | all ones | parse fail | thin found | big found | scenery found | depth-missed found | box precision | IoU | range within 1 | latency s |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Qwen/Qwen3-VL-8B-Instruct|json_raw | 259 | 209 | 0.05 | 0.01 | 0.00 | 0.00 | 0.00 | 0.07 | 0.00 | 0.02 | 0.80 | 0.86 | 1.00 | 0.14 |
+| Qwen/Qwen3-VL-8B-Instruct|grid_raw | 259 | 209 | 0.96 | 1.00 | 0.83 | 0.00 | 1.00 | 0.92 | 0.93 | 0.99 | 0.28 | 0.01 | 1.00 | 0.52 |
+| Qwen/Qwen3-VL-8B-Instruct|yesno_both | 259 | 209 | 0.51 | 0.29 | 0.00 | 0.00 | 0.25 | 0.12 | 0.04 | 0.18 | 0.56 | 0.02 | 1.00 | 0.09 |
+| oracle|- | 259 | 209 | 1.00 | 0.00 | 0.03 | 0.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | n/a |
+| all_near|- | 259 | 209 | 1.00 | 1.00 | 1.00 | 0.00 | 1.00 | 1.00 | 1.00 | 1.00 | 0.55 | 0.00 | 1.00 | n/a |
+
+Steering arm (boxes turned into a move; same answer key as the direction pilot)
+
+| model | condition | avoid n | safe [95% CI] | exact | regret m | straight n | false steer |
+|---|---|---:|---|---:|---:|---:|---:|
+| depth_gt_choose | - | 129 | 0.50 [0.36, 0.61] | 0.18 | 1.22 | 170 | 0.07 |
+| goal_side | - | 129 | 0.87 [0.67, 1.00] | 0.66 | 1.37 | 170 | 0.00 |
+| oracle | - | 129 | 1.00 [1.00, 1.00] | 1.00 | 0.00 | 170 | 0.00 |
+| random | - | 129 | 0.66 [0.55, 0.75] | 0.22 | 1.29 | 170 | 0.80 |
+| scene_grid_raw | boxes | 129 | 0.81 [0.61, 1.00] | 0.35 | 2.52 | 170 | 1.00 |
+| scene_json_raw | boxes | 129 | 0.01 [0.00, 0.02] | 0.00 | -0.60 | 170 | 0.08 |
+
+[2026-11-26T23:55:20+00:00] done

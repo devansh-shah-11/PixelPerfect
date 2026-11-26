@@ -1,0 +1,48 @@
+[2026-11-26T22:38:59+00:00] job=44207 partition=c12m85-a100-1 host=b-19-103 commit=45b25ae
+name, memory.total [MiB]
+NVIDIA A100-SXM4-40GB, 40960 MiB
+env ok 2.15.0+cu132 5.23.0
+Loading weights:   0%|          | 0/750 [00:00<?, ?it/s]Loading weights:   4%|▍         | 29/750 [00:00<00:02, 276.64it/s]Loading weights:  10%|█         | 77/750 [00:00<00:01, 349.58it/s]Loading weights:  15%|█▍        | 112/750 [00:00<00:01, 322.90it/s]Loading weights:  20%|██        | 150/750 [00:00<00:01, 340.78it/s]Loading weights:  25%|██▍       | 185/750 [00:00<00:01, 288.80it/s]Loading weights:  29%|██▊       | 215/750 [00:00<00:02, 247.20it/s]Loading weights:  32%|███▏      | 241/750 [00:00<00:02, 238.62it/s]Loading weights:  35%|███▌      | 266/750 [00:01<00:02, 217.58it/s]Loading weights:  39%|███▊      | 290/750 [00:01<00:02, 220.40it/s]Loading weights:  45%|████▍     | 335/750 [00:01<00:01, 256.87it/s]Loading weights:  50%|█████     | 377/750 [00:01<00:01, 297.83it/s]Loading weights:  58%|█████▊    | 437/750 [00:01<00:00, 377.99it/s]Loading weights:  67%|██████▋   | 500/750 [00:01<00:00, 447.14it/s]Loading weights:  75%|███████▌  | 565/750 [00:01<00:00, 504.37it/s]Loading weights:  86%|████████▌ | 642/750 [00:01<00:00, 574.46it/s]Loading weights:  96%|█████████▌| 719/750 [00:01<00:00, 618.84it/s]Loading weights: 100%|██████████| 750/750 [00:01<00:00, 392.68it/s]
+  100 frames
+  200 frames
+[22:44:04] done in 256 s
+Yes-rate per cut (clear = false alarms, placed = recall, scenery = map objects nearer than the bank positive).
+
+n: placed 7, scenery 188, clear 48
+score quartiles (25/50/75): placed [3.59, 3.95, 4.35], scenery [-4.25, -3.24, -1.95], clear [-2.07, -0.54, 0.48]
+AUROC vs clear: placed 0.938, scenery 0.199
+
+| cut | placed | scenery | clear |
+|---|---|---|---|
+| -6 | 1.0 | 0.926 | 0.979 |
+| -5 | 1.0 | 0.835 | 0.979 |
+| -4 | 1.0 | 0.67 | 0.917 |
+| -3 | 1.0 | 0.452 | 0.875 |
+| -2 | 1.0 | 0.255 | 0.688 |
+| -1 | 1.0 | 0.128 | 0.542 |
+| 0 | 0.857 | 0.059 | 0.292 |
+| 1 | 0.857 | 0.016 | 0.188 |
+| 2 | 0.857 | 0.016 | 0.125 |
+| 3 | 0.857 | 0.005 | 0.021 |
+| 4 | 0.286 | 0.0 | 0.0 |
+
+[22:44:07] 468 frames, 468 with work left; models ['Qwen/Qwen3-VL-8B-Instruct']; conditions ['none_both', 'arrow_both', 'text_both']
+Loading weights:   0%|          | 0/750 [00:00<?, ?it/s]Loading weights:  79%|███████▉  | 596/750 [00:00<00:00, 5956.47it/s]Loading weights: 100%|██████████| 750/750 [00:00<00:00, 6017.46it/s]
+  100/468 frames
+  200/468 frames
+  400/468 frames
+| model | condition | avoid n | safe [95% CI] | exact | regret m | straight n | false steer |
+|---|---|---:|---|---:|---:|---:|---:|
+| Qwen/Qwen3-VL-8B-Instruct+veto_depth_gt | arrow_both | 129 | 0.88 [0.73, 1.00] | 0.30 | 1.06 | 170 | 0.92 |
+| Qwen/Qwen3-VL-8B-Instruct+veto_depth_gt | none_both | 129 | 0.74 [0.56, 0.90] | 0.26 | 1.35 | 170 | 0.92 |
+| Qwen/Qwen3-VL-8B-Instruct+veto_depth_gt | text_both | 129 | 0.84 [0.67, 1.00] | 0.18 | 2.36 | 170 | 0.97 |
+| Qwen/Qwen3-VL-8B-Instruct | arrow_both | 129 | 0.84 [0.65, 1.00] | 0.27 | 1.22 | 170 | 0.96 |
+| Qwen/Qwen3-VL-8B-Instruct | none_both | 129 | 0.74 [0.56, 0.90] | 0.26 | 1.35 | 170 | 0.96 |
+| Qwen/Qwen3-VL-8B-Instruct | text_both | 129 | 0.84 [0.67, 1.00] | 0.18 | 2.42 | 170 | 1.00 |
+| depth_gt_choose | - | 129 | 0.50 [0.36, 0.61] | 0.18 | 1.22 | 170 | 0.07 |
+| depth_gt_climb_first | - | 129 | 0.50 [0.36, 0.61] | 0.33 | -0.12 | 170 | 0.07 |
+| goal_side | - | 129 | 0.87 [0.67, 1.00] | 0.66 | 1.37 | 170 | 0.00 |
+| oracle | - | 129 | 1.00 [1.00, 1.00] | 1.00 | 0.00 | 170 | 0.00 |
+| random | - | 129 | 0.70 [0.58, 0.80] | 0.28 | 1.17 | 170 | 0.78 |
+
+[2026-11-26T22:46:11+00:00] done

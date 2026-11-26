@@ -1,0 +1,43 @@
+[2026-11-25T22:27:58+00:00] job=43467 ENV=CityEnviron commit=78e7629 cmd: python -m eval.sweep --config configs/sweeps/airsim_cone_headroom.yaml --set out=results/sweeps/cone_headroom_rep
+wrote scene_cap_400.jsonc and robot_cap_400.jsonc (400x225)
+wrote scene_cap_1280.jsonc and robot_cap_1280.jsonc (1280x720)
+wrote scene_cap_400n.jsonc and robot_cap_400n.jsonc (400x225, depth noise on)
+[22:28:59] never: 100 flights to fly, 0 done
+22:29:00:213 [INFO] Connecting to simulation server at 127.0.0.1
+22:29:00:226 [INFO] Connection opened.
+22:29:00:226 [INFO] Loading scene config: scene_cap_400.jsonc
+22:29:01:111 [INFO] Getting the list of available topic info from the sim server...
+22:29:01:122 [INFO] Successfully received topic info list.
+22:29:03:123 [INFO] World object updated for the loaded scene '/Sim/SceneManualStepDrone'. Note: Any previous Drone object instances may no longer be valid.
+22:29:03:124 [INFO] Trajectory 'null_trajectory' imported successfully.
+22:29:03:124 [INFO] Initalizing Drone 'Drone1'...
+22:29:03:124 [INFO] -------------------------------------------------
+22:29:03:124 [INFO] The following topics can be subscribed to for robot 'Drone1':
+22:29:03:124 [INFO]     sensors["Chase"]["scene_camera"]
+22:29:03:124 [INFO]     sensors["Chase"]["scene_camera_info"]
+22:29:03:124 [INFO]     sensors["DownCamera"]["scene_camera"]
+22:29:03:124 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+22:29:03:124 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+22:29:03:124 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+22:29:03:124 [INFO]     sensors["GPS"]["gps"]
+22:29:03:124 [INFO]     sensors["FrontCam"]["scene_camera"]
+22:29:03:124 [INFO]     sensors["FrontCam"]["scene_camera_info"]
+22:29:03:124 [INFO]     sensors["FrontCam"]["depth_camera"]
+22:29:03:124 [INFO]     sensors["FrontCam"]["depth_camera_info"]
+22:29:03:124 [INFO]     sensors["FrontCam"]["segmentation_camera"]
+22:29:03:124 [INFO]     sensors["FrontCam"]["segmentation_camera_info"]
+22:29:03:124 [INFO]     robot_info["actual_pose"]
+22:29:03:125 [INFO]     robot_info["collision_info"]
+22:29:03:125 [INFO]     robot_info["rotor_info"]
+22:29:03:125 [INFO] -------------------------------------------------
+22:29:03:125 [INFO] Drone 'Drone1' initialized for World scene '/Sim/SceneManualStepDrone'
+Loading weights:   0%|          | 0/287 [00:00<?, ?it/s]Loading weights:  27%|██▋       | 77/287 [00:00<00:00, 731.32it/s]Loading weights:  53%|█████▎    | 151/287 [00:00<00:00, 663.83it/s]Loading weights:  81%|████████  | 233/287 [00:00<00:00, 684.98it/s]Loading weights: 100%|██████████| 287/287 [00:00<00:00, 724.07it/s]
+23:01:20:719 [INFO] Disconnecting from simulation server...
+23:01:20:741 [INFO] Disconnected.
+
+backend airsim, fast stack da2, delay 1.0 s, split val
+
+| Policy | flights | crash rate [95% CI] | crashes/km | success | calls/flight | query rate | mission time (s) | safety retained, reference = 1 [95% CI] |
+|---|---|---|---|---|---|---|---|---|
+| never | 100 | 0.63 [0.53 to 0.72] | 18.00 | 0.37 | 0.0 | 0.000 | 7.5 | n/a |
+[2026-11-25T23:01:25+00:00] exit code: 0

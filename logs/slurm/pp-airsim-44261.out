@@ -1,0 +1,38 @@
+[2026-11-26T23:46:06+00:00] job=44261 ENV=CityEnviron commit=e351289 cmd: python -m eval.flight_video --config configs/sweeps/airsim_city_vlm_videos.yaml --seed 101071 --policy never --set controller.alt_max=50 --set loop.lost_s=60 --set loop.t_max=150 --out results/videos/city_101071_never_alt50
+wrote scene_cap_400.jsonc and robot_cap_400.jsonc (400x225)
+wrote scene_cap_1280.jsonc and robot_cap_1280.jsonc (1280x720)
+wrote scene_cap_400n.jsonc and robot_cap_400n.jsonc (400x225, depth noise on)
+23:47:08:445 [INFO] Connecting to simulation server at 127.0.0.1
+23:47:08:458 [INFO] Connection opened.
+23:47:08:459 [INFO] Loading scene config: scene_cap_400.jsonc
+23:47:09:262 [INFO] Getting the list of available topic info from the sim server...
+23:47:09:273 [INFO] Successfully received topic info list.
+23:47:11:274 [INFO] World object updated for the loaded scene '/Sim/SceneManualStepDrone'. Note: Any previous Drone object instances may no longer be valid.
+23:47:11:275 [INFO] Trajectory 'null_trajectory' imported successfully.
+23:47:11:275 [INFO] Initalizing Drone 'Drone1'...
+23:47:11:275 [INFO] -------------------------------------------------
+23:47:11:275 [INFO] The following topics can be subscribed to for robot 'Drone1':
+23:47:11:275 [INFO]     sensors["Chase"]["scene_camera"]
+23:47:11:275 [INFO]     sensors["Chase"]["scene_camera_info"]
+23:47:11:275 [INFO]     sensors["DownCamera"]["scene_camera"]
+23:47:11:275 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+23:47:11:275 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+23:47:11:275 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+23:47:11:275 [INFO]     sensors["GPS"]["gps"]
+23:47:11:275 [INFO]     sensors["FrontCam"]["scene_camera"]
+23:47:11:275 [INFO]     sensors["FrontCam"]["scene_camera_info"]
+23:47:11:275 [INFO]     sensors["FrontCam"]["depth_camera"]
+23:47:11:275 [INFO]     sensors["FrontCam"]["depth_camera_info"]
+23:47:11:275 [INFO]     sensors["FrontCam"]["segmentation_camera"]
+23:47:11:275 [INFO]     sensors["FrontCam"]["segmentation_camera_info"]
+23:47:11:275 [INFO]     robot_info["actual_pose"]
+23:47:11:275 [INFO]     robot_info["collision_info"]
+23:47:11:275 [INFO]     robot_info["rotor_info"]
+23:47:11:275 [INFO] -------------------------------------------------
+23:47:11:275 [INFO] Drone 'Drone1' initialized for World scene '/Sim/SceneManualStepDrone'
+Loading weights:   0%|          | 0/287 [00:00<?, ?it/s]Loading weights:  33%|███▎      | 95/287 [00:00<00:00, 901.64it/s]Loading weights:  65%|██████▍   | 186/287 [00:00<00:00, 831.98it/s]Loading weights:  94%|█████████▍| 270/287 [00:00<00:00, 767.10it/s]Loading weights: 100%|██████████| 287/287 [00:00<00:00, 825.72it/s]
+23:48:23:645 [INFO] Disconnecting from simulation server...
+23:48:23:649 [INFO] Disconnected.
+{"episode_id": "val-101071-never", "seed": 101071, "split": "val", "policy": "never", "judge": "qwen3-vl-8b", "crashed": true, "reached_goal": false, "distance_m": 40.5, "mission_time_s": 8.3, "n_frames": 83, "n_calls": 0, "delay_charged_s": 0.0, "latencies_s": [], "obstacle_family": "wall_white_featureless,wire_3cm_axis_z,pole_10cm_axis_y,box_1m_black,wire_1cm_axis_z,wire_3cm_axis_z,wire_1cm_axis_z", "crash_cause": null, "extra": {"stack": "depth-anything/Depth-Anything-V2-Metric-Outdoor-Small-hf", "backend": "project-airsim", "delay_s": 1.0, "condition": "dusk", "collision_source": "obstacle", "start_index": 7, "scenery_truth_frames": 61, "guard_hit": {"x": 40.47, "y": 0.78, "alt": 1.86, "yaw": 0.0, "phase": "cruise", "start_index": 7, "seg_rgb": [185, 243, 231], "corridor_gt": 0.46, "family": "wire_3cm_axis_z", "depth_min": 0.164, "depth_median": 0.17, "frac_below_radius": 0.8222, "frac_zero": 0.0, "image_depth_median": 16.64}, "crash": {"kind": "guard_obstacle", "x": 40.47, "y": 0.78, "alt": 1.86, "yaw": 0.0, "t": 8.3, "phase": "cruise", "action": "continue", "start_index": 7, "obstacle": 5, "family": "wire_3cm_axis_z", "obstacle_off_line_m": 0.22}, "outcome": "crashed", "goal_xy": [55.285, -1.866], "goal_dist_m": 15.05, "end_alt_m": 1.86, "n_obstacles": 7, "phases": [[0.0, "cruise"], [4.0, "avoid"], [4.1, "bypass"], [6.1, "cruise"]], "vlm_directions": [], "avoid_bands": [[4.0, 31.4, 39.2, 38.5, "right", "yaw_right"]]}}
+video: results/videos/city_101071_never_alt50/flight.gif
+[2026-11-26T23:48:53+00:00] exit code: 0

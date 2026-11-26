@@ -1,0 +1,38 @@
+[2026-11-26T23:46:05+00:00] job=44260 ENV=CityEnviron commit=e351289 cmd: python -m eval.flight_video --config configs/sweeps/airsim_city_vlm_videos.yaml --seed 101063 --policy never --set controller.alt_max=50 --set loop.lost_s=60 --set loop.t_max=150 --out results/videos/city_101063_never_alt50
+wrote scene_cap_400.jsonc and robot_cap_400.jsonc (400x225)
+wrote scene_cap_1280.jsonc and robot_cap_1280.jsonc (1280x720)
+wrote scene_cap_400n.jsonc and robot_cap_400n.jsonc (400x225, depth noise on)
+23:47:08:311 [INFO] Connecting to simulation server at 127.0.0.1
+23:47:08:327 [INFO] Connection opened.
+23:47:08:327 [INFO] Loading scene config: scene_cap_400.jsonc
+23:47:09:188 [INFO] Getting the list of available topic info from the sim server...
+23:47:09:199 [INFO] Successfully received topic info list.
+23:47:11:200 [INFO] World object updated for the loaded scene '/Sim/SceneManualStepDrone'. Note: Any previous Drone object instances may no longer be valid.
+23:47:11:201 [INFO] Trajectory 'null_trajectory' imported successfully.
+23:47:11:201 [INFO] Initalizing Drone 'Drone1'...
+23:47:11:201 [INFO] -------------------------------------------------
+23:47:11:201 [INFO] The following topics can be subscribed to for robot 'Drone1':
+23:47:11:201 [INFO]     sensors["Chase"]["scene_camera"]
+23:47:11:201 [INFO]     sensors["Chase"]["scene_camera_info"]
+23:47:11:201 [INFO]     sensors["DownCamera"]["scene_camera"]
+23:47:11:201 [INFO]     sensors["DownCamera"]["scene_camera_info"]
+23:47:11:201 [INFO]     sensors["DownCamera"]["segmentation_camera"]
+23:47:11:201 [INFO]     sensors["DownCamera"]["segmentation_camera_info"]
+23:47:11:201 [INFO]     sensors["GPS"]["gps"]
+23:47:11:201 [INFO]     sensors["FrontCam"]["scene_camera"]
+23:47:11:201 [INFO]     sensors["FrontCam"]["scene_camera_info"]
+23:47:11:202 [INFO]     sensors["FrontCam"]["depth_camera"]
+23:47:11:202 [INFO]     sensors["FrontCam"]["depth_camera_info"]
+23:47:11:202 [INFO]     sensors["FrontCam"]["segmentation_camera"]
+23:47:11:202 [INFO]     sensors["FrontCam"]["segmentation_camera_info"]
+23:47:11:202 [INFO]     robot_info["actual_pose"]
+23:47:11:202 [INFO]     robot_info["collision_info"]
+23:47:11:202 [INFO]     robot_info["rotor_info"]
+23:47:11:202 [INFO] -------------------------------------------------
+23:47:11:202 [INFO] Drone 'Drone1' initialized for World scene '/Sim/SceneManualStepDrone'
+Loading weights:   0%|          | 0/287 [00:00<?, ?it/s]Loading weights:  25%|██▌       | 73/287 [00:00<00:00, 706.57it/s]Loading weights:  50%|█████     | 144/287 [00:00<00:00, 650.84it/s]Loading weights:  76%|███████▋  | 219/287 [00:00<00:00, 685.46it/s]Loading weights: 100%|██████████| 287/287 [00:00<00:00, 693.03it/s]
+23:48:33:961 [INFO] Disconnecting from simulation server...
+23:48:34:041 [INFO] Disconnected.
+{"episode_id": "val-101063-never", "seed": 101063, "split": "val", "policy": "never", "judge": "qwen3-vl-8b", "crashed": false, "reached_goal": true, "distance_m": 52.8, "mission_time_s": 11.1, "n_frames": 111, "n_calls": 0, "delay_charged_s": 0.0, "latencies_s": [], "obstacle_family": "ball_20cm_red,wall_white_featureless,box_1m_black,box_1m_black,wire_3cm_axis_z,box_1m_black,wire_3cm_axis_z", "crash_cause": null, "extra": {"stack": "depth-anything/Depth-Anything-V2-Metric-Outdoor-Small-hf", "backend": "project-airsim", "delay_s": 1.0, "condition": "clear", "collision_source": null, "start_index": 7, "scenery_truth_frames": 21, "outcome": "landed", "goal_xy": [53.554, -1.907], "goal_dist_m": 1.81, "end_alt_m": 1.05, "n_obstacles": 7, "phases": [[0.0, "cruise"], [10.7, "landing"]], "vlm_directions": [], "avoid_bands": []}}
+video: results/videos/city_101063_never_alt50/flight.gif
+[2026-11-26T23:49:09+00:00] exit code: 0
