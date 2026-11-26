@@ -230,3 +230,6 @@
 - Advances: M4.7 (scenario freeze). `7e5d3c9`: `extra["avoid_bands"]` (left, right, over, side, action per avoidance step) and `--set` for `eval.flight_video`, for the rerun of B2 true-depth seeds 101150 and 101084 (pose 2, never climbed). `54f8037`: third-person chase view in the flight video (viewer only; dots = surfaces the true depth saw). `0db6232`: `configs/sweeps/airsim_cone_headroom_city.yaml` (B3, 8 poses), not run.
 - Sanity check: 196 passed, 1 skipped (laptop); raycast flight rendered and the third-person tile checked by eye (oracle, seed 101062).
 - Unblocked: the HPC rerun of two seeds with frames. Still blocked: B3 and the freeze, until the pose 2 / true-depth non-landing question is settled. Not pushed.
+## 2026-11-25  |  eval  |  Crash cause "scenery" (62658df)
+- Advances: M4.7 / chunk 4 close-out. `eval/crash_causes.py` files hits on map objects (`collision_source == "scenery"`) under their own cause, ahead of the other rules; test added. Chunk 4 is now complete on the laptop; chunk 5 was already in place (pole family, `HALF_WIDTH_M`, cone sweep configs).
+- Sanity check: 197 passed, 1 skipped (laptop). Not pushed.
