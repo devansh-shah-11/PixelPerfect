@@ -2,6 +2,9 @@
 
 Every crashed flight gets exactly one cause:
 
+0. ``scenery``: the drone hit a map object (a tree, building or wall that is not one of our placed obstacles;
+   ``collision_source == "scenery"``). Reported on its own: neither perception, the gate nor the VLM could have
+   known the course, and it is not counted as a controller or gate failure.
 1. ``controller``: the same seed also crashes with the true-depth reference (never-ask on true depth). The
    perception and the VLM are not the problem; the rule controller or the scenario is.
 2. ``gate_did_not_ask``: no VLM call in the last ``window_s`` simulated seconds before the crash.
@@ -30,7 +33,7 @@ from typing import Sequence
 from eval.metrics import EpisodeResult, read_results
 from interfaces import FrameRecord
 
-CAUSES = ("gate_did_not_ask", "vlm_wrong", "delay", "controller", "unknown")
+CAUSES = ("gate_did_not_ask", "vlm_wrong", "delay", "controller", "scenery", "unknown")
 
 
 def read_flight(path: Path) -> list[FrameRecord]:
@@ -38,8 +41,11 @@ def read_flight(path: Path) -> list[FrameRecord]:
         return [FrameRecord.from_json(line) for line in f if line.strip()]
 
 
-def classify(records: Sequence[FrameRecord] | None, reference_crashed: bool | None, window_s: float = 3.0) -> tuple[str, dict]:
+def classify(records: Sequence[FrameRecord] | None, reference_crashed: bool | None, window_s: float = 3.0,
+             collision_source: str | None = None) -> tuple[str, dict]:
     """(cause, detail) for one crashed flight. ``reference_crashed`` is None when the seed is not in the reference."""
+    if collision_source == "scenery":
+        return "scenery", {"collision_source": "scenery"}
     if reference_crashed:
         return "controller", {"reference_crashed": True}
     if not records:
@@ -69,7 +75,8 @@ def analyse(sweep: Path, reference: dict[tuple[str, int], bool], window_s: float
         if not r.crashed:
             continue
         log = sweep / "flights" / f"{r.episode_id}.jsonl"
-        cause, detail = classify(read_flight(log) if log.exists() else None, reference.get((r.split, r.seed)), window_s)
+        cause, detail = classify(read_flight(log) if log.exists() else None, reference.get((r.split, r.seed)), window_s,
+                                collision_source=r.extra.get("collision_source"))
         rows.append({"episode_id": r.episode_id, "policy": r.policy, "judge": r.judge, "seed": r.seed, "split": r.split,
                      "cause": cause, "obstacle_family": r.obstacle_family,
                      "collision_source": r.extra.get("collision_source"), **detail})

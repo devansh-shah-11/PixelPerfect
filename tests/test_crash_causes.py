@@ -58,3 +58,10 @@ def test_analyse_reads_a_sweep_dir(tmp_path: Path):
     ref_path.write_text(ref.to_json() + "\n")
     rows = analyse(tmp_path, reference_crashes(ref_path))
     assert [(r["seed"], r["cause"]) for r in rows] == [(1, "vlm_wrong"), (3, "controller")]
+
+
+def test_scenery_when_the_drone_hit_a_map_object():
+    # even when true depth also crashes and the flight log is missing: a map object is its own cause
+    assert classify(None, reference_crashed=True, collision_source="scenery")[0] == "scenery"
+    assert classify(flight({8.0: False}), reference_crashed=False, collision_source="scenery")[0] == "scenery"
+    assert classify(flight({}), reference_crashed=False, collision_source="obstacle")[0] == "gate_did_not_ask"
