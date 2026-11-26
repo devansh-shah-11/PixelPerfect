@@ -240,3 +240,10 @@
 - Unblocked: the direction pilot (val, 8B, about 900 passes, needs DS to submit) and four flight videos. Still blocked: any decision on who steers (needs the pilot numbers).
 - Parked: the `score` avoid mode and the loop fixes (`git stash@{0}` on control/score-avoid), A* (DS decision: revisit later).
 - Not pushed. Backup reminder: `configs/` was touched (new sweep config); rsync data/logs to the second location when convenient.
+
+## 2026-11-26  |  vlm, eval  |  four city-pose flights with the 8B, and the flight-frame check (branch vlm/direction-bench)
+- Advances: M4.7 side question "can the VLM steer?" (not a numbered TASKS.md chunk; DS request). Results of the four flights (text only, no videos or frames) and `vlm/eval_flight_frames.py` + `hpc/direction_pilot.sbatch`.
+- Result: all four flights stalled (no crash, no landing). The 8B said "obstacle" on 84% of calls with no placed obstacle in the path; the spin comes from that yes-rate plus the 1.5 s override under `always`. This does not yet say whether the VLM picks good directions.
+- Sanity check: `.venv/bin/python -m pytest -q` on the laptop: 210 passed, 1 skipped. New script not yet run on the HPC; the direction pilot has not run (first command failed, job 44201, no conda env).
+- Unblocked: `sbatch hpc/direction_pilot.sbatch` (flight-frame table, then the pilot). Still blocked: choice of cut and wiring (needs those two tables).
+- Not pushed. Backup reminder: nothing in `configs/` changed.
