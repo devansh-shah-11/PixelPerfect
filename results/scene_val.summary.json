@@ -1,0 +1,374 @@
+{
+ "cuts": {
+  "yesno": -4.02,
+  "grid": 0.0
+ },
+ "scene": {
+  "Qwen/Qwen3-VL-8B-Instruct|json_raw": {
+   "n_frames": 468,
+   "n_pos": 259,
+   "n_neg": 209,
+   "recall": 0.04633204633204633,
+   "false_alarm": 0.014354066985645933,
+   "all_ones": 0.0,
+   "parse_fail": 0.0,
+   "object_recall": 0.04363636363636364,
+   "n_objects": 275,
+   "recall_thin": 0.0,
+   "recall_big": 0.06741573033707865,
+   "recall_placed": 0.04838709677419355,
+   "recall_scenery": 0.0,
+   "recall_depth_missed": 0.020491803278688523,
+   "n_depth_missed": 244,
+   "box_precision": 0.8,
+   "median_iou_found": 0.8581205864455608,
+   "range_exact": 0.8333333333333334,
+   "range_within_one": 1.0,
+   "latency_median_s": 0.13845000000000002
+  },
+  "Qwen/Qwen3-VL-8B-Instruct|grid_raw": {
+   "n_frames": 468,
+   "n_pos": 259,
+   "n_neg": 209,
+   "recall": 0.9575289575289575,
+   "false_alarm": 1.0,
+   "all_ones": 0.8333333333333334,
+   "parse_fail": 0.0,
+   "object_recall": 0.9454545454545454,
+   "n_objects": 275,
+   "recall_thin": 1.0,
+   "recall_big": 0.9157303370786517,
+   "recall_placed": 0.9475806451612904,
+   "recall_scenery": 0.9259259259259259,
+   "recall_depth_missed": 0.9918032786885246,
+   "n_depth_missed": 244,
+   "box_precision": 0.28274231678487,
+   "median_iou_found": 0.0075896822693359445,
+   "range_exact": 0.6538461538461539,
+   "range_within_one": 1.0,
+   "latency_median_s": 0.5171
+  },
+  "Qwen/Qwen3-VL-8B-Instruct|yesno_both": {
+   "n_frames": 468,
+   "n_pos": 259,
+   "n_neg": 209,
+   "recall": 0.5057915057915058,
+   "false_alarm": 0.28708133971291866,
+   "all_ones": 0.0,
+   "parse_fail": 0.0,
+   "object_recall": 0.16727272727272727,
+   "n_objects": 275,
+   "recall_thin": 0.24742268041237114,
+   "recall_big": 0.12359550561797752,
+   "recall_placed": 0.1814516129032258,
+   "recall_scenery": 0.037037037037037035,
+   "recall_depth_missed": 0.1762295081967213,
+   "n_depth_missed": 244,
+   "box_precision": 0.5602094240837696,
+   "median_iou_found": 0.021416938052096872,
+   "range_exact": 0.6956521739130435,
+   "range_within_one": 1.0,
+   "latency_median_s": 0.0907
+  },
+  "oracle|-": {
+   "n_frames": 468,
+   "n_pos": 259,
+   "n_neg": 209,
+   "recall": 1.0,
+   "false_alarm": 0.0,
+   "all_ones": 0.029914529914529916,
+   "parse_fail": 0.0,
+   "object_recall": 1.0,
+   "n_objects": 275,
+   "recall_thin": 1.0,
+   "recall_big": 1.0,
+   "recall_placed": 1.0,
+   "recall_scenery": 1.0,
+   "recall_depth_missed": 1.0,
+   "n_depth_missed": 244,
+   "box_precision": 1.0,
+   "median_iou_found": 1.0,
+   "range_exact": 1.0,
+   "range_within_one": 1.0,
+   "latency_median_s": NaN
+  },
+  "all_near|-": {
+   "n_frames": 468,
+   "n_pos": 259,
+   "n_neg": 209,
+   "recall": 1.0,
+   "false_alarm": 1.0,
+   "all_ones": 1.0,
+   "parse_fail": 0.0,
+   "object_recall": 1.0,
+   "n_objects": 275,
+   "recall_thin": 1.0,
+   "recall_big": 1.0,
+   "recall_placed": 1.0,
+   "recall_scenery": 1.0,
+   "recall_depth_missed": 1.0,
+   "n_depth_missed": 244,
+   "box_precision": 0.5534188034188035,
+   "median_iou_found": 0.0035909999999999983,
+   "range_exact": 0.36363636363636365,
+   "range_within_one": 1.0,
+   "latency_median_s": NaN
+  }
+ },
+ "steering": {
+  "depth_gt_choose|-": {
+   "n_avoid": 129,
+   "n_straight": 170,
+   "safe": 0.49612403100775193,
+   "safe_ci": [
+    0.3613109243697479,
+    0.6080083333333333
+   ],
+   "exact": 0.17829457364341086,
+   "regret_m": 1.220144927536232,
+   "false_steer": 0.07058823529411765,
+   "by_family": {
+    "ball_20cm_red": {
+     "n": 4,
+     "safe": 0.0
+    },
+    "box_1m_grey": {
+     "n": 12,
+     "safe": 0.4166666666666667
+    },
+    "building_block": {
+     "n": 17,
+     "safe": 0.29411764705882354
+    },
+    "glass_pane_alpha20": {
+     "n": 15,
+     "safe": 0.4
+    },
+    "pole_10cm_axis_z": {
+     "n": 22,
+     "safe": 0.6818181818181818
+    },
+    "wire_1cm_axis_z": {
+     "n": 26,
+     "safe": 0.5384615384615384
+    },
+    "wire_3cm_axis_z": {
+     "n": 33,
+     "safe": 0.5757575757575758
+    }
+   }
+  },
+  "scene_json_raw|boxes": {
+   "n_avoid": 129,
+   "n_straight": 170,
+   "safe": 0.007751937984496124,
+   "safe_ci": [
+    0.0,
+    0.02326035610465116
+   ],
+   "exact": 0.0,
+   "regret_m": -0.6000000000000001,
+   "false_steer": 0.07647058823529412,
+   "by_family": {
+    "ball_20cm_red": {
+     "n": 4,
+     "safe": 0.0
+    },
+    "box_1m_grey": {
+     "n": 12,
+     "safe": 0.08333333333333333
+    },
+    "building_block": {
+     "n": 17,
+     "safe": 0.0
+    },
+    "glass_pane_alpha20": {
+     "n": 15,
+     "safe": 0.0
+    },
+    "pole_10cm_axis_z": {
+     "n": 22,
+     "safe": 0.0
+    },
+    "wire_1cm_axis_z": {
+     "n": 26,
+     "safe": 0.0
+    },
+    "wire_3cm_axis_z": {
+     "n": 33,
+     "safe": 0.0
+    }
+   }
+  },
+  "scene_grid_raw|boxes": {
+   "n_avoid": 129,
+   "n_straight": 170,
+   "safe": 0.813953488372093,
+   "safe_ci": [
+    0.6141206217757263,
+    1.0
+   ],
+   "exact": 0.3488372093023256,
+   "regret_m": 2.524279661016949,
+   "false_steer": 1.0,
+   "by_family": {
+    "ball_20cm_red": {
+     "n": 4,
+     "safe": 1.0
+    },
+    "box_1m_grey": {
+     "n": 12,
+     "safe": 1.0
+    },
+    "building_block": {
+     "n": 17,
+     "safe": 0.0
+    },
+    "glass_pane_alpha20": {
+     "n": 15,
+     "safe": 1.0
+    },
+    "pole_10cm_axis_z": {
+     "n": 22,
+     "safe": 1.0
+    },
+    "wire_1cm_axis_z": {
+     "n": 26,
+     "safe": 1.0
+    },
+    "wire_3cm_axis_z": {
+     "n": 33,
+     "safe": 0.7878787878787878
+    }
+   }
+  },
+  "oracle|-": {
+   "n_avoid": 129,
+   "n_straight": 170,
+   "safe": 1.0,
+   "safe_ci": [
+    1.0,
+    1.0
+   ],
+   "exact": 1.0,
+   "regret_m": 0.0,
+   "false_steer": 0.0,
+   "by_family": {
+    "ball_20cm_red": {
+     "n": 4,
+     "safe": 1.0
+    },
+    "box_1m_grey": {
+     "n": 12,
+     "safe": 1.0
+    },
+    "building_block": {
+     "n": 17,
+     "safe": 1.0
+    },
+    "glass_pane_alpha20": {
+     "n": 15,
+     "safe": 1.0
+    },
+    "pole_10cm_axis_z": {
+     "n": 22,
+     "safe": 1.0
+    },
+    "wire_1cm_axis_z": {
+     "n": 26,
+     "safe": 1.0
+    },
+    "wire_3cm_axis_z": {
+     "n": 33,
+     "safe": 1.0
+    }
+   }
+  },
+  "random|-": {
+   "n_avoid": 129,
+   "n_straight": 170,
+   "safe": 0.6589147286821705,
+   "safe_ci": [
+    0.5540488565488566,
+    0.7479705827592626
+   ],
+   "exact": 0.21705426356589147,
+   "regret_m": 1.2921505376344087,
+   "false_steer": 0.8,
+   "by_family": {
+    "ball_20cm_red": {
+     "n": 4,
+     "safe": 0.5
+    },
+    "box_1m_grey": {
+     "n": 12,
+     "safe": 0.8333333333333334
+    },
+    "building_block": {
+     "n": 17,
+     "safe": 0.29411764705882354
+    },
+    "glass_pane_alpha20": {
+     "n": 15,
+     "safe": 0.7333333333333333
+    },
+    "pole_10cm_axis_z": {
+     "n": 22,
+     "safe": 0.6818181818181818
+    },
+    "wire_1cm_axis_z": {
+     "n": 26,
+     "safe": 0.7692307692307693
+    },
+    "wire_3cm_axis_z": {
+     "n": 33,
+     "safe": 0.6666666666666666
+    }
+   }
+  },
+  "goal_side|-": {
+   "n_avoid": 129,
+   "n_straight": 170,
+   "safe": 0.8682170542635659,
+   "safe_ci": [
+    0.6666044776119403,
+    1.0
+   ],
+   "exact": 0.6589147286821705,
+   "regret_m": 1.366782945736434,
+   "false_steer": 0.0,
+   "by_family": {
+    "ball_20cm_red": {
+     "n": 4,
+     "safe": 1.0
+    },
+    "box_1m_grey": {
+     "n": 12,
+     "safe": 1.0
+    },
+    "building_block": {
+     "n": 17,
+     "safe": 0.0
+    },
+    "glass_pane_alpha20": {
+     "n": 15,
+     "safe": 1.0
+    },
+    "pole_10cm_axis_z": {
+     "n": 22,
+     "safe": 1.0
+    },
+    "wire_1cm_axis_z": {
+     "n": 26,
+     "safe": 1.0
+    },
+    "wire_3cm_axis_z": {
+     "n": 33,
+     "safe": 1.0
+    }
+   }
+  }
+ },
+ "scene_table": "| condition | pos n | neg n | recall | false alarm | all ones | parse fail | thin found | big found | scenery found | depth-missed found | box precision | IoU | range within 1 | latency s |\n|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n| Qwen/Qwen3-VL-8B-Instruct|json_raw | 259 | 209 | 0.05 | 0.01 | 0.00 | 0.00 | 0.00 | 0.07 | 0.00 | 0.02 | 0.80 | 0.86 | 1.00 | 0.14 |\n| Qwen/Qwen3-VL-8B-Instruct|grid_raw | 259 | 209 | 0.96 | 1.00 | 0.83 | 0.00 | 1.00 | 0.92 | 0.93 | 0.99 | 0.28 | 0.01 | 1.00 | 0.52 |\n| Qwen/Qwen3-VL-8B-Instruct|yesno_both | 259 | 209 | 0.51 | 0.29 | 0.00 | 0.00 | 0.25 | 0.12 | 0.04 | 0.18 | 0.56 | 0.02 | 1.00 | 0.09 |\n| oracle|- | 259 | 209 | 1.00 | 0.00 | 0.03 | 0.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | n/a |\n| all_near|- | 259 | 209 | 1.00 | 1.00 | 1.00 | 0.00 | 1.00 | 1.00 | 1.00 | 1.00 | 0.55 | 0.00 | 1.00 | n/a |\n",
+ "steering_table": "| model | condition | avoid n | safe [95% CI] | exact | regret m | straight n | false steer |\n|---|---|---:|---|---:|---:|---:|---:|\n| depth_gt_choose | - | 129 | 0.50 [0.36, 0.61] | 0.18 | 1.22 | 170 | 0.07 |\n| goal_side | - | 129 | 0.87 [0.67, 1.00] | 0.66 | 1.37 | 170 | 0.00 |\n| oracle | - | 129 | 1.00 [1.00, 1.00] | 1.00 | 0.00 | 170 | 0.00 |\n| random | - | 129 | 0.66 [0.55, 0.75] | 0.22 | 1.29 | 170 | 0.80 |\n| scene_grid_raw | boxes | 129 | 0.81 [0.61, 1.00] | 0.35 | 2.52 | 170 | 1.00 |\n| scene_json_raw | boxes | 129 | 0.01 [0.00, 0.02] | 0.00 | -0.60 | 170 | 0.08 |\n"
+}
