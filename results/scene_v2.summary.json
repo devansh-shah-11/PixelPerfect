@@ -1,0 +1,558 @@
+{
+ "cuts": {
+  "yes_no": {
+   "v2_both": 0.7221,
+   "v2_raw": 0.5,
+   "v2near_both": -2.2779,
+   "v2thin_both": 1.6172,
+   "yesno_both": -3.25
+  },
+  "grid": 0.0
+ },
+ "report_split": "val",
+ "scene": {
+  "Qwen/Qwen3-VL-8B-Instruct|yesno_both": {
+   "n_frames": 468,
+   "n_pos": 259,
+   "n_neg": 209,
+   "recall": 0.3127413127413127,
+   "false_alarm": 0.12440191387559808,
+   "all_ones": 0.0,
+   "parse_fail": 0.0,
+   "object_recall": 0.11272727272727273,
+   "n_objects": 275,
+   "recall_thin": 0.23711340206185566,
+   "recall_big": 0.0449438202247191,
+   "recall_placed": 0.125,
+   "recall_scenery": 0.0,
+   "recall_depth_missed": 0.10294117647058823,
+   "n_depth_missed": 136,
+   "recall_path": 0.2080536912751678,
+   "n_path": 149,
+   "recall_path_thin": 0.25274725274725274,
+   "recall_path_depth_missed": 0.22580645161290322,
+   "n_path_depth_missed": 62,
+   "box_precision": 0.7009345794392523,
+   "median_iou_found": 0.02143413873733426,
+   "range_exact": 0.7419354838709677,
+   "latency_median_s": 0.0872
+  },
+  "Qwen/Qwen3-VL-8B-Instruct|v2_both": {
+   "n_frames": 468,
+   "n_pos": 259,
+   "n_neg": 209,
+   "recall": 0.09266409266409266,
+   "false_alarm": 0.14354066985645933,
+   "all_ones": 0.0,
+   "parse_fail": 0.0,
+   "object_recall": 0.0036363636363636364,
+   "n_objects": 275,
+   "recall_thin": 0.0,
+   "recall_big": 0.0056179775280898875,
+   "recall_placed": 0.004032258064516129,
+   "recall_scenery": 0.0,
+   "recall_depth_missed": 0.0,
+   "n_depth_missed": 136,
+   "recall_path": 0.006711409395973154,
+   "n_path": 149,
+   "recall_path_thin": 0.0,
+   "recall_path_depth_missed": 0.0,
+   "n_path_depth_missed": 62,
+   "box_precision": 0.18518518518518517,
+   "median_iou_found": 0.0033443981331270065,
+   "range_exact": 1.0,
+   "latency_median_s": 0.089
+  },
+  "Qwen/Qwen3-VL-8B-Instruct|v2near_both": {
+   "n_frames": 468,
+   "n_pos": 259,
+   "n_neg": 209,
+   "recall": 0.1891891891891892,
+   "false_alarm": 0.11961722488038277,
+   "all_ones": 0.0,
+   "parse_fail": 0.0,
+   "object_recall": 0.04363636363636364,
+   "n_objects": 275,
+   "recall_thin": 0.0,
+   "recall_big": 0.06741573033707865,
+   "recall_placed": 0.04838709677419355,
+   "recall_scenery": 0.0,
+   "recall_depth_missed": 0.03676470588235294,
+   "n_depth_missed": 136,
+   "recall_path": 0.08053691275167785,
+   "n_path": 149,
+   "recall_path_thin": 0.0,
+   "recall_path_depth_missed": 0.08064516129032258,
+   "n_path_depth_missed": 62,
+   "box_precision": 0.47297297297297297,
+   "median_iou_found": 0.08494446311844028,
+   "range_exact": 0.8333333333333334,
+   "latency_median_s": 0.089
+  },
+  "Qwen/Qwen3-VL-8B-Instruct|v2thin_both": {
+   "n_frames": 468,
+   "n_pos": 259,
+   "n_neg": 209,
+   "recall": 0.1891891891891892,
+   "false_alarm": 0.11961722488038277,
+   "all_ones": 0.0,
+   "parse_fail": 0.0,
+   "object_recall": 0.06181818181818182,
+   "n_objects": 275,
+   "recall_thin": 0.12371134020618557,
+   "recall_big": 0.028089887640449437,
+   "recall_placed": 0.06854838709677419,
+   "recall_scenery": 0.0,
+   "recall_depth_missed": 0.051470588235294115,
+   "n_depth_missed": 136,
+   "recall_path": 0.11409395973154363,
+   "n_path": 149,
+   "recall_path_thin": 0.13186813186813187,
+   "recall_path_depth_missed": 0.11290322580645161,
+   "n_path_depth_missed": 62,
+   "box_precision": 0.581081081081081,
+   "median_iou_found": 0.021596151958378215,
+   "range_exact": 0.7058823529411765,
+   "latency_median_s": 0.0889
+  },
+  "Qwen/Qwen3-VL-8B-Instruct|v2_raw": {
+   "n_frames": 468,
+   "n_pos": 259,
+   "n_neg": 209,
+   "recall": 0.09266409266409266,
+   "false_alarm": 0.11483253588516747,
+   "all_ones": 0.0,
+   "parse_fail": 0.0,
+   "object_recall": 0.0,
+   "n_objects": 275,
+   "recall_thin": 0.0,
+   "recall_big": 0.0,
+   "recall_placed": 0.0,
+   "recall_scenery": 0.0,
+   "recall_depth_missed": 0.0,
+   "n_depth_missed": 136,
+   "recall_path": 0.0,
+   "n_path": 149,
+   "recall_path_thin": 0.0,
+   "recall_path_depth_missed": 0.0,
+   "n_path_depth_missed": 62,
+   "box_precision": 0.1875,
+   "median_iou_found": NaN,
+   "range_exact": NaN,
+   "latency_median_s": 0.0827
+  },
+  "Qwen/Qwen3-VL-8B-Instruct|jsonv2_both": {
+   "n_frames": 468,
+   "n_pos": 259,
+   "n_neg": 209,
+   "recall": 0.023166023166023165,
+   "false_alarm": 0.023923444976076555,
+   "all_ones": 0.0,
+   "parse_fail": 0.0,
+   "object_recall": 0.0036363636363636364,
+   "n_objects": 275,
+   "recall_thin": 0.0,
+   "recall_big": 0.0056179775280898875,
+   "recall_placed": 0.004032258064516129,
+   "recall_scenery": 0.0,
+   "recall_depth_missed": 0.0,
+   "n_depth_missed": 136,
+   "recall_path": 0.006711409395973154,
+   "n_path": 149,
+   "recall_path_thin": 0.0,
+   "recall_path_depth_missed": 0.0,
+   "n_path_depth_missed": 62,
+   "box_precision": 0.2727272727272727,
+   "median_iou_found": 0.18222727272727282,
+   "range_exact": 1.0,
+   "latency_median_s": 0.137
+  },
+  "Qwen/Qwen3-VL-8B-Instruct|jsonv2_raw": {
+   "n_frames": 468,
+   "n_pos": 259,
+   "n_neg": 209,
+   "recall": 0.0,
+   "false_alarm": 0.0,
+   "all_ones": 0.0,
+   "parse_fail": 0.0,
+   "object_recall": 0.0,
+   "n_objects": 275,
+   "recall_thin": 0.0,
+   "recall_big": 0.0,
+   "recall_placed": 0.0,
+   "recall_scenery": 0.0,
+   "recall_depth_missed": 0.0,
+   "n_depth_missed": 136,
+   "recall_path": 0.0,
+   "n_path": 149,
+   "recall_path_thin": 0.0,
+   "recall_path_depth_missed": 0.0,
+   "n_path_depth_missed": 62,
+   "box_precision": NaN,
+   "median_iou_found": NaN,
+   "range_exact": NaN,
+   "latency_median_s": 0.1322
+  },
+  "oracle|-": {
+   "n_frames": 468,
+   "n_pos": 259,
+   "n_neg": 209,
+   "recall": 1.0,
+   "false_alarm": 0.0,
+   "all_ones": 0.029914529914529916,
+   "parse_fail": 0.0,
+   "object_recall": 1.0,
+   "n_objects": 275,
+   "recall_thin": 1.0,
+   "recall_big": 1.0,
+   "recall_placed": 1.0,
+   "recall_scenery": 1.0,
+   "recall_depth_missed": 1.0,
+   "n_depth_missed": 136,
+   "recall_path": 1.0,
+   "n_path": 149,
+   "recall_path_thin": 1.0,
+   "recall_path_depth_missed": 1.0,
+   "n_path_depth_missed": 62,
+   "box_precision": 1.0,
+   "median_iou_found": 1.0,
+   "range_exact": 1.0,
+   "latency_median_s": NaN
+  },
+  "all_near|-": {
+   "n_frames": 468,
+   "n_pos": 259,
+   "n_neg": 209,
+   "recall": 1.0,
+   "false_alarm": 1.0,
+   "all_ones": 1.0,
+   "parse_fail": 0.0,
+   "object_recall": 1.0,
+   "n_objects": 275,
+   "recall_thin": 1.0,
+   "recall_big": 1.0,
+   "recall_placed": 1.0,
+   "recall_scenery": 1.0,
+   "recall_depth_missed": 1.0,
+   "n_depth_missed": 136,
+   "recall_path": 1.0,
+   "n_path": 149,
+   "recall_path_thin": 1.0,
+   "recall_path_depth_missed": 1.0,
+   "n_path_depth_missed": 62,
+   "box_precision": 0.5534188034188035,
+   "median_iou_found": 0.0035909999999999983,
+   "range_exact": 0.36363636363636365,
+   "latency_median_s": NaN
+  }
+ },
+ "steering": {
+  "depth_gt_choose|-": {
+   "n_avoid": 129,
+   "n_straight": 170,
+   "safe": 0.49612403100775193,
+   "safe_ci": [
+    0.3613109243697479,
+    0.6080083333333333
+   ],
+   "exact": 0.17829457364341086,
+   "regret_m": 1.220144927536232,
+   "false_steer": 0.07058823529411765,
+   "by_family": {
+    "ball_20cm_red": {
+     "n": 4,
+     "safe": 0.0
+    },
+    "box_1m_grey": {
+     "n": 12,
+     "safe": 0.4166666666666667
+    },
+    "building_block": {
+     "n": 17,
+     "safe": 0.29411764705882354
+    },
+    "glass_pane_alpha20": {
+     "n": 15,
+     "safe": 0.4
+    },
+    "pole_10cm_axis_z": {
+     "n": 22,
+     "safe": 0.6818181818181818
+    },
+    "wire_1cm_axis_z": {
+     "n": 26,
+     "safe": 0.5384615384615384
+    },
+    "wire_3cm_axis_z": {
+     "n": 33,
+     "safe": 0.5757575757575758
+    }
+   }
+  },
+  "scene_jsonv2_both|boxes": {
+   "n_avoid": 129,
+   "n_straight": 170,
+   "safe": 0.015503875968992248,
+   "safe_ci": [
+    0.0,
+    0.04311281859070464
+   ],
+   "exact": 0.007751937984496124,
+   "regret_m": 1.7449999999999999,
+   "false_steer": 0.029411764705882353,
+   "by_family": {
+    "ball_20cm_red": {
+     "n": 4,
+     "safe": 0.0
+    },
+    "box_1m_grey": {
+     "n": 12,
+     "safe": 0.08333333333333333
+    },
+    "building_block": {
+     "n": 17,
+     "safe": 0.0
+    },
+    "glass_pane_alpha20": {
+     "n": 15,
+     "safe": 0.0
+    },
+    "pole_10cm_axis_z": {
+     "n": 22,
+     "safe": 0.045454545454545456
+    },
+    "wire_1cm_axis_z": {
+     "n": 26,
+     "safe": 0.0
+    },
+    "wire_3cm_axis_z": {
+     "n": 33,
+     "safe": 0.0
+    }
+   }
+  },
+  "scene_jsonv2_raw|boxes": {
+   "n_avoid": 129,
+   "n_straight": 170,
+   "safe": 0.0,
+   "safe_ci": [
+    0.0,
+    0.0
+   ],
+   "exact": 0.0,
+   "regret_m": NaN,
+   "false_steer": 0.0,
+   "by_family": {
+    "ball_20cm_red": {
+     "n": 4,
+     "safe": 0.0
+    },
+    "box_1m_grey": {
+     "n": 12,
+     "safe": 0.0
+    },
+    "building_block": {
+     "n": 17,
+     "safe": 0.0
+    },
+    "glass_pane_alpha20": {
+     "n": 15,
+     "safe": 0.0
+    },
+    "pole_10cm_axis_z": {
+     "n": 22,
+     "safe": 0.0
+    },
+    "wire_1cm_axis_z": {
+     "n": 26,
+     "safe": 0.0
+    },
+    "wire_3cm_axis_z": {
+     "n": 33,
+     "safe": 0.0
+    }
+   }
+  },
+  "oracle|-": {
+   "n_avoid": 129,
+   "n_straight": 170,
+   "safe": 1.0,
+   "safe_ci": [
+    1.0,
+    1.0
+   ],
+   "exact": 1.0,
+   "regret_m": 0.0,
+   "false_steer": 0.0,
+   "by_family": {
+    "ball_20cm_red": {
+     "n": 4,
+     "safe": 1.0
+    },
+    "box_1m_grey": {
+     "n": 12,
+     "safe": 1.0
+    },
+    "building_block": {
+     "n": 17,
+     "safe": 1.0
+    },
+    "glass_pane_alpha20": {
+     "n": 15,
+     "safe": 1.0
+    },
+    "pole_10cm_axis_z": {
+     "n": 22,
+     "safe": 1.0
+    },
+    "wire_1cm_axis_z": {
+     "n": 26,
+     "safe": 1.0
+    },
+    "wire_3cm_axis_z": {
+     "n": 33,
+     "safe": 1.0
+    }
+   }
+  },
+  "random|-": {
+   "n_avoid": 129,
+   "n_straight": 170,
+   "safe": 0.6589147286821705,
+   "safe_ci": [
+    0.5540488565488566,
+    0.7479705827592626
+   ],
+   "exact": 0.21705426356589147,
+   "regret_m": 1.2921505376344087,
+   "false_steer": 0.8,
+   "by_family": {
+    "ball_20cm_red": {
+     "n": 4,
+     "safe": 0.5
+    },
+    "box_1m_grey": {
+     "n": 12,
+     "safe": 0.8333333333333334
+    },
+    "building_block": {
+     "n": 17,
+     "safe": 0.29411764705882354
+    },
+    "glass_pane_alpha20": {
+     "n": 15,
+     "safe": 0.7333333333333333
+    },
+    "pole_10cm_axis_z": {
+     "n": 22,
+     "safe": 0.6818181818181818
+    },
+    "wire_1cm_axis_z": {
+     "n": 26,
+     "safe": 0.7692307692307693
+    },
+    "wire_3cm_axis_z": {
+     "n": 33,
+     "safe": 0.6666666666666666
+    }
+   }
+  },
+  "goal_side|-": {
+   "n_avoid": 129,
+   "n_straight": 170,
+   "safe": 0.8682170542635659,
+   "safe_ci": [
+    0.6666044776119403,
+    1.0
+   ],
+   "exact": 0.6589147286821705,
+   "regret_m": 1.366782945736434,
+   "false_steer": 0.0,
+   "by_family": {
+    "ball_20cm_red": {
+     "n": 4,
+     "safe": 1.0
+    },
+    "box_1m_grey": {
+     "n": 12,
+     "safe": 1.0
+    },
+    "building_block": {
+     "n": 17,
+     "safe": 0.0
+    },
+    "glass_pane_alpha20": {
+     "n": 15,
+     "safe": 1.0
+    },
+    "pole_10cm_axis_z": {
+     "n": 22,
+     "safe": 1.0
+    },
+    "wire_1cm_axis_z": {
+     "n": 26,
+     "safe": 1.0
+    },
+    "wire_3cm_axis_z": {
+     "n": 33,
+     "safe": 1.0
+    }
+   }
+  }
+ },
+ "family_auroc": {
+  "Qwen/Qwen3-VL-8B-Instruct|v2_both": {
+   "ball_20cm_red": 0.479,
+   "box_1m_black": 0.542,
+   "box_1m_grey": 0.437,
+   "building_block": 0.043,
+   "pole_10cm_axis_z": 0.375,
+   "wall_white_featureless": 0.744,
+   "wire_1cm_axis_z": 0.416,
+   "wire_3cm_axis_z": 0.506
+  },
+  "Qwen/Qwen3-VL-8B-Instruct|v2_raw": {
+   "ball_20cm_red": 0.5,
+   "box_1m_black": 0.53,
+   "box_1m_grey": 0.526,
+   "building_block": 0.117,
+   "pole_10cm_axis_z": 0.387,
+   "wall_white_featureless": 0.754,
+   "wire_1cm_axis_z": 0.364,
+   "wire_3cm_axis_z": 0.455
+  },
+  "Qwen/Qwen3-VL-8B-Instruct|v2near_both": {
+   "ball_20cm_red": 0.516,
+   "box_1m_black": 0.59,
+   "box_1m_grey": 0.532,
+   "building_block": 0.539,
+   "pole_10cm_axis_z": 0.38,
+   "wall_white_featureless": 0.926,
+   "wire_1cm_axis_z": 0.466,
+   "wire_3cm_axis_z": 0.532
+  },
+  "Qwen/Qwen3-VL-8B-Instruct|v2thin_both": {
+   "ball_20cm_red": 0.456,
+   "box_1m_black": 0.357,
+   "box_1m_grey": 0.464,
+   "building_block": 0.344,
+   "pole_10cm_axis_z": 0.521,
+   "wall_white_featureless": 0.662,
+   "wire_1cm_axis_z": 0.754,
+   "wire_3cm_axis_z": 0.642
+  },
+  "Qwen/Qwen3-VL-8B-Instruct|yesno_both": {
+   "ball_20cm_red": 0.603,
+   "box_1m_black": 0.437,
+   "box_1m_grey": 0.488,
+   "building_block": 0.314,
+   "pole_10cm_axis_z": 0.635,
+   "wall_white_featureless": 0.62,
+   "wire_1cm_axis_z": 0.929,
+   "wire_3cm_axis_z": 0.787
+  }
+ },
+ "scene_table": "| condition | pos n | neg n | recall | false alarm | all ones | parse fail | in-path found | in-path thin | in-path depth-missed | box precision | IoU | range exact | latency s |\n|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n| Qwen/Qwen3-VL-8B-Instruct|yesno_both | 259 | 209 | 0.31 | 0.12 | 0.00 | 0.00 | 0.21 | 0.25 | 0.23 | 0.70 | 0.02 | 0.74 | 0.09 |\n| Qwen/Qwen3-VL-8B-Instruct|v2_both | 259 | 209 | 0.09 | 0.14 | 0.00 | 0.00 | 0.01 | 0.00 | 0.00 | 0.19 | 0.00 | 1.00 | 0.09 |\n| Qwen/Qwen3-VL-8B-Instruct|v2near_both | 259 | 209 | 0.19 | 0.12 | 0.00 | 0.00 | 0.08 | 0.00 | 0.08 | 0.47 | 0.08 | 0.83 | 0.09 |\n| Qwen/Qwen3-VL-8B-Instruct|v2thin_both | 259 | 209 | 0.19 | 0.12 | 0.00 | 0.00 | 0.11 | 0.13 | 0.11 | 0.58 | 0.02 | 0.71 | 0.09 |\n| Qwen/Qwen3-VL-8B-Instruct|v2_raw | 259 | 209 | 0.09 | 0.11 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.19 | n/a | n/a | 0.08 |\n| Qwen/Qwen3-VL-8B-Instruct|jsonv2_both | 259 | 209 | 0.02 | 0.02 | 0.00 | 0.00 | 0.01 | 0.00 | 0.00 | 0.27 | 0.18 | 1.00 | 0.14 |\n| Qwen/Qwen3-VL-8B-Instruct|jsonv2_raw | 259 | 209 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | n/a | n/a | n/a | 0.13 |\n| oracle|- | 259 | 209 | 1.00 | 0.00 | 0.03 | 0.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | n/a |\n| all_near|- | 259 | 209 | 1.00 | 1.00 | 1.00 | 0.00 | 1.00 | 1.00 | 1.00 | 0.55 | 0.00 | 0.36 | n/a |\n",
+ "steering_table": "| model | condition | avoid n | safe [95% CI] | exact | regret m | straight n | false steer |\n|---|---|---:|---|---:|---:|---:|---:|\n| depth_gt_choose | - | 129 | 0.50 [0.36, 0.61] | 0.18 | 1.22 | 170 | 0.07 |\n| goal_side | - | 129 | 0.87 [0.67, 1.00] | 0.66 | 1.37 | 170 | 0.00 |\n| oracle | - | 129 | 1.00 [1.00, 1.00] | 1.00 | 0.00 | 170 | 0.00 |\n| random | - | 129 | 0.66 [0.55, 0.75] | 0.22 | 1.29 | 170 | 0.80 |\n| scene_jsonv2_both | boxes | 129 | 0.02 [0.00, 0.04] | 0.01 | 1.74 | 170 | 0.03 |\n| scene_jsonv2_raw | boxes | 129 | 0.00 [0.00, 0.00] | 0.00 | nan | 170 | 0.00 |\n",
+ "family_text": "- Qwen/Qwen3-VL-8B-Instruct|v2_both: ball_20cm_red 0.479, box_1m_black 0.542, box_1m_grey 0.437, building_block 0.043, pole_10cm_axis_z 0.375, wall_white_featureless 0.744, wire_1cm_axis_z 0.416, wire_3cm_axis_z 0.506\n- Qwen/Qwen3-VL-8B-Instruct|v2_raw: ball_20cm_red 0.5, box_1m_black 0.53, box_1m_grey 0.526, building_block 0.117, pole_10cm_axis_z 0.387, wall_white_featureless 0.754, wire_1cm_axis_z 0.364, wire_3cm_axis_z 0.455\n- Qwen/Qwen3-VL-8B-Instruct|v2near_both: ball_20cm_red 0.516, box_1m_black 0.59, box_1m_grey 0.532, building_block 0.539, pole_10cm_axis_z 0.38, wall_white_featureless 0.926, wire_1cm_axis_z 0.466, wire_3cm_axis_z 0.532\n- Qwen/Qwen3-VL-8B-Instruct|v2thin_both: ball_20cm_red 0.456, box_1m_black 0.357, box_1m_grey 0.464, building_block 0.344, pole_10cm_axis_z 0.521, wall_white_featureless 0.662, wire_1cm_axis_z 0.754, wire_3cm_axis_z 0.642\n- Qwen/Qwen3-VL-8B-Instruct|yesno_both: ball_20cm_red 0.603, box_1m_black 0.437, box_1m_grey 0.488, building_block 0.314, pole_10cm_axis_z 0.635, wall_white_featureless 0.62, wire_1cm_axis_z 0.929, wire_3cm_axis_z 0.787"
+}
