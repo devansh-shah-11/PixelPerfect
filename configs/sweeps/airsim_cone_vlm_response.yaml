@@ -18,7 +18,7 @@ backend: airsim
 backend_kw: {configs: "${PP_SIM_CONFIGS}", scene_file: scene_cap_400.jsonc, starts: *starts}
 stack: da2
 judge: qwen
-judge_kw: {model_id: Qwen/Qwen3-VL-8B-Instruct, prompt_key: cross, tau: -4.02, direction: false}
+judge_kw: {model_id: Qwen/Qwen3-VL-8B-Instruct, prompt_key: cross, tau: -3.25, direction: false}
 delay_s: 1.0
 split: val
 seeds: {file: configs/seeds.yaml, skip: 60, n: 40}
@@ -36,5 +36,5 @@ policies:
   - {name: oracle, policy: oracle, cooldown_s: 1.0}   # asks exactly when the fast stack is wrong: separates "gate missed it" from "VLM or evasion failed"
   - {name: gate_mlp, policy: gate, model_path: results/gate/gate_mlp_depth+temporal+image.pkl, tau: 0.256, cooldown_s: 1.0}
   - {name: always, policy: always, cooldown_s: 1.0}
-out: results/sweeps/cone_vlm_response
+out: results/sweeps/cone_vlm_response_v2
 flight_logs: true

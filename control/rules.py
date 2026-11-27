@@ -73,9 +73,10 @@ class RuleController:
     def __init__(self, d_safe: float = 8.0, hysteresis: float = 2.0, alt_max: float = 25.0, alt_margin: float = 1.0,
                  heading_tol: float = math.radians(10.0), avoid_mode: str = "climb_first", goal_bias_m: float = 5.0,
                  past_margin_m: float = 2.0, d_judge: float = 15.0, land_radius_m: float = 2.0, alt_tol_m: float = 0.2,
-                 fence_margin_m: float = 3.0, max_side_switches: int = 1, evade_yaw_steps: int = 5, evade_extra_steps: int = 3,
+                 fence_margin_m: float = 3.0, max_side_switches: int = 1, evade_yaw_steps: int = 10, evade_extra_steps: int = 3,
                  evade_max_steps: int = 13, evade_timeout_steps: int = 30, evade_clear_needed: int = 2, evade_bypass_m: float = 15.0,
-                 evade_climb_max_m: float = 6.0) -> None:
+                 evade_climb_max_m: float = 6.0, evade_total_steps: int = 120, evade_side_m: float = 8.0,
+                 evade_cooldown_m: float = 15.0, fence_guard_m: float = 2.0) -> None:
         if avoid_mode not in ("climb_first", "choose"):
             raise ValueError(f"avoid_mode must be 'climb_first' or 'choose', got {avoid_mode!r}")
         self.d_safe, self.hysteresis, self.alt_max, self.alt_margin, self.heading_tol = d_safe, hysteresis, alt_max, alt_margin, heading_tol
@@ -84,6 +85,8 @@ class RuleController:
         self.max_side_switches = max_side_switches
         # Evasion of a VLM "yes" that depth does not show (plan v8, step 2); see ``alert``. One yaw step is yaw_rate * dt (4.5 degrees).
         self.evade_climb_max_m = evade_climb_max_m
+        self.evade_total_steps, self.evade_side_m, self.evade_cooldown_m = evade_total_steps, evade_side_m, evade_cooldown_m
+        self.fence_guard_m = fence_guard_m  # the hard geofence guard acts this far inside the edge of the mission area
         self.evade_yaw_steps, self.evade_extra_steps, self.evade_max_steps = evade_yaw_steps, evade_extra_steps, evade_max_steps
         self.evade_timeout_steps, self.evade_clear_needed, self.evade_bypass_m = evade_timeout_steps, evade_clear_needed, evade_bypass_m
         self.goal_bearing = 0.0  # path frame: with no mission the goal lies straight ahead along +x
@@ -110,6 +113,9 @@ class RuleController:
         self.evade_turn_total = 0
         self.evade_since_alert = 0  # steps since the last "yes"
         self.evade_clear = 0  # consecutive "clear" answers
+        self.evade_steps = 0  # steps since the first alert of this evasion (not reset by later alerts: the hard budget)
+        self.evade_side_from: tuple[float, float] | None = None  # where the sideways leg started (after the turn)
+        self.evade_cooldown_from: tuple[float, float] | None = None  # a give-up or a sidestep ended here: alerts are ignored for a while
         self.phase = "cruise"  # set by act(), for logs: cruise, avoid, evade, bypass, return (down to cruise height), landing
 
     def set_mission(self, goal_xy: tuple[float, float], cruise_alt: float, land_alt: float, area_half_width_m: float | None = None) -> None:
@@ -122,6 +128,23 @@ class RuleController:
         gx, gy = self.goal
         n = math.hypot(gx, gy)
         return (gx * state.position[1] - gy * state.position[0]) / n
+
+    def _fence_guard(self, state: DroneState) -> Action | None:
+        """Hard geofence: within ``fence_guard_m`` of the edge of the mission area and still heading outward, turn toward the goal.
+
+        It runs ahead of avoidance, bypass and evasion (a turn in place cannot hit anything), so no phase can carry the drone out of the
+        area (outcome ``left_area``, seen in 15 of 40 gate flights and 25 of 40 ``always`` flights of the first VLM-response sweep)."""
+        if self.goal is None or self.half_width is None:
+            return None
+        e = self._cross_track(state)
+        if abs(e) < self.half_width - self.fence_guard_m:
+            return None
+        line = math.atan2(self.goal[1], self.goal[0])
+        if math.sin(_wrap(state.yaw - line)) * e <= 0.05:  # not heading outward (the sign of the drift is the same as in _outward)
+            return None
+        err = _wrap(math.atan2(self.goal[1] - state.position[1], self.goal[0] - state.position[0]) - state.yaw)
+        self.phase = "fence"
+        return Action.YAW_RIGHT if err > 0 else Action.YAW_LEFT
 
     def _outward(self, side: str, state: DroneState) -> bool:
         """True when ``side`` would carry a drone near the edge of the mission area further out."""
@@ -204,7 +227,13 @@ class RuleController:
         costs 0.3 m and going sideways 3 m; glass needs 1.8 m up and 1.5 m sideways. Climbing in place needs no forward motion, so it is also
         the safe move when the object is close. Two "clear" answers end it and the bypass leg flies on past at that height. If the climb
         reaches ``evade_climb_max_m`` (or the height cap) and the VLM still says yes, the object is tall (a wall, a building): the rest is
-        a turn to a side committed at the first alert (the goal side; the other one if that is outward at the fence), then flying on."""
+        a bounded sidestep to a side committed at the first alert (the goal side; the other one if that is outward at the fence): turn, fly
+        ``evade_side_m``, then the normal controller re-aims at the goal and alerts are ignored for ``evade_cooldown_m``. The evasion also ends
+        at the hard budget ``evade_total_steps`` and when the drone is at the edge of the mission area."""
+        if not self.evading and self.evade_cooldown_from is not None:
+            if math.hypot(state.position[0] - self.evade_cooldown_from[0], state.position[1] - self.evade_cooldown_from[1]) < self.evade_cooldown_m:
+                return  # just gave up or sidestepped: a "yes" that stands after that is not acted on again at once
+            self.evade_cooldown_from = None
         if not self.evading:
             side = self._goal_side(state) or "right"
             if self._outward(side, state):
@@ -212,6 +241,7 @@ class RuleController:
             self.evading, self.evade_side = True, side
             self.evade_start_alt = -state.position[2]
             self.evade_turn_left = self.evade_turn_total = self.evade_yaw_steps
+            self.evade_steps, self.evade_side_from = 0, None
         self.evade_since_alert, self.evade_clear = 0, 0
 
     def clear(self) -> None:
@@ -219,22 +249,38 @@ class RuleController:
         if self.evading:
             self.evade_clear += 1
 
-    def _evade_step(self, state: DroneState) -> Action | None:
-        """Next action of the evasion, or None when it has just ended (the bypass leg then flies on past the object)."""
-        self.evade_since_alert += 1
-        if self.evade_clear >= self.evade_clear_needed or self.evade_since_alert >= self.evade_timeout_steps:
-            self.evading = False  # a policy that does not ask again (the gate) ends it by the timeout
+    def _end_evasion(self, state: DroneState, bypass: bool) -> None:
+        self.evading = False
+        if bypass:  # the climb cleared it: the bypass leg flies on past the object at that height
             self.climbed = self.evade_start_alt + 0.2 < -state.position[2]
             self.bypass_from = (state.position[0], state.position[1], state.yaw, self.evade_bypass_m) if self.goal is not None else None
             self.bypass_over = self.climbed  # after going over, the bypass keeps the height until it is past
+        else:  # gave up, sidestepped or hit the fence: back to goal seeking, and no new evasion for a while
+            self.evade_cooldown_from = (state.position[0], state.position[1])
+
+    def _evade_step(self, state: DroneState) -> Action | None:
+        """Next action of the evasion, or None when it has just ended (the bypass leg or the normal flight then goes on)."""
+        self.evade_steps += 1
+        self.evade_since_alert += 1
+        if self.evade_clear >= self.evade_clear_needed or self.evade_since_alert >= self.evade_timeout_steps:
+            self._end_evasion(state, bypass=True)  # a policy that does not ask again (the gate) ends it by the timeout
+            return None
+        edge = self.goal is not None and self.half_width is not None and abs(self._cross_track(state)) >= self.half_width - self.fence_margin_m
+        if self.evade_steps >= self.evade_total_steps or edge:
+            self._end_evasion(state, bypass=False)
             return None
         self.phase = "evade"
         alt = -state.position[2]
-        if alt < self.evade_start_alt + self.evade_climb_max_m and alt < self.alt_max - self.alt_margin:
+        if self.evade_side_from is None and alt < self.evade_start_alt + self.evade_climb_max_m and alt < self.alt_max - self.alt_margin:
             return Action.CLIMB
-        if self.evade_turn_left > 0:  # still blocked at the top: turn to the committed side, then fly on
+        if self.evade_turn_left > 0:  # still blocked at the top: turn to the committed side
             self.evade_turn_left -= 1
             return Action.YAW_LEFT if self.evade_side == "left" else Action.YAW_RIGHT
+        if self.evade_side_from is None:
+            self.evade_side_from = (state.position[0], state.position[1])
+        if math.hypot(state.position[0] - self.evade_side_from[0], state.position[1] - self.evade_side_from[1]) >= self.evade_side_m:
+            self._end_evasion(state, bypass=False)  # the sidestep is done: the normal controller re-aims at the goal
+            return None
         return Action.CONTINUE
 
     def act(self, depth: DepthEstimate, drone_state: DroneState) -> Action:
@@ -242,6 +288,10 @@ class RuleController:
         if self.goal is not None and (self.landing or math.hypot(self.goal[0] - x, self.goal[1] - y) <= self.land_radius_m):
             self.landing, self.phase = True, "landing"
             return Action.DESCEND if alt > self.land_alt + 0.01 else Action.STOP  # DESCEND is floored at the landing height
+        guard = self._fence_guard(drone_state)
+        if guard is not None:
+            self.evading = False
+            return guard
         if self._blocked(float(depth.features["corridor_min"])):
             self.phase = "avoid"
             self.evading = False  # depth shows it now: the normal avoidance takes over
@@ -283,4 +333,5 @@ class RuleController:
                 "land_radius_m": self.land_radius_m, "fence_margin_m": self.fence_margin_m, "max_side_switches": self.max_side_switches,
                 "evade_yaw_steps": self.evade_yaw_steps, "evade_extra_steps": self.evade_extra_steps, "evade_max_steps": self.evade_max_steps,
                 "evade_timeout_steps": self.evade_timeout_steps, "evade_clear_needed": self.evade_clear_needed, "evade_bypass_m": self.evade_bypass_m,
-                "evade_climb_max_m": self.evade_climb_max_m}
+                "evade_climb_max_m": self.evade_climb_max_m, "evade_total_steps": self.evade_total_steps,
+                "evade_side_m": self.evade_side_m, "fence_guard_m": self.fence_guard_m, "evade_cooldown_m": self.evade_cooldown_m}

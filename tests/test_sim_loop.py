@@ -740,7 +740,7 @@ def test_evasion_climbs_in_place_until_two_clear_answers_then_bypasses_at_height
 
 def test_evasion_turns_to_a_committed_side_only_when_the_climb_limit_is_reached():
     clear = banded(40.0, left=40.0, right=40.0, up=90.0)
-    c = RuleController(avoid_mode="choose", evade_climb_max_m=3.0)
+    c = RuleController(avoid_mode="choose", evade_climb_max_m=3.0, evade_yaw_steps=5)
     c.set_mission((50.0, 20.0), cruise_alt=2.0, land_alt=1.0)  # the goal lies to the right
     c.alert(pos())
     assert c.evade_side == "right"
@@ -748,6 +748,58 @@ def test_evasion_turns_to_a_committed_side_only_when_the_climb_limit_is_reached(
     assert [c.act(clear, pos(alt=5.1)) for _ in range(5)] == [Action.YAW_RIGHT] * 5  # 3 m up and still yes: a wall. Turn, one side
     c.alert(pos(y=-5.0, alt=5.1))  # a new yes, the goal is on the other side now: the side stays
     assert c.evade_side == "right" and c.act(clear, pos(y=-5.0, alt=5.1)) == Action.CONTINUE
+
+
+def _yes_forever_run(c, n=400, **kw):
+    """A VLM that says yes on every step and a blind depth: the drone climbs, turns, sidesteps and must hand back to the goal."""
+    clear = banded(40.0, left=40.0, right=40.0, up=90.0)
+    alt, x, y, acts = 2.0, 0.0, 0.0, []
+    for _ in range(n):
+        c.alert(pos(x=x, y=y, alt=alt))
+        a = c.act(clear, pos(x=x, y=y, alt=alt))
+        acts.append((a, c.phase))
+        if a == Action.CLIMB:
+            alt += 0.2
+        if a == Action.CONTINUE:
+            x += 0.5
+        if a == Action.YAW_RIGHT or a == Action.YAW_LEFT:
+            pass
+    return acts
+
+
+def test_a_vlm_that_always_says_yes_cannot_keep_the_drone_evading():
+    c = RuleController(avoid_mode="choose", evade_climb_max_m=1.0, evade_total_steps=40, evade_side_m=2.0, evade_cooldown_m=100.0)
+    c.set_mission((50.0, 0.0), cruise_alt=2.0, land_alt=1.0)
+    acts = _yes_forever_run(c, n=200)
+    evade_steps = sum(1 for _, ph in acts if ph == "evade")
+    assert not c.evading and evade_steps <= 40  # the budget ends it, and the cooldown keeps it from starting again
+    assert c.evade_cooldown_from is not None
+
+
+def test_the_sidestep_is_bounded_and_then_the_cooldown_ignores_a_standing_yes():
+    clear = banded(40.0, left=40.0, right=40.0, up=90.0)
+    c = RuleController(avoid_mode="choose", evade_climb_max_m=0.5, evade_yaw_steps=2, evade_side_m=3.0, evade_cooldown_m=10.0)
+    c.set_mission((50.0, 0.0), cruise_alt=2.0, land_alt=1.0)
+    c.alert(pos(alt=2.0))
+    assert c.act(clear, pos(alt=2.0)) == Action.CLIMB
+    turn = Action.YAW_LEFT if c.evade_side == "left" else Action.YAW_RIGHT
+    assert [c.act(clear, pos(alt=3.0)) for _ in range(2)] == [turn] * 2
+    assert c.act(clear, pos(x=0.0, alt=3.0)) == Action.CONTINUE  # the sideways leg starts here
+    c.act(clear, pos(x=3.5, alt=3.0))  # 3.5 m on: done, the controller takes over (no CONTINUE-for-ever)
+    assert not c.evading and c.phase != "evade"
+    c.alert(pos(x=5.0, alt=3.0))
+    assert not c.evading  # inside the cooldown a standing yes is ignored
+    c.alert(pos(x=20.0, alt=3.0))
+    assert c.evading  # far enough on: a new yes counts again
+
+
+def test_the_evasion_ends_at_the_edge_of_the_mission_area():
+    clear = banded(40.0, left=40.0, right=40.0, up=90.0)
+    c = RuleController(avoid_mode="choose", fence_margin_m=3.0)
+    c.set_mission((50.0, 0.0), cruise_alt=2.0, land_alt=1.0, area_half_width_m=15.0)
+    c.alert(pos(y=12.5, alt=2.0))  # inside the fence margin
+    assert c.act(clear, pos(y=12.5, alt=2.0)) in (Action.CONTINUE, Action.YAW_LEFT, Action.YAW_RIGHT) and not c.evading
+    assert c.phase != "evade" and c.evade_cooldown_from is not None
 
 
 def test_evasion_respects_the_height_cap_and_a_silent_policy_ends_it_by_timeout():
@@ -785,3 +837,24 @@ def test_evasion_saves_a_blind_stack_from_a_wire_a_pole_and_glass_without_any_di
         res = fly_cone(sc, BlindStack(), Always(cooldown_s=0.0), perfect, controller=RuleController(avoid_mode="choose"),
                        vlm_response="sidestep", t_max=400.0)
         assert not res.crashed and res.extra["outcome"] == "landed", (family, res.extra.get("crash"), res.extra.get("outcome"))
+
+
+def test_fence_guard_turns_an_outward_heading_back_at_the_edge_and_leaves_inward_headings_alone():
+    clear = banded(40.0, left=40.0, right=40.0, up=90.0)
+    c = RuleController(avoid_mode="choose")
+    c.set_mission((50.0, 0.0), cruise_alt=2.0, land_alt=1.0, area_half_width_m=15.0)
+    # 14 m to the right of the line (y > 0 is right), heading right (yaw +45 deg): outward, so turn back toward the goal (left)
+    assert c.act(clear, pos(y=14.0, yaw=math.radians(45.0))) == Action.YAW_LEFT and c.phase == "fence"
+    # same place, heading along the line: not outward, the normal controller flies on
+    assert c.act(clear, pos(y=14.0, yaw=0.0)) != Action.YAW_LEFT or c.phase != "fence"
+    # well inside the area: no guard
+    assert c.act(clear, pos(y=5.0, yaw=math.radians(45.0))) != Action.YAW_LEFT or c.phase != "fence"
+
+
+def test_always_yes_vlm_and_blind_depth_never_take_the_drone_out_of_the_area():
+    always_yes = SurrogateJudge(default_tpr=1.0, default_fpr=1.0)
+    sc = cone(goal=(50.0, 0.0), alt=2.0)
+    sc.obstacles.append(Obstacle("wall_white_featureless", 15.0, 0.0, 2.0))
+    res = fly_cone(sc, BlindStack(), Always(cooldown_s=0.0), always_yes, controller=RuleController(avoid_mode="choose"),
+                   vlm_response="sidestep", t_max=200.0)
+    assert res.extra["outcome"] != "left_area", res.extra.get("outcome")

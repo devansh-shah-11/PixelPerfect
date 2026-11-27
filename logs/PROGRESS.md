@@ -253,3 +253,9 @@
 - Sanity check: `.venv/bin/python -m pytest -q` on the laptop: 218 passed, 1 skipped. Scene benchmark not run on the HPC yet.
 - Unblocked: `sbatch --time=01:30:00 --export=ALL,STEPS="scene" hpc/direction_pilot.sbatch`; the 50 m / 60 s try-out on seeds 101063 and 101071 (policy never). Still blocked: any decision on painting VLM boxes into depth (needs the scene report), Step C2.
 - Backup reminder: `hpc/` and a sweep-related plumbing change; no `configs/` change.
+
+## 2026-11-27  |  vlm, control, eval  |  VLM-response sweep read, evasion made bounded, hard geofence (branch vlm/direction-bench)
+- Advances: M4.7 side question "how to use the VLM" (not a numbered TASKS.md chunk; DS request). First closed-loop sweep (`results/sweeps/cone_vlm_response`, job 44600, 8B, 40 seeds): crashes 25 (never) vs 6 (oracle, gate, always), but landed 15 / 29 / 13 / 2 and `left_area` 0 / 2 / 15 / 25: the unbounded evasion flew off. Fix: evasion has a hard step budget, a bounded sidestep and a cooldown; `_fence_guard` turns an outward heading back at the area edge ahead of every phase; sweep report prints outcome counts.
+- Sanity check: `.venv/bin/python -m pytest -q` on the laptop: 231 passed, 1 skipped. Not yet re-run on the HPC.
+- Unblocked: rerun `configs/sweeps/airsim_cone_vlm_response.yaml` (out `..._v2`, prompt `cross`, cut -3.25). Still blocked: reporting any 8B flight number (D22 approval).
+- Not pushed. Backup reminder: `configs/` touched (sweep config); the gate pickle `results/gate/` is gitignored.

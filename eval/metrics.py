@@ -92,6 +92,9 @@ def safety_retained(crash_never: float, crash_policy: float, crash_reference: fl
 # ---- per-policy summary -----------------------------------------------------------------
 
 
+OUTCOMES = ("landed", "crashed", "left_area", "lost", "timeout")  # ``extra.outcome`` of a flight; "success" alone hides non-landings
+
+
 def policy_summary(results: Sequence[EpisodeResult]) -> dict[str, Any]:
     n = len(results)
     if n == 0:
@@ -113,6 +116,7 @@ def policy_summary(results: Sequence[EpisodeResult]) -> dict[str, Any]:
         "mission_time_s_mean": float(time_s.mean()), "mission_time_s_median": float(np.median(time_s)),
         "avg_speed_mps": float(dist.sum() / time_s.sum()) if time_s.sum() > 0 else float("nan"),
         "calls_per_flight": calls / n,
+        "outcomes": {k: sum((r.extra or {}).get("outcome") == k for r in results) for k in OUTCOMES},
         "query_rate": calls / frames if frames else float("nan"),
         "delay_charged_s_per_flight": float(np.mean([r.delay_charged_s for r in results])),
         "latency_s": percentiles(lat),
@@ -178,4 +182,10 @@ def markdown(table: dict[str, dict[str, Any]]) -> str:
         lo, hi = t["crash_rate_ci"]
         L.append(f"| {name} | {t['flights']} | {f(t['crash_rate'])} [{f(lo)} to {f(hi)}] | {f(t['crashes_per_km'])} | {f(t['success_rate'])} | "
                  f"{f(t['calls_per_flight'], 1)} | {f(t['query_rate'], 3)} | {f(t['mission_time_s_mean'], 1)} | {srs} |")
+    if any(t.get("outcomes") and sum(t["outcomes"].values()) for t in table.values()):
+        L += ["", "Outcome of every flight (the crash rate alone hides flights that never land):", "",
+              "| Policy | " + " | ".join(OUTCOMES) + " |", "|---|" + "---|" * len(OUTCOMES)]
+        for name, t in table.items():
+            o = t.get("outcomes", {})
+            L.append(f"| {name} | " + " | ".join(str(o.get(k, 0)) for k in OUTCOMES) + " |")
     return "\n".join(L)
