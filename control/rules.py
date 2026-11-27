@@ -76,7 +76,7 @@ class RuleController:
                  fence_margin_m: float = 3.0, max_side_switches: int = 1, evade_yaw_steps: int = 10, evade_extra_steps: int = 3,
                  evade_max_steps: int = 13, evade_timeout_steps: int = 30, evade_clear_needed: int = 2, evade_bypass_m: float = 15.0,
                  evade_climb_max_m: float = 6.0, evade_total_steps: int = 120, evade_side_m: float = 8.0,
-                 evade_cooldown_m: float = 15.0, fence_guard_m: float = 2.0) -> None:
+                 evade_cooldown_m: float = 15.0, fence_guard_m: float = 2.0, avoid_climb_max_m: float = 6.0) -> None:
         if avoid_mode not in ("climb_first", "choose"):
             raise ValueError(f"avoid_mode must be 'climb_first' or 'choose', got {avoid_mode!r}")
         self.d_safe, self.hysteresis, self.alt_max, self.alt_margin, self.heading_tol = d_safe, hysteresis, alt_max, alt_margin, heading_tol
@@ -86,6 +86,9 @@ class RuleController:
         # Evasion of a VLM "yes" that depth does not show (plan v8, step 2); see ``alert``. One yaw step is yaw_rate * dt (4.5 degrees).
         self.evade_climb_max_m = evade_climb_max_m
         self.evade_total_steps, self.evade_side_m, self.evade_cooldown_m = evade_total_steps, evade_side_m, evade_cooldown_m
+        # "Over" is only tried up to this height above cruise (above the avoidance start with no mission): an object that a climb of
+        # this size has not cleared is taken to be tall (wall, building), and the drone goes around it instead of up to alt_max.
+        self.avoid_climb_max_m = avoid_climb_max_m
         self.fence_guard_m = fence_guard_m  # the hard geofence guard acts this far inside the edge of the mission area
         self.evade_yaw_steps, self.evade_extra_steps, self.evade_max_steps = evade_yaw_steps, evade_extra_steps, evade_max_steps
         self.evade_timeout_steps, self.evade_clear_needed, self.evade_bypass_m = evade_timeout_steps, evade_clear_needed, evade_bypass_m
@@ -104,6 +107,7 @@ class RuleController:
         self.switches = 0  # left/right changes in this avoidance episode
         self.bypass_over = False  # the bypass follows an episode that went over: the fence does not cut it short
         self.avoid_start: tuple[float, float, float, float] | None = None  # x, y, heading, obstacle distance
+        self.avoid_start_alt = 0.0
         self.bypass_from: tuple[float, float, float, float] | None = None
         self.landing = False
         self.evading = False  # a sidestep after a VLM "yes" that depth does not show
@@ -180,12 +184,14 @@ class RuleController:
 
     def avoid_action(self, depth: DepthEstimate, state: DroneState, direction: str | None = None) -> Action:
         alt = -state.position[2]
-        can_climb = alt < self.alt_max - self.alt_margin
         if not self.avoiding:  # first step of an avoidance episode: remember where the obstacle is
+            self.avoid_start_alt = alt
             cmin = float(depth.features["corridor_min"])
             dist = cmin if cmin < self.d_safe + self.hysteresis else self.d_judge
             self.avoid_start = (state.position[0], state.position[1], state.yaw, dist)
             self.climbed, self.switches = False, 0
+        base = self.cruise_alt if self.cruise_alt is not None else self.avoid_start_alt
+        can_climb = alt < self.alt_max - self.alt_margin and alt < base + self.avoid_climb_max_m
         self.avoiding, self.bypass_from, self.phase = True, None, "avoid"
         action = self._avoid_step(depth, state, direction, can_climb)
         self.climbed = self.climbed or action == Action.CLIMB
@@ -334,4 +340,4 @@ class RuleController:
                 "evade_yaw_steps": self.evade_yaw_steps, "evade_extra_steps": self.evade_extra_steps, "evade_max_steps": self.evade_max_steps,
                 "evade_timeout_steps": self.evade_timeout_steps, "evade_clear_needed": self.evade_clear_needed, "evade_bypass_m": self.evade_bypass_m,
                 "evade_climb_max_m": self.evade_climb_max_m, "evade_total_steps": self.evade_total_steps,
-                "evade_side_m": self.evade_side_m, "fence_guard_m": self.fence_guard_m, "evade_cooldown_m": self.evade_cooldown_m}
+                "evade_side_m": self.evade_side_m, "fence_guard_m": self.fence_guard_m, "avoid_climb_max_m": self.avoid_climb_max_m, "evade_cooldown_m": self.evade_cooldown_m}

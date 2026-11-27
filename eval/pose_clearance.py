@@ -24,44 +24,49 @@ from sim.drone import DroneParams, KinematicState
 ALTS = (2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 12.0)
 
 
-def probe(sim: Any, x: float, alt: float) -> dict[str, float]:
-    obs = sim.observe(KinematicState(t=0.0, x=x, y=0.0, z=-alt, yaw=0.0, speed=0.0))
+def probe(sim: Any, x: float, alt: float, y: float = 0.0) -> dict[str, float]:
+    obs = sim.observe(KinematicState(t=0.0, x=x, y=y, z=-alt, yaw=0.0, speed=0.0))
     w = obs.depth[corridor_window(obs.depth.shape)]
     return {"depth_min": round(float(w.min()), 3), "depth_median": round(float(np.median(w)), 2), "frac_zero": round(float(np.mean(w <= 0.0)), 4)}
 
 
-def scan(sim: Any, starts: Sequence[Sequence[float]], xs: Sequence[float], alts: Sequence[float], passes: int, sink: Any) -> list[dict[str, Any]]:
+def scan(sim: Any, starts: Sequence[Sequence[float]], xs: Sequence[float], alts: Sequence[float], passes: int, sink: Any,
+         ys: Sequence[float] = (0.0,)) -> list[dict[str, Any]]:
     rows = []
     for n in range(passes):
         for i, start in enumerate(starts):
             sim.empty_map(start)
             for alt in alts:
-                for x in xs:
-                    row = {"pass": n, "pose": i, "alt": float(alt), "x": float(x), **probe(sim, float(x), float(alt))}
-                    sink.write(json.dumps(row) + "\n")
-                    rows.append(row)
+                for y in ys:
+                    for x in xs:
+                        row = {"pass": n, "pose": i, "alt": float(alt), "x": float(x), "y": float(y), **probe(sim, float(x), float(alt), float(y))}
+                        sink.write(json.dumps(row) + "\n")
+                        rows.append(row)
             sink.flush()
             print(f"pass {n} pose {i} done", flush=True)
     return rows
 
 
 def report(rows: Sequence[dict[str, Any]], radius: float) -> list[str]:
-    points: dict[tuple[int, float, float], list[dict[str, Any]]] = {}
+    points: dict[tuple[int, float, float, float], list[dict[str, Any]]] = {}
     for r in rows:
-        points.setdefault((r["pose"], r["alt"], r["x"]), []).append(r)
-    poses, alts = sorted({k[0] for k in points}), sorted({k[1] for k in points})
+        points.setdefault((r["pose"], r["alt"], r.get("y", 0.0), r["x"]), []).append(r)
+    poses, alts, ys = sorted({k[0] for k in points}), sorted({k[1] for k in points}), sorted({k[2] for k in points})
+    many_y = len(ys) > 1  # a lateral scan: one row per (pose, altitude, lateral offset)
     out = [f"corridor depth below {radius} m (hit in every pass = map; hit in some passes only = bad capture); no obstacles spawned", ""]
-    out += ["| pose | alt (m) | points | map hits | x of map hits | bad captures | x of bad captures | points with depth under 2 m in every pass |",
-            "|---|---|---|---|---|---|---|---|"]
+    out += ["| pose | alt (m) |" + (" y (m) |" if many_y else "") + " points | map hits | x of map hits | bad captures | x of bad captures | points with depth under 2 m in every pass |",
+            "|---|---|" + ("---|" if many_y else "") + "---|---|---|---|---|---|"]
     for p in poses:
-        for a in alts:
-            here = {k[2]: v for k, v in points.items() if k[:2] == (p, a)}
-            hits = {x: [r["depth_min"] < radius for r in v] for x, v in here.items()}
-            solid = sorted(x for x, h in hits.items() if all(h))
-            glitch = sorted(x for x, h in hits.items() if any(h) and not all(h))
-            near = sum(all(r["depth_min"] < 2.0 for r in v) for v in here.values())
-            show = lambda xs: " ".join(f"{x:g}" for x in xs) or "none"  # noqa: E731
-            out.append(f"| {p} | {a:g} | {len(here)} | {len(solid)} | {show(solid)} | {len(glitch)} | {show(glitch)} | {near} |")
+        for y in ys:
+            for a in alts:
+                here = {k[3]: v for k, v in points.items() if k[:3] == (p, a, y)}
+                hits = {x: [r["depth_min"] < radius for r in v] for x, v in here.items()}
+                solid = sorted(x for x, h in hits.items() if all(h))
+                glitch = sorted(x for x, h in hits.items() if any(h) and not all(h))
+                near = sum(all(r["depth_min"] < 2.0 for r in v) for v in here.values())
+                show = lambda xs: " ".join(f"{x:g}" for x in xs) or "none"  # noqa: E731
+                lat = f" {y:g} |" if many_y else ""
+                out.append(f"| {p} | {a:g} |{lat} {len(here)} | {len(solid)} | {show(solid)} | {len(glitch)} | {show(glitch)} | {near} |")
     zero = [r for r in rows if r["frac_zero"] > 0]
     diff = [max(r["depth_min"] for r in v) - min(r["depth_min"] for r in v) for v in points.values() if len(v) > 1]
     out += ["", f"captures: {len(rows)}; with zero depth in the window: {len(zero)}"]
@@ -77,6 +82,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--x-max", type=float, default=40.0)
     p.add_argument("--x-step", type=float, default=1.0)
     p.add_argument("--alts", type=float, nargs="+", default=list(ALTS))
+    p.add_argument("--ys", type=float, nargs="+", default=[0.0], help="lateral offsets (m) from the path, e.g. -12 -6 0 6 12")
     p.add_argument("--passes", type=int, default=2)
     a = p.parse_args(argv)
     import os
@@ -90,7 +96,7 @@ def main(argv: list[str] | None = None) -> None:
     sim = make_sim("airsim", **kw)
     try:
         with open(out / "scan.jsonl", "w") as f:
-            rows = scan(sim, kw["starts"], np.arange(0.0, a.x_max + 1e-6, a.x_step), a.alts, a.passes, f)
+            rows = scan(sim, kw["starts"], np.arange(0.0, a.x_max + 1e-6, a.x_step), a.alts, a.passes, f, a.ys)
     finally:
         sim.close()
     text = "\n".join(report(rows, DroneParams().radius)) + "\n"

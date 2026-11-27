@@ -33,3 +33,11 @@ def test_scan_separates_map_hits_from_bad_captures():
     assert "| 1 | 4 | 2 | 1 | 5 | 0 | none | 1 |" in text  # solid in both passes
     assert "| 0 | 2 | 2 | 0 | none | 1 | 0 | 0 |" in text  # first capture only
     assert "with zero depth in the window: 1" in text
+
+
+def test_lateral_scan_reports_one_row_per_offset():
+    rows = scan(FakeMap(), [[1, 0, 0]], [5.0], [4.0], 1, io.StringIO(), ys=[-6.0, 0.0, 6.0])
+    assert len(rows) == 3 and {r["y"] for r in rows} == {-6.0, 0.0, 6.0}
+    text = "\n".join(report(rows, 0.3))
+    assert "| pose | alt (m) | y (m) |" in text
+    assert "| 0 | 4 | -6 | 1 | 1 | 5 | 0 | none | 1 |" in text

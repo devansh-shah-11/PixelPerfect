@@ -769,3 +769,14 @@
 - Evidence: sweep table never 25 crashed/15 landed, oracle 6/29, gate_mlp 6/13 (15 left_area), always 6/2 (25 left_area); `results/scene_v2.report.md`; test `test_fence_guard_...`.
 - Outcome: partial. Laptop fix tested; the always-yes + invisible wall flight ends `lost`, not landed (camouflaged tall wall unsolved).
 - Follow-ups: rerun the sweep (`..._v2`); the 4 oracle crashes (box at bypass/return); gate lead time per crash; D22 approval.
+
+## 2026-11-27 16:00  |  control, eval  |  Scenery crashes in the VLM-response sweep: climb budget and lateral scenery scan (branch vlm/direction-bench)
+- Member: DS
+- Request: read `cone_vlm_response_v2`, plan next steps, then "check the scenery crashes, fix without tuning to this data, and do a scenery-height scan".
+- Action: laptop only. Read `results/sweeps/cone_vlm_response_v2/results.jsonl` (160 flights, 8B, D22 approved per DS, location not yet recorded). `control/rules.py`: new `avoid_climb_max_m` (6 m above cruise height; above the avoidance start with no mission); "over" is not chosen beyond it, so `_choose` takes the better side. `eval/pose_clearance.py`: `--ys` lateral offsets, report gains a `y (m)` column when more than one. Tests: `test_climb_over_is_bounded_so_a_tall_object_is_taken_on_a_side`, `test_lateral_scan_reports_one_row_per_offset`.
+- Assumptions: [UNVERIFIED] the scenery crashes with 44 to 80 repeated "over" steps (101082, 101088, 101094, pose 0) are climbs into tall scenery; [UNVERIFIED] the `return` crashes (101063, 101096) are descents into scenery below the corridor window; [UNVERIFIED] 6 m is a good budget (reused from `evade_climb_max_m`, not tuned).
+- Decisions & alternatives: bound the climb with a rule that needs no map knowledge, rather than tuning on seeds; sensitivity at 4, 6 and 10 m to be reported on all 40 val seeds. Rejected for now: a rescan at the height cap (new logic, DS decision) and a downward band before descending (wait for the v3 result).
+- Failures and corrections: I first said the goal landing spot keeps obstacles 6 m clear (from the plan text); `sim/scenario.py:135` says `land_clear_m = 8.0`, and it covers placed obstacles, not map scenery. I also stated "descending blind into scenery" as the cause of 101096; the log only shows phase `return`, action `descend`, altitude 20.3 m. DS: the sweep config never set `alt_max`, so the planned 50 m was not in use (cap 25 m).
+- Evidence: gate scenery crashes by start pose (pose 0: 3, pose 2: 3, pose 5: 1); `never` and `oracle` have 0; v2 outcomes never 15/25, oracle 33/3, gate 26/11, always 16/20 (landed/crashed). Laptop `pytest`: 233 passed, 1 skipped.
+- Outcome: partial. Code done and tested, not run on the HPC.
+- Follow-ups: v3 rerun and the lateral scan on the HPC; read return-leg crashes (101063, 101096) in per-flight logs; decide whether to raise `alt_max`; record the D22 approval.

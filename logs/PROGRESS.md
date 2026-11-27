@@ -259,3 +259,9 @@
 - Sanity check: `.venv/bin/python -m pytest -q` on the laptop: 231 passed, 1 skipped. Not yet re-run on the HPC.
 - Unblocked: rerun `configs/sweeps/airsim_cone_vlm_response.yaml` (out `..._v2`, prompt `cross`, cut -3.25). Still blocked: reporting any 8B flight number (D22 approval).
 - Not pushed. Backup reminder: `configs/` touched (sweep config); the gate pickle `results/gate/` is gitignored.
+
+## 2026-11-27  |  control, eval  |  climb budget in avoidance and lateral pose scan (branch vlm/direction-bench)
+- Advances: M4.7 side question "how to use the VLM" (not a numbered TASKS.md chunk; DS request). `avoid_climb_max_m` bounds "over" in `control/rules.py`; `eval/pose_clearance.py --ys` scans scenery off the path line.
+- Sanity check: `.venv/bin/python -m pytest -q` on the laptop: 233 passed, 1 skipped.
+- Unblocked: v3 sweep rerun and the lateral scan on the HPC. Still blocked: any change for the `return`-leg crashes (needs the per-flight logs), D22 record.
+- Not pushed. Backup reminder: no `configs/` change in this commit.

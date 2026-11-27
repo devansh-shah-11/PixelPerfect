@@ -162,6 +162,21 @@ def test_mission_steers_to_the_goal_bypasses_returns_to_cruise_and_lands():
     assert c.act(banded(1.0, left=1.0, right=1.0, up=1.0), pos(x=58.5, alt=1.0)) == Action.STOP  # landed; obstacles ignored
 
 
+def test_climb_over_is_bounded_so_a_tall_object_is_taken_on_a_side():
+    """Both sides and the way ahead read blocked: climb, but only ``avoid_climb_max_m`` above cruise height, then the better side."""
+    c = RuleController(avoid_mode="choose", goal_bias_m=0.0, avoid_climb_max_m=6.0)
+    c.set_mission((60.0, 0.0), cruise_alt=2.0, land_alt=1.0)
+    wall = banded(5.0, left=6.0, right=7.0, up=90.0)
+    assert c.act(wall, pos(alt=2.0)) == Action.CLIMB
+    assert c.act(wall, pos(alt=7.5)) == Action.CLIMB  # still inside the budget (cruise 2 + 6 = 8)
+    c2 = RuleController(avoid_mode="choose", goal_bias_m=0.0, avoid_climb_max_m=6.0)
+    c2.set_mission((60.0, 0.0), cruise_alt=2.0, land_alt=1.0)
+    assert c2.act(wall, pos(alt=8.5)) == Action.YAW_RIGHT  # budget used up: the better side, not further up
+    c3 = RuleController(avoid_mode="choose", avoid_climb_max_m=6.0)  # no mission: measured from where the avoidance began
+    assert c3.act(wall, pos(alt=10.0)) == Action.CLIMB
+    assert c3.act(wall, pos(alt=16.5)) == Action.YAW_RIGHT
+
+
 def test_bypass_ends_past_the_vlm_range_or_after_a_sideways_detour_and_restarts_on_a_new_obstacle():
     c = RuleController(avoid_mode="choose", d_judge=15.0)
     c.set_mission((60.0, 0.0), cruise_alt=2.0, land_alt=1.0)
