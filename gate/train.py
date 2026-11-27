@@ -190,7 +190,8 @@ def train_and_score(train: list[dict], val: list[dict], feature_sets: dict[str, 
             model = make_model(kind).fit(x_tr, y_tr)
             p_tr, p_va = model.predict_proba(x_tr)[:, 1], model.predict_proba(x_va)[:, 1]
             key = f"{kind}/{fs_name}"
-            results[key] = {"features": list(names), **evaluate_scores(val, p_va, cut_at_fpr(y_tr, p_tr), prob=True)}
+            cut = cut_at_fpr(y_tr, p_tr)
+            results[key] = {"features": list(names), "cut": cut, **evaluate_scores(val, p_va, cut, prob=True)}
             path = out_dir / f"gate_{kind}_{fs_name}.pkl"
             with open(path, "wb") as f:
                 pickle.dump({"model": model, "names": list(names), "kind": kind, "feature_set": fs_name}, f)
