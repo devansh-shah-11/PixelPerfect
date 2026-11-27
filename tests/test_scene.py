@@ -117,9 +117,9 @@ def test_driver_end_to_end_resumes_and_scores(tmp_path, monkeypatch):
     kw = dict(load_rgb=lambda b, s: rgb[s], load_depth=lambda b, s: depth[s], load_mask=lambda b, s: mask)
     out = tmp_path / "scene.jsonl"
     FakeJudge.calls = 0
-    rows = E.evaluate(FakeJudge(), "fake", "bank", _frames(), out, E.CONDITIONS, **kw)
+    rows = E.evaluate(FakeJudge(), "fake", "bank", _frames(), out, E.OLD_CONDITIONS, **kw)
     assert len(rows) == 6 and FakeJudge.calls == 2 * (1 + 6 + 1)
-    E.evaluate(FakeJudge(), "fake", "bank", _frames(), out, E.CONDITIONS, **kw)
+    E.evaluate(FakeJudge(), "fake", "bank", _frames(), out, E.OLD_CONDITIONS, **kw)
     assert FakeJudge.calls == 16  # resume: nothing new is asked
     summ = E.summarize(E.read_rows(out), yesno_cut=-4.02, grid_cut=0.0)
     js = summ["scene"]["fake|json_raw"]
@@ -128,3 +128,43 @@ def test_driver_end_to_end_resumes_and_scores(tmp_path, monkeypatch):
     assert "scene_json_raw|boxes" in summ["steering"] and "oracle|-" in summ["steering"] and "depth_gt_choose|-" in summ["steering"]
     assert "| condition |" in summ["scene_table"] and "| model |" in summ["steering_table"]
     json.dumps(summ, default=float)
+
+
+def test_prompt_v2_wording_has_no_ground_truth_and_no_metres_for_the_model_to_measure():
+    for key in S.PATH_PROMPTS:
+        t = S.path_prompt(key, overlay=True)
+        assert "drone" in t and "highlighted region" in t and "yes or no" in t
+        assert "centre of the image" in S.path_prompt(key, overlay=False)
+    assert "thin" in S.path_prompt("v2thin", True) and "10 metres" in S.path_prompt("v2near", True)
+    assert "15" not in S.path_prompt("v2", True) and "[]" in S.scene_prompt_v2() and "within 15" not in S.scene_prompt_v2()
+
+
+def test_v2_conditions_tune_the_cut_on_train_and_report_on_val(tmp_path, monkeypatch):
+    # train: 4 clear frames of mean 30..60 (with 4 negatives and FPR <= 0.10 the cut is the highest of them); val: an object frame brighter than that and a clear one darker
+    depth_obj = _depth(far=60.0)
+    depth_obj[20:50, 40:120] = 8.0
+    mean = {"t0": 30, "t1": 40, "t2": 50, "t3": 60, "vp": 90, "vn": 35}  # the fake scores a picture by its mean pixel, minus 60
+    rgb = {k: np.full((90, 160, 3), v, np.uint8) for k, v in mean.items()}
+    depth = {k: (depth_obj if k == "vp" else _depth(far=60.0)) for k in mean}
+    mask = np.zeros((90, 160), bool)
+    monkeypatch.setattr(E, "ground_truth", lambda bank, fr, hfov: {"corridor_min_gt_obstacle": 100.0})
+    base = {"condition": "clear", "obstacle": "box_1m_black", "pose": [0, 0, -3.0, 0], "gt_lateral_m": 0.0}
+    frames = [{**base, "split": "train", "episode": 1, "step": i, "stem": f"t{i}", "gt_along_m": 40.0} for i in range(4)]
+    frames += [{**base, "split": "val", "episode": 2, "step": 0, "stem": "vp", "gt_along_m": 9.0},
+               {**base, "split": "val", "episode": 2, "step": 1, "stem": "vn", "gt_along_m": 40.0}]
+
+    class J(FakeJudge):
+        def score_yes_no(self, images, prompt):
+            return float(images[0].mean()) - 60.0, 0.1
+
+    kw = dict(load_rgb=lambda b, s: rgb[s], load_depth=lambda b, s: depth[s], load_mask=lambda b, s: mask)
+    rows = E.evaluate(J(), "fake", "bank", frames, tmp_path / "v.jsonl", ["v2_both", "v2thin_both"], **kw)
+    assert len(rows) == 12
+    cuts = E.tune_cuts(rows, -4.02)
+    top = max(r["out"]["confidence"] for r in rows if r["condition"] == "v2_both" and r["split"] == "train")
+    assert cuts["v2_both"] == top  # no train negative may score above the cut
+    summ = E.summarize(rows, report_split="val")
+    s = summ["scene"]["fake|v2_both"]
+    assert summ["report_split"] == "val" and s["n_pos"] == 1 and s["n_neg"] == 1
+    assert s["recall"] == 1.0 and s["false_alarm"] == 0.0  # the cut came from train; val is only scored with it
+    assert "fake|v2_both" in summ["family_auroc"] and "AUROC" not in summ["scene_table"]

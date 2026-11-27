@@ -45,4 +45,12 @@ case " ${STEPS} " in *" scene "*)
     python -m vlm.eval_scene --bank "${BANK}" --models "${MODEL}" --splits val --stride 4 \
         --conditions json_raw grid_raw yesno_both --depth-model --out results/scene_val.jsonl ;;
 esac
+# Plan v8 step 1 (prompt v2): train + val, cuts tuned on train, numbers reported on val. About 30 to 40 min with the depth model.
+#   sbatch --time=01:30:00 --export=ALL,STEPS="scene2" hpc/direction_pilot.sbatch
+case " ${STEPS} " in *" scene2 "*)
+    # shellcheck disable=SC2086
+    python -m vlm.eval_scene --bank "${BANK}" --models "${MODEL}" --splits train val --stride 4 --report-split val \
+        --conditions ${SCENE2_CONDITIONS:-yesno_both v2_both v2near_both v2thin_both v2_raw jsonv2_both jsonv2_raw} \
+        --depth-model --out results/scene_v2.jsonl ;;
+esac
 echo "[$(date -Is)] done"

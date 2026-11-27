@@ -73,13 +73,19 @@ class RuleController:
     def __init__(self, d_safe: float = 8.0, hysteresis: float = 2.0, alt_max: float = 25.0, alt_margin: float = 1.0,
                  heading_tol: float = math.radians(10.0), avoid_mode: str = "climb_first", goal_bias_m: float = 5.0,
                  past_margin_m: float = 2.0, d_judge: float = 15.0, land_radius_m: float = 2.0, alt_tol_m: float = 0.2,
-                 fence_margin_m: float = 3.0, max_side_switches: int = 1) -> None:
+                 fence_margin_m: float = 3.0, max_side_switches: int = 1, evade_yaw_steps: int = 5, evade_extra_steps: int = 3,
+                 evade_max_steps: int = 13, evade_timeout_steps: int = 30, evade_clear_needed: int = 2, evade_bypass_m: float = 15.0,
+                 evade_climb_max_m: float = 6.0) -> None:
         if avoid_mode not in ("climb_first", "choose"):
             raise ValueError(f"avoid_mode must be 'climb_first' or 'choose', got {avoid_mode!r}")
         self.d_safe, self.hysteresis, self.alt_max, self.alt_margin, self.heading_tol = d_safe, hysteresis, alt_max, alt_margin, heading_tol
         self.avoid_mode, self.goal_bias_m, self.past_margin_m, self.d_judge = avoid_mode, goal_bias_m, past_margin_m, d_judge
         self.land_radius_m, self.alt_tol_m, self.fence_margin_m = land_radius_m, alt_tol_m, fence_margin_m
         self.max_side_switches = max_side_switches
+        # Evasion of a VLM "yes" that depth does not show (plan v8, step 2); see ``alert``. One yaw step is yaw_rate * dt (4.5 degrees).
+        self.evade_climb_max_m = evade_climb_max_m
+        self.evade_yaw_steps, self.evade_extra_steps, self.evade_max_steps = evade_yaw_steps, evade_extra_steps, evade_max_steps
+        self.evade_timeout_steps, self.evade_clear_needed, self.evade_bypass_m = evade_timeout_steps, evade_clear_needed, evade_bypass_m
         self.goal_bearing = 0.0  # path frame: with no mission the goal lies straight ahead along +x
         self.reset()
 
@@ -97,7 +103,14 @@ class RuleController:
         self.avoid_start: tuple[float, float, float, float] | None = None  # x, y, heading, obstacle distance
         self.bypass_from: tuple[float, float, float, float] | None = None
         self.landing = False
-        self.phase = "cruise"  # set by act(), for logs: cruise, avoid, bypass, return (down to cruise height), landing
+        self.evading = False  # a sidestep after a VLM "yes" that depth does not show
+        self.evade_side: str | None = None  # the fallback turn, committed for the whole evasion: no left-right-left
+        self.evade_start_alt = 0.0
+        self.evade_turn_left = 0  # yaw steps still to turn
+        self.evade_turn_total = 0
+        self.evade_since_alert = 0  # steps since the last "yes"
+        self.evade_clear = 0  # consecutive "clear" answers
+        self.phase = "cruise"  # set by act(), for logs: cruise, avoid, evade, bypass, return (down to cruise height), landing
 
     def set_mission(self, goal_xy: tuple[float, float], cruise_alt: float, land_alt: float, area_half_width_m: float | None = None) -> None:
         """The goal point (path frame), cruise and landing heights and the mission area, given at takeoff (after ``reset``)."""
@@ -183,6 +196,47 @@ class RuleController:
             self.side = self._choose(free, state, can_climb=False)
         return {"left": Action.YAW_LEFT, "right": Action.YAW_RIGHT, "over": Action.CLIMB}[self.side]
 
+    def alert(self, state: DroneState) -> None:
+        """The VLM said something is in the path while depth reads it clear (the depth-blind case: wire, pole, glass, camouflaged wall).
+
+        No direction comes from the VLM and none from the depth bands (blind here). The way past is found by climbing in place and
+        asking again: in this world the 6 m wires and poles are horizontal bars across the path (``sim.scenario.GLTF_AXES``), so going over
+        costs 0.3 m and going sideways 3 m; glass needs 1.8 m up and 1.5 m sideways. Climbing in place needs no forward motion, so it is also
+        the safe move when the object is close. Two "clear" answers end it and the bypass leg flies on past at that height. If the climb
+        reaches ``evade_climb_max_m`` (or the height cap) and the VLM still says yes, the object is tall (a wall, a building): the rest is
+        a turn to a side committed at the first alert (the goal side; the other one if that is outward at the fence), then flying on."""
+        if not self.evading:
+            side = self._goal_side(state) or "right"
+            if self._outward(side, state):
+                side = "left" if side == "right" else "right"
+            self.evading, self.evade_side = True, side
+            self.evade_start_alt = -state.position[2]
+            self.evade_turn_left = self.evade_turn_total = self.evade_yaw_steps
+        self.evade_since_alert, self.evade_clear = 0, 0
+
+    def clear(self) -> None:
+        """The VLM said the path is clear. ``evade_clear_needed`` in a row end the evasion."""
+        if self.evading:
+            self.evade_clear += 1
+
+    def _evade_step(self, state: DroneState) -> Action | None:
+        """Next action of the evasion, or None when it has just ended (the bypass leg then flies on past the object)."""
+        self.evade_since_alert += 1
+        if self.evade_clear >= self.evade_clear_needed or self.evade_since_alert >= self.evade_timeout_steps:
+            self.evading = False  # a policy that does not ask again (the gate) ends it by the timeout
+            self.climbed = self.evade_start_alt + 0.2 < -state.position[2]
+            self.bypass_from = (state.position[0], state.position[1], state.yaw, self.evade_bypass_m) if self.goal is not None else None
+            self.bypass_over = self.climbed  # after going over, the bypass keeps the height until it is past
+            return None
+        self.phase = "evade"
+        alt = -state.position[2]
+        if alt < self.evade_start_alt + self.evade_climb_max_m and alt < self.alt_max - self.alt_margin:
+            return Action.CLIMB
+        if self.evade_turn_left > 0:  # still blocked at the top: turn to the committed side, then fly on
+            self.evade_turn_left -= 1
+            return Action.YAW_LEFT if self.evade_side == "left" else Action.YAW_RIGHT
+        return Action.CONTINUE
+
     def act(self, depth: DepthEstimate, drone_state: DroneState) -> Action:
         x, y, alt = drone_state.position[0], drone_state.position[1], -drone_state.position[2]
         if self.goal is not None and (self.landing or math.hypot(self.goal[0] - x, self.goal[1] - y) <= self.land_radius_m):
@@ -190,7 +244,12 @@ class RuleController:
             return Action.DESCEND if alt > self.land_alt + 0.01 else Action.STOP  # DESCEND is floored at the landing height
         if self._blocked(float(depth.features["corridor_min"])):
             self.phase = "avoid"
+            self.evading = False  # depth shows it now: the normal avoidance takes over
             return self.avoid_action(depth, drone_state)
+        if self.evading:
+            action = self._evade_step(drone_state)
+            if action is not None:
+                return action
         if self.avoiding:  # the avoidance episode just ended
             self.avoiding, self.side = False, None
             self.bypass_from = self.avoid_start if self.goal is not None else None
@@ -221,4 +280,7 @@ class RuleController:
     def config(self) -> dict[str, Any]:
         return {"d_safe": self.d_safe, "hysteresis": self.hysteresis, "alt_max": self.alt_max, "avoid_mode": self.avoid_mode,
                 "goal_bias_m": self.goal_bias_m, "past_margin_m": self.past_margin_m, "d_judge": self.d_judge,
-                "land_radius_m": self.land_radius_m, "fence_margin_m": self.fence_margin_m, "max_side_switches": self.max_side_switches}
+                "land_radius_m": self.land_radius_m, "fence_margin_m": self.fence_margin_m, "max_side_switches": self.max_side_switches,
+                "evade_yaw_steps": self.evade_yaw_steps, "evade_extra_steps": self.evade_extra_steps, "evade_max_steps": self.evade_max_steps,
+                "evade_timeout_steps": self.evade_timeout_steps, "evade_clear_needed": self.evade_clear_needed, "evade_bypass_m": self.evade_bypass_m,
+                "evade_climb_max_m": self.evade_climb_max_m}

@@ -1,0 +1,40 @@
+# Plan v8 step 3: closed loop with the REAL 8B VLM and the evasion (climb in place, ask again, two clear answers end it).
+# Same courses and seeds as the 100-flight headroom set (results/sweeps/cone_headroom: DA2, never ask, 61% crash), first 40 of
+# its seeds, so the `never` row here must come out near that rate (sanity check) and every other row compares directly.
+# vlm_response: sidestep = the VLM never gives a direction; a "yes" that depth does not show starts the evasion (control/rules.py alert).
+# judge cut: tau -4.02 and prompt "cross" are the benchmark's val cut for the old prompt. After step 1 (results/scene_v2.report.md)
+# override with:  --set judge_kw.prompt_key=v2near --set judge_kw.tau=<the train-tuned cut of that condition>
+# Needs the gate pickle results/gate/gate_mlp_depth+temporal+image.pkl on the cluster (not in git): `ls results/gate/` first.
+# Needs D22 (8B in flights) approved by a teammate before the numbers are reported. Roughly 1 to 2 h of A100 per VLM policy.
+#   sbatch --time=04:00:00 --export=ALL,PA_ENV=/scratch/dns5508/envs/pa,HF_HOME=/scratch/$USER/hf,CMD="python -m eval.sweep --config configs/sweeps/airsim_cone_vlm_response.yaml" hpc/airsim_job.sbatch
+starts: &starts
+  - [-150.0, 50.0, 180.0, 140.0]   # old pose 1
+  - [150.0, -150.0, 0.0, 80.0]     # old pose 4
+  - [-50.0, 50.0, 270.0, 91.0]     # B
+  - [-150.0, -150.0, 90.0, 76.0]   # new
+  - [-150.0, 150.0, 0.0, 68.0]     # new
+  - [150.0, 150.0, 270.0, 77.0]    # D: map objects in the mission area (city)
+backend: airsim
+backend_kw: {configs: "${PP_SIM_CONFIGS}", scene_file: scene_cap_400.jsonc, starts: *starts}
+stack: da2
+judge: qwen
+judge_kw: {model_id: Qwen/Qwen3-VL-8B-Instruct, prompt_key: cross, tau: -4.02, direction: false}
+delay_s: 1.0
+split: val
+seeds: {file: configs/seeds.yaml, skip: 60, n: 40}
+scenario:
+  layout: cone
+  n_obstacles: [3, 8]
+  min_gap_m: 5.0
+  p_in_path: 0.35
+  alt_range_m: [1.8, 2.2]
+  families: [pole_10cm_axis_y, wire_3cm_axis_z, wire_1cm_axis_z, box_1m_grey, box_1m_black, wall_white_featureless, glass_pane_alpha20, ball_20cm_red]
+controller: {avoid_mode: choose}
+loop: {t_max: 120.0, vlm_response: sidestep}
+policies:
+  - {name: never, policy: never}
+  - {name: oracle, policy: oracle, cooldown_s: 1.0}   # asks exactly when the fast stack is wrong: separates "gate missed it" from "VLM or evasion failed"
+  - {name: gate_mlp, policy: gate, model_path: results/gate/gate_mlp_depth+temporal+image.pkl, tau: 0.256, cooldown_s: 1.0}
+  - {name: always, policy: always, cooldown_s: 1.0}
+out: results/sweeps/cone_vlm_response
+flight_logs: true

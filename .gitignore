@@ -245,3 +245,8 @@ Framebank/*
 
 # Trained gate models (regenerable with gate.train; keep gate_report.md and gate_results.json)
 *.pkl
+results/sweeps/raycast_cone_smoke/*
+results/sweeps/b1_flights/*
+flights/*
+b2_101084_true/*
+b2_101150_true/*

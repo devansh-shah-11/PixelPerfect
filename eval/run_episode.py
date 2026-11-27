@@ -71,6 +71,10 @@ class LoopConfig:
     t_max: float = 60.0
     delay_s: float = 1.0  # simulated seconds charged per VLM call (D10: never zero)
     vlm_avoid_s: float = 1.5  # how long a "yes" overrides a proposed CONTINUE
+    # What a VLM "yes" does. "override" (the original): the controller avoids for ``vlm_avoid_s`` on the VLM's direction or its own band choice.
+    # "sidestep" (plan v8): no direction is used. A yes that depth backs (the estimate is under d_safe) is left to the controller's normal
+    # avoidance; a yes that depth does not back starts the evasion (``RuleController.alert``: climb in place, ask again), which two "no" answers end.
+    vlm_response: str = "override"
     d_safe: float = 8.0  # for the L1 label handed to the oracle; match the controller
     d_judge: float = 15.0  # the surrogate's truth: a surface in the window closer than this "crosses" it
     # Map scenery in the truth of the surrogate VLM and the oracle (sim.raycast.scenery_truth): a true-depth surface
@@ -86,6 +90,8 @@ class LoopConfig:
     def __post_init__(self) -> None:
         if self.delay_s <= 0:
             raise ValueError("delay_s must be > 0 (PLAN_DETAILED.md D10)")
+        if self.vlm_response not in ("override", "sidestep"):
+            raise ValueError(f"vlm_response must be 'override' or 'sidestep', got {self.vlm_response!r}")
 
 
 def default_params(scenario: Scenario, controller: Any) -> DroneParams:
@@ -257,10 +263,18 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
             delay_total += charged
             direction = getattr(judge, "last_direction", None) if answer else None
             directions.append(direction)
-            if answer:
+            if cfg.vlm_response == "sidestep":
+                if answer and est_min >= controller.d_safe:  # depth does not show it: the VLM is the only sensor that does
+                    controller.alert(state.public())
+                    proposed = controller.act(est, state.public())
+                elif answer:
+                    pass  # depth backs the yes: the controller's own avoidance (act above) already handles it
+                else:
+                    controller.clear()
+            elif answer:
                 avoid_until, avoid_dir = state.t + cfg.vlm_avoid_s, direction
         action = proposed
-        if state.t < avoid_until and proposed == Action.CONTINUE:
+        if cfg.vlm_response == "override" and state.t < avoid_until and proposed == Action.CONTINUE:
             action = controller.avoid_action(est, state.public(), avoid_dir) if avoid_dir else controller.avoid_action(est, state.public())
 
         new = step(state, action, cfg.dt, params)

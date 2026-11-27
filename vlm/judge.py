@@ -74,6 +74,7 @@ PROMPTS = {
     # "free": the opposite question, so "yes" means clear. Separates what the model sees from its yes/no bias.
     "free": "Is {where} completely free of obstacles, with nothing in the way? Answer yes or no.",
 }
+from vlm.scene import PATH_PROMPTS  # noqa: E402  prompt v2 (plan v8): the drone, thin objects, camouflaged walls; ``prompt_text`` accepts these keys too
 # Prompts where "yes" means the path is clear: the judge flips the sign so confidence > 0 still means "obstacle".
 INVERTED_PROMPTS = frozenset({"free"})
 
@@ -88,7 +89,7 @@ def _slug_model(model_id: str) -> str:
 def prompt_text(key: str, overlay: bool) -> str:
     """The question for prompt ``key``, worded for whether the highlighted region is drawn."""
     where = "the highlighted region" if overlay else "the centre of the image"
-    return PROMPTS[key].format(where=where)
+    return (PROMPTS[key] if key in PROMPTS else PATH_PROMPTS[key]).format(where=where)
 
 # Surface forms of the two answers. Several spellings are single tokens in most
 # tokenizers; the ones that are not are skipped, so the score is robust to how

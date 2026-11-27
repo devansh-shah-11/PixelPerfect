@@ -716,3 +716,72 @@ def test_drone_height_cap_follows_the_controller():
     assert default_params(sc, RuleController()).alt_max == 25.0  # the default is unchanged
     p = default_params(sc, RuleController(alt_max=50.0))
     assert p.alt_max == 50.0 and p.alt_min == sc.land_alt_m
+
+
+# ---- evasion of a VLM "yes" that depth does not show (plan v8, step 2) ----------------------------------------
+
+
+def test_evasion_climbs_in_place_until_two_clear_answers_then_bypasses_at_height():
+    clear = banded(40.0, left=40.0, right=40.0, up=90.0)
+    c = RuleController(avoid_mode="choose")
+    c.set_mission((50.0, 0.0), cruise_alt=2.0, land_alt=1.0)
+    assert c.act(clear, pos()) == Action.CONTINUE and not c.evading
+    c.alert(pos())
+    assert c.evading and c.act(clear, pos(alt=2.0)) == Action.CLIMB and c.phase == "evade"
+    c.alert(pos(alt=2.4))  # another yes: still climbing, nothing restarts
+    assert c.evade_start_alt == 2.0 and c.act(clear, pos(alt=2.4)) == Action.CLIMB
+    c.clear()
+    assert c.evading and c.act(clear, pos(alt=3.0)) == Action.CLIMB  # one clear answer is not enough
+    c.clear()
+    assert c.act(clear, pos(alt=3.2)) == Action.CONTINUE  # two in a row: ended, the bypass flies on over the object
+    assert not c.evading and c.phase == "bypass" and c.bypass_over and c.bypass_from[3] == c.evade_bypass_m
+    assert c.act(clear, pos(x=5.0, alt=3.2)) == Action.CONTINUE and c.phase == "bypass"  # holds the height: no descent in front of it
+
+
+def test_evasion_turns_to_a_committed_side_only_when_the_climb_limit_is_reached():
+    clear = banded(40.0, left=40.0, right=40.0, up=90.0)
+    c = RuleController(avoid_mode="choose", evade_climb_max_m=3.0)
+    c.set_mission((50.0, 20.0), cruise_alt=2.0, land_alt=1.0)  # the goal lies to the right
+    c.alert(pos())
+    assert c.evade_side == "right"
+    assert c.act(clear, pos(alt=4.9)) == Action.CLIMB
+    assert [c.act(clear, pos(alt=5.1)) for _ in range(5)] == [Action.YAW_RIGHT] * 5  # 3 m up and still yes: a wall. Turn, one side
+    c.alert(pos(y=-5.0, alt=5.1))  # a new yes, the goal is on the other side now: the side stays
+    assert c.evade_side == "right" and c.act(clear, pos(y=-5.0, alt=5.1)) == Action.CONTINUE
+
+
+def test_evasion_respects_the_height_cap_and_a_silent_policy_ends_it_by_timeout():
+    clear = banded(40.0, left=40.0, right=40.0, up=90.0)
+    c = RuleController(avoid_mode="choose", evade_timeout_steps=12)
+    c.alert(pos(alt=24.5))
+    assert c.act(clear, pos(alt=24.5)) == Action.YAW_RIGHT  # no room above: straight to the turn
+    c.reset()
+    c.alert(pos())
+    acts = [c.act(clear, pos(alt=2.0 + 0.4 * i)) for i in range(14)]
+    assert not c.evading and acts[0] == Action.CLIMB  # no new yes and no clear answers: the timeout ends it
+
+
+def test_depth_showing_the_obstacle_hands_over_to_the_normal_avoidance():
+    c = RuleController(avoid_mode="choose")
+    c.alert(pos())
+    assert c.act(banded(5.0, left=12.0, right=40.0, up=90.0), pos()) in (Action.YAW_RIGHT, Action.YAW_LEFT, Action.CLIMB)
+    assert not c.evading and c.phase == "avoid"
+
+
+def test_evasion_off_by_default_and_the_loop_config_checks_its_mode():
+    with pytest.raises(ValueError):
+        LoopConfig(vlm_response="steer")
+    assert LoopConfig().vlm_response == "override"
+    assert RuleController().config()["evade_climb_max_m"] == 6.0
+
+
+def test_evasion_saves_a_blind_stack_from_a_wire_a_pole_and_glass_without_any_direction():
+    perfect = SurrogateJudge(default_tpr=1.0, default_fpr=0.0)  # no p_dir: it says yes, never a side
+    for family in ("wire_3cm_axis_z", "wire_1cm_axis_z", "pole_10cm_axis_z", "glass_pane_alpha20"):
+        sc = cone(goal=(50.0, 0.0), alt=2.0)
+        sc.obstacles.append(Obstacle(family, 15.0, 0.0, 2.0))
+        never = fly_cone(sc, BlindStack())
+        assert never.crashed, family
+        res = fly_cone(sc, BlindStack(), Always(cooldown_s=0.0), perfect, controller=RuleController(avoid_mode="choose"),
+                       vlm_response="sidestep", t_max=400.0)
+        assert not res.crashed and res.extra["outcome"] == "landed", (family, res.extra.get("crash"), res.extra.get("outcome"))

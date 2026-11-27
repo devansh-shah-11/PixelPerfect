@@ -21,6 +21,8 @@ RANGES = ("close", "near", "far")  # under CLOSE_M, CLOSE_M to NEAR_M, over NEAR
 KINDS = ("wire", "pole", "glass", "wall", "building", "tree", "vehicle", "other")
 THIN_KINDS = ("wire", "pole", "glass")
 CLOSE_M = 5.0
+DEPTH_SAFE_M = 8.0  # the fast stack acts below this; a depth "miss" is an object nearer than this that the estimate shows farther
+CORRIDOR_BOX = [450.0, 400.0, 550.0, 600.0]  # the highlighted window of vlm.overlay in 0-1000 units (what a yes/no question is about)
 NEAR_M = 15.0
 BOX_SCALE = 1000.0
 HUGE_AREA = 0.60  # a box covering more of the picture than this is "everything" (all-ones failure)
@@ -49,6 +51,38 @@ def scene_prompt() -> str:
         "The box uses coordinates from 0 to 1000 across the picture (0,0 is the top left corner). "
         f'kind is one of {", ".join(KINDS)}. range is "close" (under 5 m), "near" (5 to 15 m) or "far" (over 15 m). '
         "Reply [] if nothing is within 15 m."
+    )
+
+
+# Prompt v2 (plan v8): say what the drone is and what counts. Distances are NOT asked in metres (the model cannot measure them);
+# "near" wording only shifts how readily it says yes. Depth keeps giving the distance wherever it sees the surface.
+PATH_PROMPTS = {
+    # no range at all: anything in the path counts
+    "v2": ("A small drone is flying straight ahead, towards {where}. Is there anything in its path that it could crash into, including thin "
+           "wires, poles, glass, or a wall or building that is the same colour as its surroundings? Answer yes or no."),
+    # only what is close: the drone could hit it within a few seconds
+    "v2near": ("A small drone is flying straight ahead, towards {where}. Is there anything close in its path, within about 10 metres, that it "
+               "could crash into, including thin wires, poles, glass, or a wall that is the same colour as its surroundings? "
+               "Ignore distant buildings. Answer yes or no."),
+    # only the things a depth camera misses
+    "v2thin": ("A small drone is flying straight ahead, towards {where}. Is there a thin or hard-to-see object in its path, such as a wire, "
+               "cable, pole or pane of glass, or a wall that blends into its surroundings? Answer yes or no."),
+}
+
+
+def path_prompt(key: str, overlay: bool) -> str:
+    where = "the highlighted region" if overlay else "the centre of the image"
+    return PATH_PROMPTS[key].format(where=where)
+
+
+def scene_prompt_v2() -> str:
+    return (
+        "A small drone is flying straight ahead. List every object in its path that it could crash into, including thin wires, poles, "
+        "glass panes, and walls or buildings that are the same colour as their surroundings. Ignore the sky and the ground. "
+        'Reply with JSON only, a list like [{"box": [x0, y0, x1, y1], "kind": "wire", "range": "near"}]. '
+        "The box uses coordinates from 0 to 1000 across the picture (0,0 is the top left corner). "
+        f'kind is one of {", ".join(KINDS)}. range is "close" (under 5 m), "near" (5 to 15 m) or "far" (over 15 m). '
+        "Reply [] if the path is clear."
     )
 
 
@@ -196,11 +230,10 @@ def score_frame(pred: list[dict[str, Any]], truth: list[dict[str, Any]], near_m:
     for t in t_near:
         match = [p for p in p_near if _centre_in(p["box"], t["box"]) or iou(p["box"], t["box"]) >= 0.3]
         best = max(match, key=lambda p: iou(p["box"], t["box"])) if match else None
-        found.append({"src": t["src"], "kind": t["kind"], "found": best is not None,
+        found.append({"src": t["src"], "kind": t["kind"], "found": best is not None, "in_path": _inter(CORRIDOR_BOX, t["box"]) > 0,
                       "iou": iou(best["box"], t["box"]) if best else 0.0,
                       "range_exact": bool(best and best["range"] == t["bucket"]),
-                      "range_within_one": bool(best and abs(RANGES.index(best["range"]) - RANGES.index(t["bucket"])) <= 1),
-                      "depth_misses": t.get("depth_misses")})
+                      "depth_misses": bool(t.get("depth_misses")) and t["dist"] < DEPTH_SAFE_M})
     supported = [any(_inter(p["box"], t["box"]) > 0 for t in t_near) for p in p_near]
     return {"positive": bool(t_near), "flagged": bool(p_near), "all_ones": is_all_ones(pred), "objects": found,
             "n_pred_near": len(p_near), "n_supported": int(sum(supported))}
@@ -265,10 +298,13 @@ def summarize_condition(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "recall_placed": found([o for o in objs if o["src"] == "placed"]),
         "recall_scenery": found([o for o in objs if o["src"] == "scenery"]),
         "recall_depth_missed": found([o for o in objs if o["depth_misses"]]), "n_depth_missed": sum(1 for o in objs if o["depth_misses"]),
+        "recall_path": found([o for o in objs if o["in_path"]]), "n_path": sum(1 for o in objs if o["in_path"]),
+        "recall_path_thin": found([o for o in objs if o["in_path"] and o["kind"] in THIN_KINDS]),
+        "recall_path_depth_missed": found([o for o in objs if o["in_path"] and o["depth_misses"]]),
+        "n_path_depth_missed": sum(1 for o in objs if o["in_path"] and o["depth_misses"]),
         "box_precision": (sum(r["score"]["n_supported"] for r in rows) / pred_near) if pred_near else float("nan"),
         "median_iou_found": float(np.median([o["iou"] for o in objs if o["found"]])) if any(o["found"] for o in objs) else float("nan"),
         "range_exact": _rate([o["range_exact"] for o in objs if o["found"]]),
-        "range_within_one": _rate([o["range_within_one"] for o in objs if o["found"]]),
         "latency_median_s": float(np.median([r["latency_s"] for r in rows if r.get("latency_s") is not None])) if any(r.get("latency_s") is not None for r in rows) else float("nan"),
     }
 
@@ -290,9 +326,9 @@ def fmt(x: float, nd: int = 2) -> str:
 
 def table(summary: dict[str, dict[str, Any]]) -> str:
     cols = [("n_pos", "pos n"), ("n_neg", "neg n"), ("recall", "recall"), ("false_alarm", "false alarm"), ("all_ones", "all ones"),
-            ("parse_fail", "parse fail"), ("recall_thin", "thin found"), ("recall_big", "big found"), ("recall_scenery", "scenery found"),
-            ("recall_depth_missed", "depth-missed found"), ("box_precision", "box precision"), ("median_iou_found", "IoU"),
-            ("range_within_one", "range within 1"), ("latency_median_s", "latency s")]
+            ("parse_fail", "parse fail"), ("recall_path", "in-path found"), ("recall_path_thin", "in-path thin"),
+            ("recall_path_depth_missed", "in-path depth-missed"), ("box_precision", "box precision"), ("median_iou_found", "IoU"),
+            ("range_exact", "range exact"), ("latency_median_s", "latency s")]
     lines = ["| condition | " + " | ".join(h for _, h in cols) + " |", "|---|" + "---:|" * len(cols)]
     for key, s in summary.items():
         lines.append(f"| {key} | " + " | ".join(str(s[k]) if k in ("n_pos", "n_neg") else fmt(s[k]) for k, _ in cols) + " |")
