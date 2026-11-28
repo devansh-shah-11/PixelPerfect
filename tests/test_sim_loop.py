@@ -638,6 +638,28 @@ def test_vlm_direction_steers_past_a_wire_depth_cannot_see():
     r = fly_cone(sc, BlindStack(), policy=Oracle(), judge=judge)
     assert r.extra["outcome"] == "landed", r.extra
     assert "over" in r.extra["vlm_directions"]  # a 6 m horizontal wire: going over is the shortest way past
+    calls = r.extra["vlm_calls"]
+    assert len(calls) == r.n_calls and all(c["answer"] for c in calls) and calls[0]["truth"] in ("placed", None)
+
+
+def test_save_every_keeps_every_nth_picture(tmp_path):
+    sc = cone()
+    recs, _ = run_episode(sc, RaycastSim(CAM), TrueDepthStack(), RuleController(avoid_mode="choose"), Never(), None,
+                          LoopConfig(t_max=3.0, save_dir=str(tmp_path), save_every=5))
+    saved = [r for r in recs if r.rgb_path]
+    from pathlib import Path
+
+    assert len(saved) == len(range(0, len(recs), 5)) and all(Path(r.rgb_path).exists() for r in saved)
+    assert all(r.scenery_min_gt is not None and r.scenery_min_gt > 0 for r in recs)  # tube truth logged on every frame
+
+
+def test_call_truth_classes():
+    from eval.run_episode import call_truth
+    assert call_truth(5.0, "wire_1cm_axis_z", 8.0, 30.0) == "placed"
+    assert call_truth(5.0, "scenery", 8.0, 30.0) == "scenery"
+    assert call_truth(50.0, None, 8.0, 30.0) == "clear"
+    assert call_truth(15.0, "scenery", 8.0, 30.0) is None
+    assert call_truth(1.0, "ground", 8.0, 30.0) is None
 
 
 def test_lost_left_area_and_timeout_outcomes():

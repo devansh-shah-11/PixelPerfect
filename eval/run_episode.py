@@ -76,11 +76,13 @@ class LoopConfig:
     # avoidance; a yes that depth does not back starts the evasion (``RuleController.alert``: climb in place, ask again), which two "no" answers end.
     vlm_response: str = "override"
     d_safe: float = 8.0  # for the L1 label handed to the oracle; match the controller
+    d_clear: float = 30.0  # scoring the VLM calls: nothing closer than this is "clear" (D23); 8 to 30 m is left out
     d_judge: float = 15.0  # the surrogate's truth: a surface in the window closer than this "crosses" it
     # Map scenery in the truth of the surrogate VLM and the oracle (sim.raycast.scenery_truth): a true-depth surface
     # within this many metres of the drone's height and heading line. None: placed obstacles only (before 2026-11-25).
     scenery_tube_m: float | None = 0.8
     save_dir: str | None = None  # write rgb/depth/seg per frame here (large); off by default
+    save_every: int = 1  # with save_dir: keep every n-th frame only (data flights for the VLM probe: 5 = one picture per 0.5 s)
     # cone courses only (plan v7, DS 2026-11-25); all tunable on val
     land_radius_m: float = 2.0  # "landed" needs the drone this close to the goal, horizontally
     land_tol_m: float = 0.1  # and at most this far above the landing height
@@ -101,6 +103,14 @@ def default_params(scenario: Scenario, controller: Any) -> DroneParams:
     if scenario.goal_xy is not None:
         return DroneParams(v=scenario.speed_mps, alt_min=scenario.land_alt_m, alt_max=alt_max)
     return DroneParams(v=scenario.speed_mps, alt_max=alt_max)
+
+
+def call_truth(truth_min: float, family: str | None, d_safe: float, d_clear: float) -> str | None:
+    """Offline class of one VLM call (D23): "placed" or "scenery" closer than ``d_safe``, "clear" when nothing is within
+    ``d_clear``, None in between. Ground truth, so for scoring only: the loop never reads it."""
+    if truth_min < d_safe and family not in (None, "ground"):
+        return "scenery" if family == "scenery" else "placed"
+    return "clear" if truth_min >= d_clear else None
 
 
 def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, policy: Any, judge: Any = None,
@@ -150,6 +160,7 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
     collision_source, guard_hit = None, None
     outcome: str | None = None
     directions: list[str | None] = []
+    calls: list[dict[str, Any]] = []  # one row per VLM call, with an offline truth class (scoring only, never read by the loop)
     phases: list[tuple[float, str]] = []  # (t, phase) whenever the controller's phase changes
     avoid_bands: list[list[Any]] = []  # [t, left, right, over, side, action] on every avoidance step: what the controller saw (capped)
 
@@ -228,8 +239,10 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
 
         gt_min, family = corridor_truth(state, boxes, sim.cam)
         truth_min, truth_family, scenery_side = gt_min, family, None
+        scn_min = None
         if cfg.scenery_tube_m is not None:  # a map tree or building nearer than any placed obstacle in the path
             d_scn, side_scn = scenery_truth(obs.depth, state, boxes, sim.cam, tube_m=cfg.scenery_tube_m)
+            scn_min = round(float(min(d_scn, MAX_RANGE_M)), 2)  # logged for offline labels (VLM probe); capped like the depth range
             if d_scn < gt_min or (family in (None, "ground") and d_scn < MAX_RANGE_M):
                 truth_min, truth_family, scenery_side = d_scn, "scenery", side_scn
                 scenery_frames += d_scn < cfg.d_judge
@@ -263,6 +276,10 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
             delay_total += charged
             direction = getattr(judge, "last_direction", None) if answer else None
             directions.append(direction)
+            calls.append({"t": round(state.t, 2), "answer": answer, "score": round(conf, 4), "gate": getattr(policy, "last_score", None),
+                          "est_min": round(est_min, 2), "truth_min": round(float(truth_min), 2),
+                          "truth": call_truth(truth_min, truth_family, cfg.d_safe, cfg.d_clear),
+                          "phase": getattr(controller, "phase", None), "alt": round(state.alt, 2)})
             if cfg.vlm_response == "sidestep":
                 if answer and est_min >= controller.d_safe:  # depth does not show it: the VLM is the only sensor that does
                     controller.alert(state.public())
@@ -287,14 +304,15 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
             crash = crash_record(state, action, collision_source, None if hit_ground else hit_i)
         last_action = action
         distance += float(np.linalg.norm(p1 - p0))
-        paths = _save(save, k, obs, est) if save else ("", "", "", "")
+        paths = _save(save, k, obs, est) if save and k % max(1, cfg.save_every) == 0 else ("", "", "", "")
         records.append(FrameRecord(
             episode_id=episode_id, split=scenario.split, seed=scenario.seed, t=round(state.t, 4),
             rgb_path=paths[0], depth_gt_path=paths[1], seg_gt_path=paths[2], depth_est_path=paths[3],
             pose=(state.x, state.y, state.z, state.yaw), velocity=(state.speed * math.cos(state.yaw), state.speed * math.sin(state.yaw), 0.0),
             corridor_min_gt=gt_min, corridor_min_est=est_min, action_proposed=proposed, asked=asked, vlm_answer=answer,
             vlm_conf=conf, vlm_latency_real_s=lat, delay_charged_s=charged, action_taken=action, collision=collision,
-            obstacle_family=family if family not in (None, "ground") else None, gate_score=getattr(policy, "last_score", None)))
+            obstacle_family=family if family not in (None, "ground") else None, gate_score=getattr(policy, "last_score", None),
+            scenery_min_gt=scn_min))
         history.append(RuntimeStep(t=state.t, asked=asked, vlm_answer=answer, action_taken=action, gate_score=getattr(policy, "last_score", None)))
         state = new
         if collision:
@@ -337,6 +355,7 @@ def run_episode(scenario: Scenario, sim: Any, stack: Any, controller: Any, polic
         result.extra.update({"outcome": outcome or ("crashed" if crashed else "timeout"), "goal_xy": list(scenario.goal_xy),
                              "goal_dist_m": round(goal_dist(state), 2), "end_alt_m": round(state.alt, 2),
                              "n_obstacles": len(scenario.obstacles), "phases": phases, "vlm_directions": directions,
+                             "vlm_calls": calls,
                              "avoid_bands": avoid_bands})
     if image_ms:  # wall-clock cost of the gate's image features per frame (PLAN_DETAILED.md §4.2 budget: under 1 ms)
         result.extra["image_features_ms"] = {"median": round(float(np.median(image_ms)), 3), "p95": round(float(np.percentile(image_ms, 95)), 3)}

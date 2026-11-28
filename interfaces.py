@@ -108,6 +108,7 @@ class FrameRecord:
     collision: bool
     obstacle_family: str | None  # e.g. "wire"; None if no obstacle in the corridor
     gate_score: float | None = None
+    scenery_min_gt: float | None = None  # nearest map surface in the drone's flight tube (sim.raycast.scenery_truth); None if not computed
 
     def to_json(self) -> str:
         d = asdict(self)

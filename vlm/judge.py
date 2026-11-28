@@ -250,6 +250,34 @@ class QwenVLJudge:
                 torch.cuda.synchronize()
         return logits.float().cpu().numpy()
 
+    def _hidden(self, images: list[np.ndarray], layers: Sequence[int]) -> tuple[np.ndarray, dict[int, np.ndarray]]:
+        """One forward pass with the judge's prompt: next-token logits and the last token's hidden state at each of ``layers``
+        (indices into ``hidden_states``, negative counts from the top). Overridden by tests with a fake."""
+        import torch
+
+        if self._model is None:
+            self._load()
+        content: list[dict[str, Any]] = [{"type": "image"} for _ in images]
+        content.append({"type": "text", "text": self.prompt})
+        text = self._processor.apply_chat_template([{"role": "user", "content": content}], add_generation_prompt=True, tokenize=False)
+        inputs = self._processor(text=[text], images=[Image.fromarray(im) for im in images], return_tensors="pt").to(self.device)
+        with torch.inference_mode():
+            out = self._model(**inputs, output_hidden_states=True)
+            hs = out.hidden_states
+            vecs = {int(i): hs[i][0, -1].float().cpu().numpy() for i in layers}
+            logits = out.logits[0, -1].float().cpu().numpy()
+        return logits, vecs
+
+    def features(self, image: np.ndarray, path_overlay: np.ndarray, crop: np.ndarray,
+                 layers: Sequence[int] = (-1,)) -> tuple[float, dict[int, np.ndarray]]:
+        """The same inputs as ``ask`` (overlay and crop per the switches): the yes/no score and the hidden states for a probe."""
+        images = [path_overlay if self.use_overlay else image]
+        if self.use_crop:
+            images.append(crop)
+        logits, vecs = self._hidden(images, layers)
+        conf = yes_no_score(logits, self._yes_ids, self._no_ids)
+        return (-conf if self.invert else conf), vecs
+
     def ask_direction(self, images: list[np.ndarray], prompt: str) -> tuple[dict[str, float], float]:
         """One pass, no prior yes/no: log-probabilities over straight / left / right / over, and the latency in seconds.
 

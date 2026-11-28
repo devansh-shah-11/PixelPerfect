@@ -1,0 +1,39 @@
+# Data flights for the learned VLM read-out (probe on the frozen 8B; plan 2026-11-27, step 1). TRAIN seeds only.
+# Same courses, poses, scenario and judge as the VLM-response sweep (configs/sweeps/airsim_cone_vlm_response.yaml), so the
+# pictures look like the flights the probe will judge. never = cruise-height views; always = evasion views (higher, turned,
+# near buildings), which is where the 8B said yes to clear frames. Every 5th frame (0.5 s) keeps rgb/seg/true depth/estimate.
+# Labels come later, offline, from the true depth (vlm.features stores the distances; CLAUDE.md rule 5: never at run time).
+# Size [UNVERIFIED, estimate]: never ~200 steps, always up to 1200 steps per flight at ~0.22 s wall per step (M4.2), so about
+# 1 h (never) + 3 to 4 h (always) of A100; about 14k saved frames. Resumable: resubmit if the wall time runs out.
+#   sbatch --time=06:00:00 --export=ALL,PA_ENV=/scratch/dns5508/envs/pa,HF_HOME=/scratch/$USER/hf,CMD="python -m eval.sweep --config configs/sweeps/airsim_cone_vlm_data.yaml" hpc/airsim_job.sbatch
+# Then the hidden states (GPU, no simulator; one A100 job, ~0.1 s per frame):
+#   python -m vlm.features --logs 'results/sweeps/cone_vlm_data/flights/*.jsonl' --out results/vlm_features/qwen8b --model Qwen/Qwen3-VL-8B-Instruct
+starts: &starts
+  - [-150.0, 50.0, 180.0, 140.0]   # old pose 1
+  - [150.0, -150.0, 0.0, 80.0]     # old pose 4
+  - [-50.0, 50.0, 270.0, 91.0]     # B
+  - [-150.0, -150.0, 90.0, 76.0]   # new
+  - [-150.0, 150.0, 0.0, 68.0]     # new
+  - [150.0, 150.0, 270.0, 77.0]    # D: map objects in the mission area (city)
+backend: airsim
+backend_kw: {configs: "${PP_SIM_CONFIGS}", scene_file: scene_cap_400.jsonc, starts: *starts}
+stack: da2
+judge: qwen
+judge_kw: {model_id: Qwen/Qwen3-VL-8B-Instruct, prompt_key: cross, tau: -3.25, direction: false}
+delay_s: 1.0
+split: train
+seeds: {file: configs/seeds.yaml, skip: 0, n: 60}
+scenario:
+  layout: cone
+  n_obstacles: [3, 8]
+  min_gap_m: 5.0
+  p_in_path: 0.35
+  alt_range_m: [1.8, 2.2]
+  families: [pole_10cm_axis_y, wire_3cm_axis_z, wire_1cm_axis_z, box_1m_grey, box_1m_black, wall_white_featureless, glass_pane_alpha20, ball_20cm_red]
+controller: {avoid_mode: choose}
+loop: {t_max: 120.0, vlm_response: sidestep, save_dir: results/vlm_data/raw, save_every: 5}
+policies:
+  - {name: never, policy: never}                    # pictures at cruise height along the course
+  - {name: always, policy: always, cooldown_s: 1.0}  # pictures from evasions: higher, turned, near map scenery
+out: results/sweeps/cone_vlm_data
+flight_logs: true
